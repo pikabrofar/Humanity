@@ -6,10 +6,16 @@ import CoreVideo
 public final class CameraCapture: NSObject, @unchecked Sendable {
     public let session = AVCaptureSession()
 
-    /// Called on the capture queue for every frame. Set before `start()`.
-    public var onFrame: ((CVPixelBuffer, TimeInterval) -> Void)?
+    /// Called on the capture queue for every frame. Safe to set from any thread.
+    public var onFrame: ((CVPixelBuffer, TimeInterval) -> Void)? {
+        get { frameLock.withLock { frameHandler } }
+        set { frameLock.withLock { frameHandler = newValue } }
+    }
 
+    /// All session changes and frame delivery happen on this queue.
     private let queue = DispatchQueue(label: "GazeKit.CameraCapture", qos: .userInteractive)
+    private let frameLock = NSLock()
+    private var frameHandler: ((CVPixelBuffer, TimeInterval) -> Void)?
     private let output = AVCaptureVideoDataOutput()
     private var input: AVCaptureDeviceInput?
 
@@ -30,7 +36,13 @@ public final class CameraCapture: NSObject, @unchecked Sendable {
     }
 
     /// Selects a camera (or the system default) and configures the session.
+    /// Runs on the capture queue, so it can't race `start()` / `stop()`. Blocks
+    /// the caller while the session reconfigures.
     public func configure(deviceID: String? = nil) throws {
+        try queue.sync { try configureOnQueue(deviceID: deviceID) }
+    }
+
+    private func configureOnQueue(deviceID: String?) throws {
         let device = deviceID.flatMap(AVCaptureDevice.init(uniqueID:))
             ?? AVCaptureDevice.default(for: .video)
         guard let device else { throw CameraError.noCamera }

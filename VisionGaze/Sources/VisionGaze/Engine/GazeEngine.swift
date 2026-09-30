@@ -26,7 +26,7 @@ final class GazeEngine {
 
     var calibration: StoredCalibration? {
         didSet {
-            CalibrationStore.save(calibration)
+            scheduleSave()
             if calibration == nil { gaze = nil }
         }
     }
@@ -61,6 +61,10 @@ final class GazeEngine {
     /// Last non-blink frames, for learning from clicks.
     @ObservationIgnored private var recentFeatures: [GazeFeatures] = []
     @ObservationIgnored private var isRefitting = false
+    /// Click samples arrived during a refit; run one more when it finishes.
+    @ObservationIgnored private var needsRefit = false
+    @ObservationIgnored private var saveTask: Task<Void, Never>?
+    @ObservationIgnored private let analyses = AnalysisMailbox()
     @ObservationIgnored private var offscreenFrames = 0
     @ObservationIgnored private var lastFaceTime: CFTimeInterval = 0
     @ObservationIgnored private var fpsWindowStart: CFTimeInterval = 0
@@ -69,10 +73,13 @@ final class GazeEngine {
     var faceDetected: Bool { landmarks != nil }
     var isCalibrated: Bool { calibration != nil }
 
-    /// The display the current calibration maps onto.
-    var targetScreen: NSScreen {
-        calibration.flatMap { NSScreen.withDisplayID($0.displayID) } ?? NSScreen.main ?? NSScreen.screens[0]
+    /// The display the current calibration maps onto; nil only while no display is attached.
+    var currentScreen: NSScreen? {
+        calibration.flatMap { NSScreen.withDisplayID($0.displayID) } ?? NSScreen.main ?? NSScreen.screens.first
     }
+
+    /// `currentScreen` for user-initiated actions, when a display is certainly attached.
+    var targetScreen: NSScreen { currentScreen ?? NSScreen.screens[0] }
 
     var captureSession: AVCaptureSessionBox { AVCaptureSessionBox(session: camera.session) }
 
@@ -85,6 +92,17 @@ final class GazeEngine {
         processor.setRefinement(pupilRefinement)
         applySmoothing()
         loadNetwork()
+        // Set once: the capture queue reads the handler on every frame.
+        camera.onFrame = { [processor, analyses, weak self] pixelBuffer, timestamp in
+            // If the main thread falls behind, only the newest analysis is delivered.
+            guard analyses.put(processor.process(pixelBuffer, timestamp)) else { return }
+            DispatchQueue.main.async {
+                MainActor.assumeIsolated { self?.deliverAnalysis() }
+            }
+        }
+        NotificationCenter.default.addObserver(forName: NSApplication.willTerminateNotification, object: nil, queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated { self?.waitForSaves() }
+        }
     }
 
     private func loadNetwork() {
@@ -133,19 +151,18 @@ final class GazeEngine {
             cameraState = .failed(error.localizedDescription)
             return
         }
-        camera.onFrame = { [processor, weak self] pixelBuffer, timestamp in
-            let analysis = processor.process(pixelBuffer, timestamp)
-            DispatchQueue.main.async {
-                MainActor.assumeIsolated { self?.handle(analysis) }
-            }
-        }
         camera.start()
         cameraState = .running
     }
 
-    private func handle(_ analysis: FrameAnalysis) {
+    private func deliverAnalysis() {
+        guard let (analysis, frames) = analyses.take() else { return }
+        handle(analysis, frames: frames)
+    }
+
+    private func handle(_ analysis: FrameAnalysis, frames: Int) {
         let now = CACurrentMediaTime()
-        countFrame(at: now)
+        countFrames(frames, at: now)
         imageSize = analysis.imageSize
         landmarks = analysis.landmarks
         features = analysis.features
@@ -165,8 +182,8 @@ final class GazeEngine {
         recentFeatures.append(features)
         if recentFeatures.count > 15 { recentFeatures.removeFirst() }
 
-        guard let model = calibration?.model else { return }
-        let size = targetScreen.frame.size
+        guard let model = calibration?.model, let screen = currentScreen else { return }
+        let size = screen.frame.size
         var point = model.predict(features)
         // Looking away (at the keyboard, a phone, another screen): hide the
         // cursor after a few consistent frames instead of pinning it to an edge.
@@ -189,8 +206,9 @@ final class GazeEngine {
         gazeSink?(GazeSample(t: features.timestamp, x: smoothed.x, y: smoothed.y))
     }
 
-    private func countFrame(at now: CFTimeInterval) {
-        fpsFrames += 1
+    /// `frames` includes analyses skipped because the main thread fell behind.
+    private func countFrames(_ frames: Int, at now: CFTimeInterval) {
+        fpsFrames += frames
         if now - fpsWindowStart >= 1 {
             fps = Double(fpsFrames) / (now - fpsWindowStart)
             fpsFrames = 0
@@ -208,25 +226,92 @@ final class GazeEngine {
     /// calibration samples and the model is refit off the main thread. Clicks
     /// in varied head poses also sharpen the head-movement parameters.
     func learnFromClick(at target: CGPoint) {
-        guard var stored = calibration, let latest = recentFeatures.last else { return }
-        let frames = recentFeatures.filter { latest.timestamp - $0.timestamp <= 0.25 }
+        guard var stored = calibration else { return }
+        // Frame timestamps are host time, the same clock as CACurrentMediaTime.
+        let now = CACurrentMediaTime()
+        let frames = recentFeatures.filter { now - $0.timestamp <= 0.25 }
         // A click far from the predicted gaze usually means the user wasn't looking.
         guard frames.count >= 3, let gaze, gaze.distance(to: target) < 0.25 else { return }
 
         stored.clickSamples.append(contentsOf: frames.map { CalibrationSample(features: $0, target: target) })
         stored.clickSamples = Array(stored.clickSamples.suffix(StoredCalibration.maxClickSamples))
         calibration = stored
-        guard !isRefitting else { return } // samples join the next refit
+        refit()
+    }
 
+    /// Refits the model on explicit + click samples off the main thread.
+    private func refit() {
+        guard let stored = calibration else { return }
+        guard !isRefitting else {
+            needsRefit = true // samples join the next refit
+            return
+        }
         isRefitting = true
+        needsRefit = false
         let samples = stored.samples + stored.clickSamples, geometry = stored.model.geometry
         let ridge = stored.model.appearanceRidge
+        // Identifies the model this fit replaces; a recalibration meanwhile changes it.
+        let basis = stored.model.createdAt
         Task {
             let model = await Task.detached(priority: .utility) {
                 try? GazeCalibration.fit(samples: samples, geometry: geometry, appearanceRidge: ridge)
             }.value
             isRefitting = false
-            if let model, calibration != nil { calibration?.model = model }
+            // Skip a stale result: the user recalibrated (or cleared) during the fit.
+            if let model, calibration?.model.createdAt == basis { calibration?.model = model }
+            if needsRefit { refit() }
+        }
+    }
+
+    // MARK: Persistence
+
+    /// Saves are debounced and encoded off the main thread: a calibration holds
+    /// thousands of samples and changes on every learned click.
+    private func scheduleSave() {
+        saveTask?.cancel()
+        saveTask = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(2))
+            guard !Task.isCancelled else { return }
+            self?.flushSave()
+        }
+    }
+
+    private func flushSave() {
+        saveTask?.cancel()
+        saveTask = nil
+        CalibrationStore.saveInBackground(calibration)
+    }
+
+    /// Blocks until pending saves are on disk. Runs when the app terminates.
+    private func waitForSaves() {
+        flushSave()
+        CalibrationStore.waitForSaves()
+    }
+}
+
+/// Hands the newest frame analysis from the camera queue to the main actor,
+/// dropping older ones if the main thread falls behind.
+private final class AnalysisMailbox: @unchecked Sendable {
+    private let lock = NSLock()
+    private var latest: FrameAnalysis?
+    private var frames = 0
+
+    /// Stores the analysis. Returns true if the caller should schedule delivery.
+    func put(_ analysis: FrameAnalysis) -> Bool {
+        lock.withLock {
+            let wasEmpty = latest == nil
+            latest = analysis
+            frames += 1
+            return wasEmpty
+        }
+    }
+
+    /// The newest analysis and how many frames it stands for.
+    func take() -> (FrameAnalysis, Int)? {
+        lock.withLock {
+            guard let analysis = latest else { return nil }
+            defer { latest = nil; frames = 0 }
+            return (analysis, frames)
         }
     }
 }

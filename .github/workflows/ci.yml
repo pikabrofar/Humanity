@@ -1,0 +1,29 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  visiongaze:
+    # macos-14 images are retired on 2026-11-02.
+    runs-on: macos-15
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: VisionGaze
+    steps:
+      - uses: actions/checkout@v4
+      - run: swift --version
+      - uses: actions/cache@v4
+        with:
+          path: VisionGaze/.build
+          key: spm-${{ runner.os }}-${{ hashFiles('VisionGaze/Package.swift', 'VisionGaze/Package.resolved') }}
+      - name: Build
+        run: swift build
+      - name: Test
+        run: make test

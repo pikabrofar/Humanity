@@ -5,9 +5,11 @@ enum LinearAlgebra {
         let n = b.count
         var m = a
         var rhs = b
+        // Relative to the matrix scale: Gram matrices here are in mm² or pixel² units.
+        let tolerance = 1e-12 * (a.lazy.flatMap { $0 }.map { abs($0) }.max() ?? 0)
         for col in 0..<n {
             guard let pivot = (col..<n).max(by: { abs(m[$0][col]) < abs(m[$1][col]) }),
-                  abs(m[pivot][col]) > 1e-12
+                  abs(m[pivot][col]) > tolerance
             else { return nil }
             m.swapAt(col, pivot)
             rhs.swapAt(col, pivot)

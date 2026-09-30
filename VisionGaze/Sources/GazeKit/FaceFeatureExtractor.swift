@@ -21,7 +21,10 @@ public final class FaceFeatureExtractor {
 
     /// A frame counts as a blink when openness falls below this fraction of the
     /// running baseline.
-    public var blinkRatio = 0.65
+    public var blinkRatio: Double {
+        get { blinks.blinkRatio }
+        set { blinks.blinkRatio = newValue }
+    }
 
     /// Optional appearance-based gaze CNN, run on the face crop each frame.
     public var network: GazeNetwork?
@@ -30,7 +33,7 @@ public final class FaceFeatureExtractor {
     /// Landmark results don't carry head pose; revision 3 face rectangles do.
     private let poseRequest: VNDetectFaceRectanglesRequest
     private let refiner = PupilRefiner()
-    private var opennessBaseline: Double?
+    private var blinks = BlinkDetector()
 
     public init() {
         request = VNDetectFaceLandmarksRequest()
@@ -76,11 +79,7 @@ public final class FaceFeatureExtractor {
         let right = Self.eyeFeatures(contour: rightEye, pupil: rightPupil, angle: eyeLineAngle)
 
         let openness = (left.openness + right.openness) / 2
-        let baseline = opennessBaseline ?? openness
-        let isBlinking = openness < baseline * blinkRatio
-        if !isBlinking {
-            opennessBaseline = baseline * 0.97 + openness * 0.03
-        }
+        let isBlinking = blinks.update(openness: openness, timestamp: timestamp)
 
         result.features = GazeFeatures(
             timestamp: timestamp,
@@ -88,7 +87,7 @@ public final class FaceFeatureExtractor {
             right: right,
             yaw: pose.yaw?.doubleValue ?? 0,
             pitch: pose.pitch?.doubleValue ?? 0,
-            roll: pose.roll?.doubleValue ?? eyeLineAngle,
+            roll: pose.roll?.doubleValue ?? Self.wrapToHalfTurn(eyeLineAngle),
             faceCenter: CGPoint(x: face.boundingBox.midX, y: face.boundingBox.midY),
             faceSize: Double(face.boundingBox.width),
             isBlinking: isBlinking,
@@ -129,6 +128,17 @@ public final class FaceFeatureExtractor {
             pupil: CGPoint(x: (Double(p.x) - Double(inner.x)) / width, y: (Double(p.y) - cornerY) / width),
             openness: Double(maxY - minY) / width
         )
+    }
+
+    /// Maps an inter-ocular line angle into (-π/2, π/2]. Which eye Vision calls
+    /// "left" decides whether the raw angle is near 0 or near ±π; as a head roll
+    /// both mean "level". The features themselves use the raw angle, since
+    /// flipping it would flip both feature axes of existing calibrations.
+    static func wrapToHalfTurn(_ angle: Double) -> Double {
+        var a = angle
+        while a > .pi / 2 { a -= .pi }
+        while a <= -.pi / 2 { a += .pi }
+        return a
     }
 }
 

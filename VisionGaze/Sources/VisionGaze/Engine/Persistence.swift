@@ -86,6 +86,17 @@ enum CalibrationStore {
         return try? JSONDecoder().decode(StoredCalibration.self, from: data)
     }
 
+    /// Serial, so saves land on disk in the order they were made.
+    private static let saveQueue = DispatchQueue(label: "VisionGaze.CalibrationStore", qos: .utility)
+
+    static func saveInBackground(_ calibration: StoredCalibration?) {
+        saveQueue.async { save(calibration) }
+    }
+
+    static func waitForSaves() {
+        saveQueue.sync {}
+    }
+
     static func save(_ calibration: StoredCalibration?) {
         if let calibration, let data = try? JSONEncoder().encode(calibration) {
             try? data.write(to: url, options: .atomic)

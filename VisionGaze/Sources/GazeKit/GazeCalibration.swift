@@ -103,7 +103,14 @@ public struct GazeCalibration: Codable, Sendable {
         }
         geometry = try c.decode(ScreenGeometry.self, forKey: .geometry)
         featureMean = try c.decode([Double].self, forKey: .featureMean)
+        guard featureMean.count == 3 else {
+            throw DecodingError.dataCorruptedError(forKey: .featureMean, in: c, debugDescription: "Expected 3 feature means")
+        }
         appearance = try c.decodeIfPresent(AppearanceModel.self, forKey: .appearance)
+        if let appearance, appearance.weights.count != 2
+            || !appearance.weights.allSatisfy({ $0.count == appearance.mean.count }) {
+            throw DecodingError.dataCorruptedError(forKey: .appearance, in: c, debugDescription: "Malformed appearance model")
+        }
         report = try c.decode(CalibrationReport.self, forKey: .report)
         createdAt = try c.decode(Date.self, forKey: .createdAt)
     }
