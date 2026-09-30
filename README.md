@@ -17,6 +17,13 @@ framework: no extra hardware, no cloud.
 
 Each app is a self-contained Swift package. See its README to build it.
 
+## Research
+
+[docs/research](docs/research/) collects ten reports on camera eye and hand
+tracking (gaze models, pupil detection, calibration, filtering, hand pose,
+gestures, macOS input injection, gaze + hand interaction, prior art and
+evaluation), plus a combined roadmap.
+
 ## License
 
 MIT. See [LICENSE](LICENSE).
