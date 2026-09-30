@@ -1,8 +1,9 @@
 # Camera eye and hand tracking research
 
-Ten research reports on webcam eye and hand tracking and how to program it
-for oculOS. Each was written by one of ten research agents working in parallel,
-with a 10-minute limit per agent, and each covers one topic. Every report has a
+Thirty research reports on webcam eye and hand tracking and how to program it
+for oculOS. Reports 01–10 were written by ten research agents working in
+parallel (10-minute limit each), and reports 11–30 by twenty more (5-minute
+limit each, so they are shorter). Each covers one topic. Every report has a
 TL;DR, key findings, code (Swift or pseudocode), recommendations for oculOS,
 pitfalls, and sources.
 
@@ -25,6 +26,33 @@ have not been compiled.
 | 08 | [macOS input integration](08-macos-input-integration.md) | `CGEvent` with the Post Event permission. Stable code signing so TCC grants survive rebuilds. Top-left global coordinates. Pixel scroll events with no phase fields. |
 | 09 | [Multimodal gaze + hand](09-multimodal-gaze-hand.md) | Gaze picks the target and the hand commits. Snap to Accessibility elements. Use gaze from about 100–150 ms before the pinch. Hide the raw gaze cursor. |
 | 10 | [Landscape and evaluation](10-landscape-evaluation.md) | Webcam trackers cluster at 1.5–4°, so interaction design is what sets them apart. Report accuracy, precision, and data loss, plus Fitts throughput. Replay feature streams in CI. |
+
+### Second round (reports 11–30, 5-minute agents)
+
+| # | Report | One-line takeaway |
+|---|---|---|
+| 11 | [Camera hardware](11-camera-hardware.md) | Built-in cameras are tuned for calls. Continuity Camera gives 60 fps but no depth. Center Stage must be off. USB webcams rarely allow locking exposure. |
+| 12 | [Lighting, glasses, demographics](12-lighting-glasses-robustness.md) | Glasses are the biggest error factor, and makeup/lids fool the darkest-pixel refiner. Ship a quality score with specific hints and pause when it's low. |
+| 13 | [Synthetic training data](13-synthetic-training-data.md) | Most synthetic datasets are non-commercial too. Our own Blender + CC0 pipeline is the only licence-clean route. Accuracy still comes from calibration. |
+| 14 | [On-device personalization](14-on-device-personalization.md) | Closed-form ridge on Accelerate beats gradient training for calibration. `MLUpdateTask` works for last-layer fine-tuning only. Create ML allows custom hand poses. |
+| 15 | [Head pointer](15-head-pointer.md) | Relative nose-offset pointer with dead zone and acceleration. More precise than gaze. Gaze for the coarse jump, head for the fine correction. |
+| 16 | [Facial-gesture triggers](16-facial-gesture-triggers.md) | Mouth-open and brow-raise from 2D landmarks, with per-user range, hysteresis, hold time, and refractory period. Speech causes false triggers. |
+| 17 | [Dwell and accessibility](17-dwell-accessibility.md) | Adjustable dwell (novice about 1 s, experts about 300 ms), progress ring, big targets or two-step zoom, pause area, word prediction or Dasher. |
+| 18 | [Reading detection and gaze scrolling](18-reading-gaze-scrolling.md) | Detect reading from return sweeps (robust at 2–4°). Ship gaze Page Down first. Continuous scroll keeps eyes in the middle third. |
+| 19 | [Two-hand and dynamic gestures](19-bimanual-dynamic-gestures.md) | Two-hand zoom/rotate is geometry. Velocity-gated swipes map to Spaces shortcuts. $Q/DTW for custom gestures later. Synthetic magnify is fragile. |
+| 20 | [Tracking several faces and hands](20-multi-target-tracking.md) | Pick the primary user once, keep them by IoU. `VNTrackObjectRequest` between detections. Link hands to the user by geometry. Hand over eyes = invalid gaze. |
+| 21 | [Privacy and legal](21-privacy-legal.md) | Gaze reveals health and identity. Never store frames. Persist only opt-in gaze points. GDPR, BIPA, and Apple 5.1.2 notes (not legal advice). |
+| 22 | [Energy and thermal](22-energy-performance.md) | Cost = frames × pixels × requests. Drop to 2–5 fps when idle. Respond to thermal state and Low Power Mode. Measure with signposts and powermetrics. |
+| 23 | [Swift 6 concurrency pipeline](23-swift-concurrency-pipeline.md) | An actor on the capture queue (custom executor), `AsyncStream(.bufferingNewest(1))`, a wrapper only at the hand-off, and a display link pulling results. |
+| 24 | [CI on GitHub Actions](24-ci-github-actions.md) | macOS runners are free on public repos. Pin `macos-15`/`macos-26` (14 retires 2026-11-02). No camera or TCC in CI. Includes a ready `ci.yml`. |
+| 25 | [Distribution and notarization](25-distribution-notarization.md) | Developer ID + hardened runtime + notarize/staple the DMG. Sparkle 2 for updates. Homebrew now blocks casks that fail Gatekeeper. No App Store. |
+| 26 | [Gaze analytics and AOIs](26-gaze-analytics.md) | TTFF, dwell, visits, and fixation count per AOI. Heatmap σ in degrees from measured accuracy. Few large AOIs. Levenshtein for scanpaths. |
+| 27 | [Voice + gaze](27-voice-gaze.md) | Talon model: gaze points, a "pop" sound clicks (SoundAnalysis). Use gaze from speech onset (the eyes lead by about 630 ms). SpeechAnalyzer on macOS 26. |
+| 28 | [Head-pose models](28-head-pose-models.md) | 6DRepNet (MIT) at about 4° MAE, rotation only. PnP on Vision landmarks for 6-DoF. Vision's angles are coarse. img2pose and FLAME are non-commercial. |
+| 29 | [Eye gestures and fatigue](29-eye-gestures-fatigue.md) | Long blink ≥ 600 ms as a command, optional calibrated winks, relative gaze strokes, PERCLOS P80 over 60 s, and 20-20-20 reminders. |
+| 30 | [Accessibility API targets](30-accessibility-api-targets.md) | Hit test plus walk up to an actionable parent. Scan the focused window once and cache. Batch attributes, short timeouts, `AXManualAccessibility` for Electron. |
+
+Reviews of the code and of these reports are in [../reviews](../reviews/).
 
 ## Themes across the reports
 

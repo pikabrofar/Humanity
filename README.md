@@ -19,10 +19,12 @@ Each app is a self-contained Swift package. See its README to build it.
 
 ## Research
 
-[docs/research](docs/research/) collects ten reports on camera eye and hand
+[docs/research](docs/research/) collects thirty reports on camera eye and hand
 tracking (gaze models, pupil detection, calibration, filtering, hand pose,
-gestures, macOS input injection, gaze + hand interaction, prior art and
-evaluation), plus a combined roadmap.
+gestures, macOS input injection, gaze + hand interaction, accessibility,
+privacy, performance, CI and distribution, and more), plus a combined roadmap.
+[docs/reviews](docs/reviews/) holds a code review of VisionGaze and a review
+of the repository and research.
 
 ## License
 
