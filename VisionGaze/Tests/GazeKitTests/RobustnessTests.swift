@@ -7,17 +7,24 @@ import Testing
     @Test func blinkDetectorFlagsShortBlinks() {
         var detector = BlinkDetector()
         var t = 0.0
-        for _ in 0..<30 { #expect(!detector.update(openness: 0.30, timestamp: t)); t += 1 / 30 }
+        // `update` is mutating, so call it outside #expect.
+        func step(_ openness: Double) -> Bool {
+            defer { t += 1 / 30 }
+            return detector.update(openness: openness, timestamp: t)
+        }
+        for _ in 0..<30 { let blink = step(0.30); #expect(!blink) }
         // A 200 ms blink is flagged throughout, then tracking resumes.
-        for _ in 0..<6 { #expect(detector.update(openness: 0.10, timestamp: t)); t += 1 / 30 }
-        #expect(!detector.update(openness: 0.30, timestamp: t))
+        for _ in 0..<6 { let blink = step(0.10); #expect(blink) }
+        let reopened = step(0.30)
+        #expect(!reopened)
     }
 
     @Test func blinkDetectorRecoversFromSustainedSquint() {
         var detector = BlinkDetector()
         var t = 0.0
         // An inflated start (wide-eyed), then a lasting squint.
-        #expect(!detector.update(openness: 0.35, timestamp: t))
+        let first = detector.update(openness: 0.35, timestamp: t)
+        #expect(!first)
         var lastBlink = t
         for _ in 0..<60 {
             t += 1 / 30
@@ -25,7 +32,8 @@ import Testing
         }
         // Before the fix every later frame was a "blink" and tracking stopped for good.
         #expect(lastBlink < 0.45)
-        #expect(!detector.update(openness: 0.20, timestamp: t + 1 / 30))
+        let squinting = detector.update(openness: 0.20, timestamp: t + 1 / 30)
+        #expect(!squinting)
     }
 
     @Test func blinkBaselineIgnoresWideEyedFirstFrame() {
