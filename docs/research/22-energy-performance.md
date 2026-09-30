@@ -96,7 +96,7 @@ To measure a run, record the Time Profiler plus os_signpost templates in Instrum
 - **Capture at 720p when gaze doesn't need 1080p.** Pass a region of interest (`regionOfInterest`) to Vision for the eye crops instead of running over the whole frame again. Keep 1080p as a "precision" toggle.
 - **Share one `VNImageRequestHandler` per frame** across the face and hand requests (see report 02). Hand pose is the expensive request, so run it at half rate unless a gesture is in progress.
 - **Stop the camera** (`session.stopRunning()`) after N minutes without HID input or when the screen locks or sleeps, as Headway does. This also turns off the green camera LED, which users read as "it's off".
-- **App Nap.** An accessory/menu-bar app doing real-time work should hold `ProcessInfo.beginActivity(options: [.userInitiated, .idleSystemSleepDisabled?])` **only** while tracking is active. Leave out `idleSystemSleepDisabled` so the Mac can still sleep. Run capture and Vision on a `.userInitiated` queue, not `.userInteractive`.
+- **App Nap.** An accessory/menu-bar app doing real-time work should hold `ProcessInfo.beginActivity(options: .userInitiatedAllowingIdleSystemSleep, reason:)` **only** while tracking is active, so the Mac can still sleep. Run capture and Vision on a `.userInitiated` queue, not `.userInteractive`.
 - **Publish an energy budget in CI docs.** For example: "≤20% of one core, ≤1 W package delta on M1 Air at 30 fps active, ≤5% idle". Check it with a scripted powermetrics run.
 
 ## Pitfalls
