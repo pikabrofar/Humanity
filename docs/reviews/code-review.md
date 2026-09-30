@@ -2,6 +2,10 @@
 
 Branch: `claude/camera-eye-hand-tracking-0y2amh`. I reviewed by reading the code only, because Swift is not available in the review container, so nothing was compiled or run. Paths are relative to `VisionGaze/Sources/`.
 
+## Status
+
+All 11 findings were addressed in commits `5659c64` and `53bf2c9` (Milestone 1 of [report 31](../research/31-improvement-plan.md)). CI (macos-15) builds the package and passes all 24 tests. The app-layer fixes (#1–4, #6, #8, #11) compile, but nothing tests them automatically; they still need a manual run with a camera. #10 was fixed only for the roll fallback: the eye features still use the raw inter-ocular angle, so existing calibrations stay valid.
+
 ## Summary
 
 **Verdict: solid, with a few fixes needed before relying on click-learning.** The geometric model and its inverse agree, LM/IRLS are sound, and the pupil refiner's coordinate flips are consistent. The main problems are in the app-layer concurrency around the engine: a stale background refit can overwrite a fresh calibration, and the camera callback and session are configured from the main thread while the capture queue is live.
