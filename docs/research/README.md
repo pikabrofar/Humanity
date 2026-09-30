@@ -52,6 +52,12 @@ have not been compiled.
 | 29 | [Eye gestures and fatigue](29-eye-gestures-fatigue.md) | Long blink ≥ 600 ms as a command, optional calibrated winks, relative gaze strokes, PERCLOS P80 over 60 s, and 20-20-20 reminders. |
 | 30 | [Accessibility API targets](30-accessibility-api-targets.md) | Hit test plus walk up to an actionable parent. Scan the focused window once and cache. Batch attributes, short timeouts, `AXManualAccessibility` for Electron. |
 
+### Improvement plan
+
+| # | Report | One-line takeaway |
+|---|---|---|
+| 31 | [Improvement plan](31-improvement-plan.md) | Prioritized, file:line-backed plan for the current system: fix 4 correctness bugs first, then roll handling, drift layer, time-based smoothing, pupil refinement; CI, replay tests, and first hand-app steps. Six milestones. |
+
 Reviews of the code and of these reports are in [../reviews](../reviews/).
 
 ## Themes across the reports
