@@ -3,13 +3,13 @@
 <plist version="1.0">
 <dict>
     <key>CFBundleName</key>
-    <string>VisionGaze</string>
+    <string>ManOS</string>
     <key>CFBundleDisplayName</key>
-    <string>VisionGaze</string>
+    <string>ManOS</string>
     <key>CFBundleIdentifier</key>
-    <string>io.github.pikabrofar.oculos.VisionGaze</string>
+    <string>io.github.pikabrofar.oculos.ManOS</string>
     <key>CFBundleExecutable</key>
-    <string>VisionGaze</string>
+    <string>ManOS</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleShortVersionString</key>
@@ -30,6 +30,6 @@
     <key>NSCameraReactionEffectGesturesEnabledDefault</key>
     <false/>
     <key>NSCameraUsageDescription</key>
-    <string>VisionGaze uses the camera to track your eyes. Video is processed on-device and never stored or transmitted.</string>
+    <string>ManOS uses the camera to track your hand. Video is processed on-device and never stored or transmitted.</string>
 </dict>
 </plist>

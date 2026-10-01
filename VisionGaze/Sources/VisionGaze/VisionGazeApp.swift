@@ -56,6 +56,7 @@ struct RootView: View {
             .safeAreaInset(edge: .bottom) { SidebarStatus().padding(12) }
         } detail: {
             switch model.section ?? .live {
+            case .setup: SetupPage()
             case .live: LiveView()
             case .calibrate: CalibrationPage()
             case .recordings: RecordingsPage()

@@ -71,6 +71,9 @@ public struct GazeCalibration: Codable, Sendable {
     /// Means of eye x, eye y, openness at calibration; eye features are centered on them.
     private(set) var featureMean: [Double]
     private(set) var appearance: AppearanceModel?
+    /// CNN terms are only used when every training sample had CNN output;
+    /// a model fit partly without it would weight the CNN on too little data.
+    public private(set) var usesNetwork = false
     public private(set) var report: CalibrationReport
     public private(set) var createdAt: Date
 
@@ -91,7 +94,7 @@ public struct GazeCalibration: Codable, Sendable {
     }
 
     private enum CodingKeys: String, CodingKey {
-        case geometry, params, featureMean, appearance, report, createdAt
+        case geometry, params, featureMean, appearance, usesNetwork, report, createdAt
     }
 
     /// Rejects calibrations saved by a version with a different parameter layout.
@@ -104,6 +107,7 @@ public struct GazeCalibration: Codable, Sendable {
         geometry = try c.decode(ScreenGeometry.self, forKey: .geometry)
         featureMean = try c.decode([Double].self, forKey: .featureMean)
         appearance = try c.decodeIfPresent(AppearanceModel.self, forKey: .appearance)
+        usesNetwork = try c.decodeIfPresent(Bool.self, forKey: .usesNetwork) ?? false
         report = try c.decode(CalibrationReport.self, forKey: .report)
         createdAt = try c.decode(Date.self, forKey: .createdAt)
     }
@@ -139,7 +143,9 @@ public struct GazeCalibration: Codable, Sendable {
 
     /// Predicts the normalized on-screen gaze point.
     public func predict(_ features: GazeFeatures) -> CGPoint {
-        Self.project(features, params, featureMean, geometry, appearance)
+        var f = features
+        if !usesNetwork { f.networkGaze = nil }
+        return Self.project(f, params, featureMean, geometry, appearance)
     }
 
     // MARK: Model
@@ -211,7 +217,11 @@ public struct GazeCalibration: Codable, Sendable {
         validation: [CalibrationSample] = [],
         appearanceRidge: Double? = nil
     ) throws -> GazeCalibration {
-        let usable = samples.filter { !$0.features.isBlinking && $0.features.faceSize > 0.01 }
+        var usable = samples.filter { !$0.features.isBlinking && $0.features.faceSize > 0.01 }
+        let usesNetwork = !usable.isEmpty && usable.allSatisfy { $0.features.networkGaze != nil }
+        if !usesNetwork {
+            for i in usable.indices { usable[i].features.networkGaze = nil }
+        }
         let targetCount = Set(usable.map { TargetKey($0.target) }).count
         guard usable.count >= 20 else { throw CalibrationError.notEnoughSamples(usable.count) }
         guard targetCount >= 5 else { throw CalibrationError.notEnoughTargets(targetCount) }
@@ -242,6 +252,7 @@ public struct GazeCalibration: Codable, Sendable {
 
         var model = GazeCalibration(geometry: geometry, params: params, featureMean: mean, appearance: nil,
                                     report: CalibrationReport(points: [], rmsError: 0), createdAt: Date())
+        model.usesNetwork = usesNetwork
 
         let ridges: [Double] = validation.isEmpty ? (appearanceRidge.map { [$0] } ?? []) : [0.003, 0.01, 0.03, 0.1, 0.3, 1]
         if !ridges.isEmpty {
@@ -348,9 +359,10 @@ public struct GazeCalibration: Codable, Sendable {
         // Priors keep weakly observed parameters physical. A 1σ deviation costs
         // as much as every sample being 5 mm further off.
         let priors: [(P, Double, Double)] = [
-            (.cameraX, 0.5, 0.05), (.gap, 10, 15), (.scale, 1, 0.3),
+            (.cameraX, 0.5, 0.05), (.gap, 10, 15), (.scale, 1, 0.15),
             (.yaw, 0, 3), (.pitch, 0, 3),
-            (.a3, 0, 20), (.a4, 0, 20), (.b3, 0, 5), (.b4, 0, 20), (.b5, 0, 20),
+            // Curvature terms: webcam pupil noise makes them overfit with weak priors.
+            (.a3, 0, 3), (.a4, 0, 3), (.b3, 0, 3), (.b4, 0, 3), (.b5, 0, 3),
             (.netT0, 0, 5), (.netT1, 0, 5), (.netP0, 0, 5), (.netP1, 0, 5),
         ]
         let priorWeight = Double(samples.count).squareRoot() * 5

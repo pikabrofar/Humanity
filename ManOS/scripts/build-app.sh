@@ -1,12 +1,12 @@
 #!/bin/sh
-# Builds VisionGaze.app from the Swift package. Works with just the Command Line Tools.
+# Builds ManOS.app from the Swift package. Works with just the Command Line Tools.
 #
 # SIGN_ID: codesigning identity. The default "-" (ad-hoc) changes on every build,
 # so macOS forgets permission grants (camera, Accessibility) after rebuilding.
 # A self-signed "oculOS Dev" certificate keeps them: see the repo README.
 set -eu
 
-APP_NAME="VisionGaze"
+APP_NAME="ManOS"
 CONFIG="${1:-release}"
 SIGN_ID="${SIGN_ID:--}"
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"

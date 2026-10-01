@@ -5,7 +5,7 @@ hardware, no cloud, no third-party dependencies.
 
 - **Research-grade calibration**: 9-point grid, smooth-pursuit target, head-motion
   phase, and held-out validation that reports accuracy and precision in degrees
-- **Optional gaze CNN** (L2CS-Net via Core ML) combined with the geometric model
+- **Optional gaze CNN** (MobileGaze via Core ML, 1.6 ms/frame) combined with the geometric model
 - **Robust to human error**: fixation detection per point, retries for missed
   points, per-user pursuit lag, and Huber-weighted fitting
 - **Live gaze cursor** (ring, dot, or spotlight) drawn over every app
@@ -123,17 +123,19 @@ upper lid follows the eye when you look down.
 the face crop each frame through Vision and Core ML. Its two output angles become
 extra terms in the gaze-angle polynomial. Calibration learns which output is
 which axis, the signs, and the per-user bias. That linear per-user correction is
-the standard way to personalize a generic gaze CNN. To build L2CS-Net
-(ResNet50, trained on Gaze360):
+the standard way to personalize a generic gaze CNN. To build one from
+[MobileGaze](https://github.com/yakhyo/gaze-estimation) (MobileOne-S0 by default;
+set `ARCH=resnet18` and so on for larger models):
 
 ```sh
-make cnn-model   # downloads PyTorch + weights (~1 GB), writes build/GazeCNN.mlpackage
+make cnn-model   # downloads PyTorch + weights (~500 MB), writes build/GazeCNN.mlpackage
 ```
 
-Then open **Settings → Gaze CNN → Load Model…** and recalibrate. The L2CS-Net
-code is MIT, but the pretrained weights are trained on Gaze360, which is for
-research use only. That's why no model is included in this repo. Any Core ML
-model with an image input and a 2-value output works.
+Then open **Settings → Gaze CNN → Load Model…** and recalibrate. MobileGaze's
+code and weights are MIT, but they were trained on Gaze360, whose dataset terms
+are research-only. So no model is bundled in this repo or in releases, and you
+convert one locally. Any Core ML model with an image input and a 2-value output
+works.
 
 **Handling human error.** People don't fixate like machines:
 

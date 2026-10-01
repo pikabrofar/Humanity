@@ -8,8 +8,10 @@ public enum PursuitFilter {
     /// - Parameters:
     ///   - samples: Chronological samples whose targets move.
     ///   - window: Samples per window (15 ≈ 0.5 s at 30 fps).
-    ///   - threshold: Minimum |Pearson r| on each axis the target moved along.
-    public static func attended(_ samples: [CalibrationSample], window: Int = 15, threshold: Double = 0.5) -> [CalibrationSample] {
+    ///   - threshold: Minimum |Pearson r| on each axis the target moved along. Kept
+    ///     low because webcam pupil features are noisy; saccade removal and robust
+    ///     fitting handle the rest.
+    public static func attended(_ samples: [CalibrationSample], window: Int = 15, threshold: Double = 0.3) -> [CalibrationSample] {
         stride(from: 0, to: samples.count, by: window).flatMap { start -> ArraySlice<CalibrationSample> in
             let chunk = samples[start..<min(start + window, samples.count)]
             guard chunk.count >= 5 else { return [] }
@@ -82,7 +84,8 @@ public enum FixationSelector {
         // Noise-adaptive threshold from the typical frame-to-frame step.
         let eyes = samples.map(\.features.eye)
         let steps = zip(eyes, eyes.dropFirst()).map { Double(abs($0.x - $1.x) + abs($0.y - $1.y)) }
-        let dispersion = min(max(steps.median * 6, 0.015), 0.08)
+        // ~8× the median step spans a noisy fixation without merging real saccades.
+        let dispersion = min(max(steps.median * 8, 0.015), 0.12)
         let gaze = samples.map { GazeSample(t: $0.features.timestamp, x: Double($0.features.eye.x), y: Double($0.features.eye.y)) }
         guard let best = FixationDetector(maxDispersion: dispersion, minDuration: minDuration).detect(gaze)
             .max(by: { $0.duration < $1.duration })

@@ -1,0 +1,31 @@
+# Ergonomics and Fatigue of Mid-Air Input for ManOS
+
+## Summary
+"Gorilla arm" fatigue comes mostly from shoulder torque: how high the arm is lifted and how far it reaches out from the body. Two things cut fatigue sharply in the literature: resting the elbow, and keeping the hand low with the elbow bent. Short rests also help. ManOS uses relative, trackpad-like pointing with a fist clutch, so it already has the pieces it needs: small hand movements, re-centering, and natural rest points. The open work is picking defaults that keep the hand low and near the body, setting gain so the hand rarely travels more than about one palm-width, and adding light posture and fatigue feedback. Recommendations below marked *heuristic* are not taken from a cited study.
+
+## Key findings
+- **Consumed Endurance (CE)** (Hincapié-Ramos et al., CHI 2014) is interaction time divided by predicted endurance time, × 100%. Endurance time comes from Rohmert's curve: `ET = 1236.5 / (torque% − 15)^0.618 − 72.5` seconds. Below **15% of maximum shoulder strength**, CE counts endurance as unlimited (CE = 0). The paper's own sample values: resting arm 0%, arm at ~45° about **10%**, arm at ~100° about **13.4%**. CE closely matches Borg CR10 exertion ratings. The paper's design advice is to interact with the elbow bent and the hand in a lower zone, not with a straight arm at shoulder height.
+- **Shoulder angle** (NICER, 2024; n=24; 7 angles from 45° to 135°): fatigue rises steeply as the arm lifts toward **90°** and levels off above it. The fitted sigmoid is centered near **66°**. Practical upshot: keep shoulder flexion well under ~45–60°.
+- **Recovery**: NICER uses a recovery rate **R = 0.04 s⁻¹** (fatigue × e^(−0.04·Δt)), which means about a 25 s time constant. A **15 s break** gave noticeable perceived recovery.
+- **Elbow-anchored input** (Guo et al., CHI 2021): with the elbow resting on a support, target selection was as efficient as unconstrained mid-air input, and fatigue was significantly lower (p < .05).
+- **Prolonged use is viable when the arm is supported** (Hansberger et al., 2017): across **30-minute** sessions, supported gestures took about the same physical and perceived effort as a keyboard. Unsupported mid-air gestures caused gorilla-arm effects.
+- **Fatigue builds up over time** (Jang et al., CHI 2017): their model was fit to one-minute pointing bouts separated by **5–20 s** rests. Fatigue keeps building over repeated bouts, and short rests only partly offset it.
+
+## Recommendations (ranked)
+1. **Default to an "anchored low" posture in onboarding.** Show a 3-step diagram: elbow on the desk, armrest or laptop palm rest; forearm about 30–45° above horizontal; palm facing the screen roughly 5–15 cm above the keyboard deck. On a laptop webcam this puts the hand in the **lower 40% of the frame**. Draw that region as a calibration box and ask the user to hold it for 3 s. Never ask for the hand at face height.
+2. **Gain: one palm-width should cover the screen at speed, with precision when slow.** Keep the 350–1800 pt/palm-width range, but tune the sigmoid so slow motion (below ~0.5 palm-widths/s) sits near **350–450** for precision and fast flicks reach **1800**. On a 1512-pt-wide MacBook display, that means a full screen crossing takes **≤1.2 palm-widths (~10 cm)**. Small movements keep the arm in the low-torque zone (*heuristic*, based on the CE torque model). Add an "Effort" slider that moves the curve's midpoint rather than its endpoints.
+3. **Make clutching the resting state.** A fist, or the hand leaving the frame, freezes the cursor immediately, with no drift on re-entry. Tell users to drop the hand onto the desk between actions. Rests as short as 15 s give measurable recovery.
+4. **Posture feedback from camera geometry.** If the wrist landmark sits above the chin line, or the palm looks unusually large (hand reaching toward the camera, arm extended), for **more than 5 s** while actively pointing, show a subtle HUD hint: "Lower your hand — rest your elbow." Throttle it to once every 2 minutes (*heuristic*).
+5. **Live fatigue estimate with break nudges.** Build a simple accumulator: `F += dt × w(handHeight)` while pointing, and `F *= exp(−0.04·dt)` while clutched or idle. Set w ≈ 0.2 for the lower frame, 1.0 at mid-frame and 2.0 above the face. When F passes the equivalent of about **3 minutes of continuous mid-height pointing**, suggest a 15–30 s rest. As a backstop, suggest a 1-minute break after **20 minutes** of active use even when posture is good (*heuristic*). Keep it non-modal and allow snoozing.
+6. **Don't make users hold a pose to trigger actions.** Avoid dwell-to-click and long holds of the hand up. Use short pinches, and keep any hold gesture under ~1 s.
+7. **Onboarding copy:** "ManOS works like a trackpad in the air — small moves, elbow down. Make a fist to lift your finger off the pad." Include an optional 60 s practice task and record self-rated effort on a 0–10 Borg CR10 scale. A rating of 4 or more triggers offers to raise the gain or adjust posture.
+8. **Telemetry for tuning (local only):** log hand-height distribution, clutch frequency and active-pointing bout lengths. Use them to check whether defaults keep about 80% of pointing time in the lower frame zone.
+
+## Sources
+- Hincapié-Ramos et al., Consumed Endurance, CHI 2014: http://hci.cs.umanitoba.ca/publications/details/consumed-endurance-a-metric-to-quantify-arm-fatigue-of-mid-air-interactions ; PDF: https://hci.cs.umanitoba.ca/assets/publication_files/Consumed_Endurance_-_CHI_2014.pdf
+- CE project page and sample values: http://hci.cs.umanitoba.ca/projects-and-research/details/ce
+- CE code: https://github.com/hcilab-um/ArmFatigueCE
+- NICER (2024): https://arxiv.org/html/2406.08875 , https://doi.org/10.1145/3658230
+- Guo et al., Elbow-Anchored Interaction, CHI 2021: https://dl.acm.org/doi/fullHtml/10.1145/3411764.3445546
+- Hansberger et al., Dispelling the Gorilla Arm Syndrome, 2017: https://www.semanticscholar.org/paper/Dispelling-the-Gorilla-Arm-Syndrome:-The-Viability-Hansberger-Peng/f8ac95997016ad52ab4af0cf89e50322146564b3
+- Jang et al., Cumulative Arm Fatigue, CHI 2017: https://www.purdue.edu/hhs/hk/Biomechanics-MotorBehavior/wp-content/uploads/2017/05/Arm-fatigue-CHI-2017.pdf

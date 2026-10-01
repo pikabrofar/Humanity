@@ -30,7 +30,8 @@ public final class CameraCapture: NSObject, @unchecked Sendable {
     }
 
     /// Selects a camera (or the system default) and configures the session.
-    public func configure(deviceID: String? = nil) throws {
+    /// - Parameter preset: Preferred resolution; falls back to 720p, then `.high`.
+    public func configure(deviceID: String? = nil, preset: AVCaptureSession.Preset = .hd1920x1080) throws {
         let device = deviceID.flatMap(AVCaptureDevice.init(uniqueID:))
             ?? AVCaptureDevice.default(for: .video)
         guard let device else { throw CameraError.noCamera }
@@ -45,8 +46,8 @@ public final class CameraCapture: NSObject, @unchecked Sendable {
         input = newInput
 
         // More pixels per eye = less pupil quantization noise.
-        for preset in [AVCaptureSession.Preset.hd1920x1080, .hd1280x720, .high] where session.canSetSessionPreset(preset) {
-            session.sessionPreset = preset
+        for candidate in [preset, .hd1280x720, .high] where session.canSetSessionPreset(candidate) {
+            session.sessionPreset = candidate
             break
         }
 

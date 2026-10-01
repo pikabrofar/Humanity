@@ -153,6 +153,11 @@ private struct EyesCard: View {
                         }
                     }
                 }
+                if let net = f.networkGaze {
+                    Text(String(format: "CNN gaze  %+.0f°  %+.0f°", net.x * 180 / .pi, net.y * 180 / .pi))
+                        .font(.caption.monospacedDigit())
+                        .foregroundStyle(.secondary)
+                }
             } else {
                 Text("Waiting for a face…").font(.callout).foregroundStyle(.secondary)
             }

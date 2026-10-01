@@ -100,7 +100,7 @@ enum CalibrationStore {
 enum Defaults {
     enum Key: String {
         case cameraID, pupilRefinement, stability, responsiveness
-        case showCursor, cursorStyle, cursorSize
+        case showCursor, cursorStyle, cursorSize, completedSetup
         case hideWhileRecording, captureScreenshot, learnFromClicks
     }
 

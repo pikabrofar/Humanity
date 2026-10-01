@@ -6,11 +6,12 @@ import SwiftUI
 import UniformTypeIdentifiers
 
 enum SidebarSection: String, CaseIterable, Identifiable {
-    case live, calibrate, recordings
+    case setup, live, calibrate, recordings
     var id: Self { self }
 
     var title: String {
         switch self {
+        case .setup: "Quick Setup"
         case .live: "Live"
         case .calibrate: "Calibrate"
         case .recordings: "Recordings"
@@ -19,6 +20,7 @@ enum SidebarSection: String, CaseIterable, Identifiable {
 
     var symbol: String {
         switch self {
+        case .setup: "checklist"
         case .live: "eye"
         case .calibrate: "scope"
         case .recordings: "flame"
@@ -32,7 +34,7 @@ final class AppModel {
     let engine = GazeEngine()
     let recordings = RecordingStore()
 
-    var section: SidebarSection? = .live
+    var section: SidebarSection? = Defaults.bool(.completedSetup, default: false) ? .live : .setup
     var selectedRecordingID: Recording.ID?
     /// Display to calibrate on; defaults to the main display.
     var calibrationDisplayID: CGDirectDisplayID = NSScreen.main?.displayID ?? 0
