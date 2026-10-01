@@ -1,0 +1,92 @@
+name: Release
+
+# Push a per-app tag to publish a DMG, e.g.:
+#   git tag manos/v0.1.0 && git push origin manos/v0.1.0
+#   git tag ojos/v0.1.0 && git push origin ojos/v0.1.0
+#   git tag sentidos/v0.1.0 && git push origin sentidos/v0.1.0
+on:
+  push:
+    tags: ["sentidos/v*", "ojos/v*", "manos/v*", "bocas/v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: macos-15
+    # Create a "release" environment with required reviewers in the repo settings,
+    # and store the signing secrets there rather than as repository secrets.
+    environment: release
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+
+      # Only release commits that are on main, so a stray tag can't ship (or reach
+      # the signing secrets).
+      - name: Require tag on main
+        run: git merge-base --is-ancestor "$GITHUB_SHA" origin/main
+
+      - name: Resolve app and version from tag
+        id: tag
+        run: |
+          prefix="${GITHUB_REF_NAME%%/*}"
+          case "$prefix" in
+            ojos) app=Ojos ;;
+            manos) app=Manos ;;
+            sentidos) app=Sentidos ;;
+            bocas) app=Bocas ;;
+            *) echo "Unknown app prefix: $prefix"; exit 1 ;;
+          esac
+          echo "app=$app" >> "$GITHUB_OUTPUT"
+          version="${GITHUB_REF_NAME#*/v}"
+          echo "$version" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$' || { echo "Bad version: $version"; exit 1; }
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      # Optional: a stable signing identity keeps users' permission grants across
+      # updates. Without the secret, builds get a plain ad-hoc signature (PIN_DR=0):
+      # users re-grant permissions after each update, but no other app can match it.
+      - name: Import signing certificate
+        env:
+          SIGNING_P12: ${{ secrets.SIGNING_P12 }}
+          SIGNING_P12_PASSWORD: ${{ secrets.SIGNING_P12_PASSWORD }}
+        if: env.SIGNING_P12 != ''
+        run: |
+          echo "$SIGNING_P12" | base64 --decode > cert.p12
+          security create-keychain -p ci build.keychain
+          security default-keychain -s build.keychain
+          security unlock-keychain -p ci build.keychain
+          security import cert.p12 -k build.keychain -P "$SIGNING_P12_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple: -s -k ci build.keychain
+          rm cert.p12
+          echo "SIGN_ID=Sentidos Self-Signed" >> "$GITHUB_ENV"
+
+      - name: Build universal app and DMG
+        env:
+          UNIVERSAL: "1"
+          APP: ${{ steps.tag.outputs.app }}
+          VERSION: ${{ steps.tag.outputs.version }}
+        run: |
+          [ -n "${SIGN_ID:-}" ] || export PIN_DR=0
+          scripts/package.sh "$APP" "$VERSION"
+
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          app: ${{ steps.tag.outputs.app }}
+          version: ${{ steps.tag.outputs.version }}
+        run: |
+          cat > notes.md <<EOF
+          ## Install
+          1. Download **$app-$version.dmg** and drag $app to Applications.
+          2. Open it. macOS blocks it the first time because it isn't notarized yet; click **Done**.
+          3. Open **System Settings → Privacy & Security**, scroll down and click **Open Anyway**
+             (available for about an hour after step 2).
+          4. Enter your Mac login password, then click **Open Anyway** again.
+          5. Follow the app's Quick Setup. Sentidos is free; donations are optional: https://gumroad.com/l/hamkad
+
+          Verify the download: \`shasum -a 256 -c $app-$version.dmg.sha256\`
+
+          Camera and audio are processed on your Mac. Cloud AI is used only if you add a provider key.
+          EOF
+          gh release create "$GITHUB_REF_NAME" dist/* --title "$app $version" --notes-file notes.md
