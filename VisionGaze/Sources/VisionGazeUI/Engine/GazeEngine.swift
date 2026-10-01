@@ -55,7 +55,10 @@ final class GazeEngine {
     /// Receives every smoothed gaze estimate. Used by recording.
     @ObservationIgnored var gazeSink: ((GazeSample) -> Void)?
 
-    @ObservationIgnored private let camera = CameraCapture()
+    @ObservationIgnored private let camera: CameraCapture
+    /// False when a host app (Humanity) owns and configures a shared camera.
+    @ObservationIgnored private let ownsCamera: Bool
+    @ObservationIgnored private var frameHandler: UUID?
     @ObservationIgnored private let processor = FrameProcessor()
     @ObservationIgnored private var stabilizer = FixationStabilizer(radius: 80)
     /// Last non-blink frames, for learning from clicks.
@@ -80,7 +83,17 @@ final class GazeEngine {
     private(set) var networkName: String?
     private(set) var networkError: String?
 
-    init() {
+    /// Whether frames are processed. Off = no CPU spent on gaze.
+    var isActive = true {
+        didSet {
+            processor.isActive = isActive
+            if !isActive { gaze = nil; landmarks = nil; features = nil }
+        }
+    }
+
+    init(camera: CameraCapture? = nil) {
+        self.camera = camera ?? CameraCapture()
+        ownsCamera = camera == nil
         calibration = CalibrationStore.load()
         processor.setRefinement(pupilRefinement)
         applySmoothing()
@@ -127,16 +140,21 @@ final class GazeEngine {
             cameraState = .denied
             return
         }
-        do {
-            try camera.configure(deviceID: cameraID)
-        } catch {
-            cameraState = .failed(error.localizedDescription)
-            return
+        if ownsCamera || !camera.isConfigured {
+            do {
+                try camera.configure(deviceID: cameraID)
+            } catch {
+                cameraState = .failed(error.localizedDescription)
+                return
+            }
         }
-        camera.onFrame = { [processor, weak self] pixelBuffer, timestamp in
-            let analysis = processor.process(pixelBuffer, timestamp)
-            DispatchQueue.main.async {
-                MainActor.assumeIsolated { self?.handle(analysis) }
+        if frameHandler == nil {
+            frameHandler = camera.addFrameHandler { [processor, weak self] pixelBuffer, timestamp in
+                guard processor.isActive else { return } // paused module: skip the Vision work
+                let analysis = processor.process(pixelBuffer, timestamp)
+                DispatchQueue.main.async {
+                    MainActor.assumeIsolated { self?.handle(analysis) }
+                }
             }
         }
         camera.start()
@@ -237,6 +255,12 @@ private final class FrameProcessor: @unchecked Sendable {
     private let lock = NSLock()
     private var refinement = true
     private var network: GazeNetwork?
+    private var active = true
+
+    var isActive: Bool {
+        get { lock.withLock { active } }
+        set { lock.withLock { active = newValue } }
+    }
 
     func setRefinement(_ enabled: Bool) {
         lock.withLock { refinement = enabled }

@@ -25,8 +25,10 @@ public enum GestureEvent: Sendable, Equatable {
 /// Guards against accidental input ("Midas touch"):
 /// - nothing happens until a hand has been steady in view for 250 ms;
 /// - pinches need two consecutive frames and use enter/exit hysteresis;
-/// - the click lands where the cursor was ~100 ms before the pinch, undoing
-///   the small hand motion that pinching causes;
+/// - while the fingers close, the pointer slows to a quarter speed, and the
+///   click lands where the cursor was when closing began (50–250 ms earlier),
+///   undoing the hand motion that pinching causes (it causes ~30% of mid-air
+///   pointing errors; Wolf et al., CHI 2020);
 /// - a held pinch only becomes a drag after moving past a slop distance;
 /// - losing the hand for 200 ms releases any held button.
 public struct GestureRecognizer: Sendable {
@@ -44,7 +46,10 @@ public struct GestureRecognizer: Sendable {
     static let lostTimeout = 0.2
     static let rightClickMaxDuration = 0.3
     static let pauseHold = 1.0
-    static let clickBackdate = 0.1
+    /// Bounds for rewinding a click to the start of the pinch motion.
+    static let rewindRange = 0.05...0.25
+    /// Pointer gain while fingers are closing toward a pinch.
+    static let closingDamping = 0.25
     static let maxHold = 15.0
     /// Palm widths of movement before a held pinch becomes a drag or scroll.
     static let slop = 0.12
@@ -64,6 +69,8 @@ public struct GestureRecognizer: Sendable {
     private var lastUp: (TimeInterval, CGPoint)?
     private var palmSince: TimeInterval?
     private var palmLatched = false
+    /// When the thumb and index started closing in on a pinch.
+    private var closingSince: TimeInterval?
 
     /// 0 = fingers apart, 1 = at the click threshold. Drives the on-screen pinch ring.
     public private(set) var pinchProgress = 0.0
@@ -117,6 +124,13 @@ public struct GestureRecognizer: Sendable {
         middleFrames = dMiddle < profile.pinchEnter && dIndex > profile.pinchExit ? middleFrames + 1 : 0
         let far = profile.pinchExit + 0.4
         pinchProgress = min(max((far - dIndex) / (far - profile.pinchEnter), 0), 1)
+        // Fingers within reach of the threshold = a pinch is probably coming.
+        if dIndex < profile.pinchExit + 0.15 {
+            if closingSince == nil { closingSince = t }
+        } else if dIndex > profile.pinchExit + 0.3 {
+            closingSince = nil
+        }
+        mapper.damping = closingSince != nil && state == .hovering ? Self.closingDamping : 1
 
         var events: [GestureEvent] = []
         if state == .hovering || isPaused {
@@ -136,7 +150,8 @@ public struct GestureRecognizer: Sendable {
             if pose.isFist {
                 state = .clutched
             } else if indexFrames >= 2 {
-                let point = backdatedCursor(at: t - Self.clickBackdate)
+                let rewind = min(max(t - (closingSince ?? t - 0.1), Self.rewindRange.lowerBound), Self.rewindRange.upperBound)
+                let point = backdatedCursor(at: t - rewind)
                 mapper.cursor = point
                 clicks = lastUp.map { t - $0.0 <= doubleClickInterval && point.distance(to: $0.1) <= Self.doubleClickRadius }
                     == true ? clicks + 1 : 1

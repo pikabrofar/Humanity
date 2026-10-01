@@ -6,14 +6,13 @@ let package = Package(
     platforms: [.macOS(.v14)],
     products: [
         .library(name: "GazeKit", targets: ["GazeKit"]),
+        .library(name: "VisionGazeUI", targets: ["VisionGazeUI"]),
         .executable(name: "VisionGaze", targets: ["VisionGaze"]),
     ],
     targets: [
         .target(name: "GazeKit"),
-        .executableTarget(
-            name: "VisionGaze",
-            dependencies: ["GazeKit"]
-        ),
+        .target(name: "VisionGazeUI", dependencies: ["GazeKit"]),
+        .executableTarget(name: "VisionGaze", dependencies: ["VisionGazeUI"]),
         .testTarget(
             name: "GazeKitTests",
             dependencies: ["GazeKit"]

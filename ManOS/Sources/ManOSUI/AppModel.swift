@@ -1,5 +1,6 @@
 import AppKit
 import Carbon.HIToolbox
+import GazeKit
 import HandKit
 import Observation
 import SwiftUI
@@ -27,7 +28,7 @@ enum SidebarSection: String, CaseIterable, Identifiable {
 
 @MainActor @Observable
 final class AppModel {
-    let engine = HandEngine()
+    let engine: HandEngine
     var section: SidebarSection? = Defaults.bool(.completedSetup, default: false) ? .live : .setup
     private(set) var canControl = Permissions.canControl
 
@@ -40,7 +41,8 @@ final class AppModel {
     @ObservationIgnored private var permissionTimer: Timer?
     @ObservationIgnored private var terminationObserver: Any?
 
-    init() {
+    init(camera: CameraCapture? = nil) {
+        engine = HandEngine(camera: camera)
         Task { await engine.start() }
         // Kill switch: works from any app, even mid-drag.
         hotKey = HotKey(keyCode: kVK_ANSI_H, modifiers: controlKey | optionKey | cmdKey) { [weak self] in

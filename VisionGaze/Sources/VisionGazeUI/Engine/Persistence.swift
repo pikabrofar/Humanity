@@ -102,14 +102,17 @@ enum Defaults {
         case cameraID, pupilRefinement, stability, responsiveness
         case showCursor, cursorStyle, cursorSize, completedSetup
         case hideWhileRecording, captureScreenshot, learnFromClicks
+
+        /// Prefixed so modules can share one defaults domain inside Humanity.
+        var name: String { "VisionGaze." + rawValue }
     }
 
-    static func string(_ key: Key) -> String? { UserDefaults.standard.string(forKey: key.rawValue) }
+    static func string(_ key: Key) -> String? { UserDefaults.standard.string(forKey: key.name) }
     static func bool(_ key: Key, default value: Bool) -> Bool {
-        UserDefaults.standard.object(forKey: key.rawValue) as? Bool ?? value
+        UserDefaults.standard.object(forKey: key.name) as? Bool ?? value
     }
     static func double(_ key: Key, default value: Double) -> Double {
-        UserDefaults.standard.object(forKey: key.rawValue) as? Double ?? value
+        UserDefaults.standard.object(forKey: key.name) as? Double ?? value
     }
-    static func set(_ value: Any?, _ key: Key) { UserDefaults.standard.set(value, forKey: key.rawValue) }
+    static func set(_ value: Any?, _ key: Key) { UserDefaults.standard.set(value, forKey: key.name) }
 }

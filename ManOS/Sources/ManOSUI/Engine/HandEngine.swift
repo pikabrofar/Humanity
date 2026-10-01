@@ -49,7 +49,10 @@ final class HandEngine {
     /// Receives the active hand every frame (used by hand calibration).
     @ObservationIgnored var poseSink: ((HandPose) -> Void)?
 
-    @ObservationIgnored private let camera = CameraCapture()
+    @ObservationIgnored private let camera: CameraCapture
+    /// False when a host app (Humanity) owns and configures a shared camera.
+    @ObservationIgnored private let ownsCamera: Bool
+    @ObservationIgnored private var frameHandler: UUID?
     @ObservationIgnored private let processor = HandProcessor()
     @ObservationIgnored private let injector = EventInjector()
     @ObservationIgnored private var recognizer: GestureRecognizer
@@ -57,7 +60,21 @@ final class HandEngine {
     @ObservationIgnored private var fpsWindowStart: CFTimeInterval = 0
     @ObservationIgnored private var fpsFrames = 0
 
-    init() {
+    /// Whether frames are processed. Off = no CPU spent on hands, control released.
+    var isActive = true {
+        didSet {
+            processor.isActive = isActive
+            if !isActive {
+                isEnabled = false
+                hands = []
+                activeHand = nil
+            }
+        }
+    }
+
+    init(camera: CameraCapture? = nil) {
+        self.camera = camera ?? CameraCapture()
+        ownsCamera = camera == nil
         let profile = ProfileStore.load()
         self.profile = profile
         recognizer = GestureRecognizer(profile: profile, mapper: PointerMapper(bounds: Self.displayBounds, cursor: .zero))
@@ -81,17 +98,22 @@ final class HandEngine {
             cameraState = .denied
             return
         }
-        do {
-            // Hand pose doesn't need 1080p; 720p keeps latency down.
-            try camera.configure(preset: .hd1280x720)
-        } catch {
-            cameraState = .failed(error.localizedDescription)
-            return
+        if ownsCamera || !camera.isConfigured {
+            do {
+                // Hand pose doesn't need 1080p; 720p and 60 fps (when available) keep latency down.
+                try camera.configure(preset: .hd1280x720, frameRate: 60)
+            } catch {
+                cameraState = .failed(error.localizedDescription)
+                return
+            }
         }
-        camera.onFrame = { [processor, weak self] pixelBuffer, timestamp in
-            let result = processor.process(pixelBuffer, timestamp)
-            DispatchQueue.main.async {
-                MainActor.assumeIsolated { self?.handle(result) }
+        if frameHandler == nil {
+            frameHandler = camera.addFrameHandler { [processor, weak self] pixelBuffer, timestamp in
+                guard processor.isActive else { return } // paused module: skip the Vision work
+                let result = processor.process(pixelBuffer, timestamp)
+                DispatchQueue.main.async {
+                    MainActor.assumeIsolated { self?.handle(result) }
+                }
             }
         }
         camera.start()
@@ -172,6 +194,14 @@ final class HandEngine {
 
 /// Runs Vision on the camera queue.
 private final class HandProcessor: @unchecked Sendable {
+    private let lock = NSLock()
+    private var active = true
+
+    var isActive: Bool {
+        get { lock.withLock { active } }
+        set { lock.withLock { active = newValue } }
+    }
+
     struct Result {
         var imageSize: CGSize
         var hands: [HandPose]

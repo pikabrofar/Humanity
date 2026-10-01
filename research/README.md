@@ -1,6 +1,6 @@
-# OculOS research
+# Humanity research
 
-Background research behind the OculOS apps. Each file covers one topic and has
+Background research behind the Humanity apps. Each file covers one topic and has
 a summary, key findings with numbers, ranked recommendations, and sources.
 Twenty-two agent-assisted literature and product reviews from September 2026.
 Treat any figure marked as unverified in a file accordingly.
@@ -81,6 +81,6 @@ Status: ✅ done · 🔜 next · 💡 later
   DMG releases from GitHub Actions; document the "Open Anyway" flow (00, 17).
 - 🔜 PRIVACY.md and SECURITY.md: no network, no stored video or audio, minimal
   entitlements (17).
-- 💡 One background "OculOS Core" agent that owns the camera, so gaze + pinch runs
+- 💡 One background "Humanity Core" agent that owns the camera, so gaze + pinch runs
   on the same frames and one process injects input (19).
 - 💡 Notarization ($99/yr) for Homebrew cask and Gatekeeper trust (00).

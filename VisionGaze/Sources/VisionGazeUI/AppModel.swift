@@ -31,7 +31,7 @@ enum SidebarSection: String, CaseIterable, Identifiable {
 /// App-level state: overlay windows, recording, and the calibration lifecycle.
 @MainActor @Observable
 final class AppModel {
-    let engine = GazeEngine()
+    let engine: GazeEngine
     let recordings = RecordingStore()
 
     var section: SidebarSection? = Defaults.bool(.completedSetup, default: false) ? .live : .setup
@@ -71,7 +71,8 @@ final class AppModel {
     @ObservationIgnored private var screenObserver: Any?
     @ObservationIgnored private var clickMonitors: [Any] = []
 
-    init() {
+    init(camera: CameraCapture? = nil) {
+        engine = GazeEngine(camera: camera)
         Task { await engine.start() }
         hotKey = HotKey(keyCode: kVK_ANSI_R, modifiers: cmdKey | optionKey) { [weak self] in
             MainActor.assumeIsolated { self?.toggleRecording() }

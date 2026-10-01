@@ -108,6 +108,25 @@ func run(_ r: inout GestureRecognizer, from start: Double, frames: Int, pose: (D
         #expect(events.contains { if case .up = $0 { true } else { false } })
     }
 
+    @Test func clickRewindsToWhereClosingBegan() {
+        var r = recognizer()
+        _ = run(&r, from: 0, frames: 12, pose: { hand(t: $0) })
+        // Fingers start closing while the hand is still…
+        _ = run(&r, from: 0.4, frames: 3, pose: { hand(pinch: 0.55, t: $0) })
+        let whereClosingBegan = r.mapper.cursor
+        // …then the hand drifts as the pinch completes (the "Heisenberg effect").
+        let drift = run(&r, from: 0.5, frames: 3, pose: { t in
+            hand(at: CGPoint(x: 0.9 + (t - 0.5) * 0.6, y: 0.5), pinch: 0.4, t: t)
+        })
+        let events = run(&r, from: 0.6, frames: 3, pose: { hand(at: CGPoint(x: 0.96, y: 0.5), pinch: 0.1, t: $0) })
+        let down = events.compactMap { if case .down(let p, _) = $0 { p } else { nil } }.first
+        #expect(down != nil)
+        #expect(down!.distance(to: whereClosingBegan) < 10)
+        // Damping kept the drift small even before the rewind.
+        let drifted = drift.compactMap { if case .move(let p) = $0 { p } else { nil } }.last ?? whereClosingBegan
+        #expect(drifted.distance(to: whereClosingBegan) < 120)
+    }
+
     @Test func lostHandReleasesButton() {
         var r = recognizer()
         _ = run(&r, from: 0, frames: 12, pose: { hand(t: $0) })

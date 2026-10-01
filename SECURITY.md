@@ -1,6 +1,6 @@
 # Security
 
-OculOS apps hold powerful permissions (camera and Accessibility), so security
+Humanity apps hold powerful permissions (camera and Accessibility), so security
 reports are taken seriously.
 
 **Reporting:** please use GitHub's private vulnerability reporting

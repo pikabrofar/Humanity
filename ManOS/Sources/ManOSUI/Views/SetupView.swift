@@ -35,8 +35,13 @@ struct SetupView: View {
                                 .buttonStyle(.borderedProminent)
                             Button("Open Accessibility Settings") { SystemSettings.open(.accessibility) }
                         }
-                        Text("Already on but not working? After an update, remove ManOS from the list with – and add it again.")
+                        Text("Not in the list? Click + under the list and choose ManOS, or drag it in from Finder. Already on but not working? Remove ManOS with – and add it again (macOS forgets it after updates).")
                             .font(.caption).foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                        Button("Show ManOS in Finder") {
+                            NSWorkspace.shared.activateFileViewerSelecting([Bundle.main.bundleURL])
+                        }
+                        .font(.caption)
                     }
                 }
 

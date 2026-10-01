@@ -6,8 +6,11 @@ import CoreVideo
 public final class CameraCapture: NSObject, @unchecked Sendable {
     public let session = AVCaptureSession()
 
-    /// Called on the capture queue for every frame. Set before `start()`.
-    public var onFrame: ((CVPixelBuffer, TimeInterval) -> Void)?
+    public typealias FrameHandler = (CVPixelBuffer, TimeInterval) -> Void
+
+    /// Several consumers can share one camera (e.g. gaze and hand tracking in Humanity).
+    private var handlers: [UUID: FrameHandler] = [:]
+    private let handlersLock = NSLock()
 
     private let queue = DispatchQueue(label: "GazeKit.CameraCapture", qos: .userInteractive)
     private let output = AVCaptureVideoDataOutput()
@@ -30,8 +33,16 @@ public final class CameraCapture: NSObject, @unchecked Sendable {
     }
 
     /// Selects a camera (or the system default) and configures the session.
-    /// - Parameter preset: Preferred resolution; falls back to 720p, then `.high`.
-    public func configure(deviceID: String? = nil, preset: AVCaptureSession.Preset = .hd1920x1080) throws {
+    /// - Parameters:
+    ///   - preset: Preferred resolution; falls back to 720p, then `.high`.
+    ///   - frameRate: Preferred frame rate (e.g. 60), if the camera has a format for it.
+    public func configure(deviceID: String? = nil, preset: AVCaptureSession.Preset = .hd1920x1080,
+                          frameRate: Double? = nil) throws {
+        // Center Stage pans and zooms the frame, which trackers read as head or hand motion.
+        if #available(macOS 12.3, *) {
+            AVCaptureDevice.centerStageControlMode = .app
+            AVCaptureDevice.isCenterStageEnabled = false
+        }
         let device = deviceID.flatMap(AVCaptureDevice.init(uniqueID:))
             ?? AVCaptureDevice.default(for: .video)
         guard let device else { throw CameraError.noCamera }
@@ -51,6 +62,8 @@ public final class CameraCapture: NSObject, @unchecked Sendable {
             break
         }
 
+        if let frameRate { prefer(frameRate: frameRate, on: device) }
+
         if !session.outputs.contains(output) {
             output.videoSettings = [kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_420YpCbCr8BiPlanarFullRange]
             output.alwaysDiscardsLateVideoFrames = true
@@ -61,6 +74,47 @@ public final class CameraCapture: NSObject, @unchecked Sendable {
     }
 
     public var currentDeviceID: String? { input?.device.uniqueID }
+
+    /// Whether `configure` has been called successfully.
+    public var isConfigured: Bool { input != nil }
+
+    /// Registers a handler called on the capture queue for every frame.
+    @discardableResult
+    public func addFrameHandler(_ handler: @escaping FrameHandler) -> UUID {
+        let id = UUID()
+        handlersLock.withLock { handlers[id] = handler }
+        return id
+    }
+
+    public func removeFrameHandler(_ id: UUID) {
+        handlersLock.withLock { handlers[id] = nil }
+    }
+
+    /// Frames per second the camera is actually delivering at its max setting.
+    public var activeFrameRate: Double {
+        guard let device = input?.device else { return 0 }
+        return 1 / max(device.activeVideoMinFrameDuration.seconds, 1e-3)
+    }
+
+    /// Picks the smallest ≥720p format that reaches `frameRate`. Most built-in
+    /// Mac cameras top out at 30 fps; external and Continuity cameras often do 60.
+    private func prefer(frameRate: Double, on device: AVCaptureDevice) {
+        let candidates = device.formats.filter { format in
+            let d = CMVideoFormatDescriptionGetDimensions(format.formatDescription)
+            return d.width >= 1280 && d.height >= 720
+                && format.videoSupportedFrameRateRanges.contains { $0.maxFrameRate >= frameRate }
+        }
+        let area = { (f: AVCaptureDevice.Format) -> Int32 in
+            let d = CMVideoFormatDescriptionGetDimensions(f.formatDescription)
+            return d.width * d.height
+        }
+        guard let format = candidates.min(by: { area($0) < area($1) }),
+              (try? device.lockForConfiguration()) != nil
+        else { return }
+        device.activeFormat = format
+        device.activeVideoMinFrameDuration = CMTime(value: 1, timescale: CMTimeScale(frameRate))
+        device.unlockForConfiguration()
+    }
 
     public func start() {
         queue.async { [session] in if !session.isRunning { session.startRunning() } }
@@ -78,7 +132,9 @@ extension CameraCapture: AVCaptureVideoDataOutputSampleBufferDelegate {
         // to what was on screen, e.g. a moving calibration target.
         let pts = CMSampleBufferGetPresentationTimeStamp(sampleBuffer)
         let host = session.synchronizationClock.map { CMSyncConvertTime(pts, from: $0, to: CMClockGetHostTimeClock()) } ?? pts
-        onFrame?(pixelBuffer, host.seconds)
+        for handler in handlersLock.withLock({ Array(handlers.values) }) {
+            handler(pixelBuffer, host.seconds)
+        }
     }
 }
 

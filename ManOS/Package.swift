@@ -6,6 +6,7 @@ let package = Package(
     platforms: [.macOS(.v14)],
     products: [
         .library(name: "HandKit", targets: ["HandKit"]),
+        .library(name: "ManOSUI", targets: ["ManOSUI"]),
         .executable(name: "ManOS", targets: ["ManOS"]),
     ],
     dependencies: [
@@ -14,10 +15,8 @@ let package = Package(
     ],
     targets: [
         .target(name: "HandKit"),
-        .executableTarget(
-            name: "ManOS",
-            dependencies: ["HandKit", .product(name: "GazeKit", package: "VisionGaze")]
-        ),
+        .target(name: "ManOSUI", dependencies: ["HandKit", .product(name: "GazeKit", package: "VisionGaze")]),
+        .executableTarget(name: "ManOS", dependencies: ["ManOSUI"]),
         .testTarget(name: "HandKitTests", dependencies: ["HandKit"]),
     ]
 )

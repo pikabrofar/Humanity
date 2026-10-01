@@ -1,3 +1,4 @@
+import ApplicationServices
 import CoreGraphics
 import HandKit
 
@@ -80,9 +81,13 @@ final class EventInjector {
 }
 
 enum Permissions {
-    /// Whether we may post events (Accessibility / "Post Event" access).
-    static var canControl: Bool { CGPreflightPostEventAccess() }
+    /// Whether we may post mouse events (Accessibility).
+    static var canControl: Bool { AXIsProcessTrusted() }
 
-    /// Shows the system prompt once; afterwards the user must use System Settings.
-    static func requestControl() { _ = CGRequestPostEventAccess() }
+    /// Adds the app to System Settings → Accessibility and shows the system
+    /// prompt (once; afterwards the user toggles it in Settings).
+    static func requestControl() {
+        let options = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true] as CFDictionary
+        _ = AXIsProcessTrustedWithOptions(options)
+    }
 }

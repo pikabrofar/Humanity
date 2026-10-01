@@ -12,6 +12,8 @@ public struct PointerMapper: Sendable {
     public var cursor: CGPoint
     /// Multiplies both ends of the acceleration curve.
     public var sensitivity: Double
+    /// Extra gain multiplier, e.g. lowered while a pinch is closing.
+    public var damping = 1.0
 
     /// Points of cursor travel per palm-width of hand travel, at low and high speed.
     static let slowGain = 350.0
@@ -37,7 +39,7 @@ public struct PointerMapper: Sendable {
         guard let last, let lastTime else { return cursor }
         let dx = Double(anchor.x - last.x), dy = Double(anchor.y - last.y)
         let speed = hypot(dx, dy) / max(time - lastTime, 1e-3) // palm widths / s
-        let gain = (Self.slowGain + (Self.fastGain - Self.slowGain) * Self.smoothstep(0.3, 2.5, speed)) * sensitivity
+        let gain = (Self.slowGain + (Self.fastGain - Self.slowGain) * Self.smoothstep(0.3, 2.5, speed)) * sensitivity * damping
         // Hand up (y up) moves the cursor up (screen y down).
         cursor = CGPoint(x: min(max(cursor.x + dx * gain, bounds.minX), bounds.maxX - 1),
                          y: min(max(cursor.y - dy * gain, bounds.minY), bounds.maxY - 1))

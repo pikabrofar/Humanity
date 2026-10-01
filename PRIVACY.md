@@ -1,6 +1,6 @@
 # Privacy
 
-OculOS apps watch your face and hands, and listen to your voice, so here is
+Humanity apps watch your face and hands, and listen to your voice, so here is
 exactly what they do with that.
 
 - **Nothing leaves your Mac.** The apps make no network requests: no analytics,
