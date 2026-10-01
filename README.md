@@ -21,11 +21,15 @@ Each module also builds as a standalone app.
 
 Download **Humanity** (or a single module) from
 [Releases](https://github.com/pikabrofar/Humanity/releases) and drag it to
-Applications. The download costs nothing, but **the apps need a paid license key
-to run** (from $5). On first launch, paste a license key from
-[Gumroad](https://gumroad.com/l/hamkad). One key unlocks every Humanity app, and
-buying one funds development. The source stays MIT licensed. It isn't notarized yet, so macOS blocks the first launch. Open **System Settings → Privacy & Security** and click
-**Open Anyway**. Each app then walks you through a one-minute Quick Setup.
+Applications. Humanity is **free** and open source (MIT): no account, no license
+key, nothing unlocked by paying. If it's useful to you,
+[support development](https://gumroad.com/l/hamkad) with an optional donation of
+any amount; it doesn't unlock anything.
+
+It isn't notarized yet, so macOS blocks the first launch: open it once and click
+**Done**, then go to **System Settings → Privacy & Security**, click **Open
+Anyway** and enter your password. Each app then walks you through a one-minute
+Quick Setup.
 
 See [PRIVACY.md](PRIVACY.md) for exactly what is stored and what (little) goes over the network.
 

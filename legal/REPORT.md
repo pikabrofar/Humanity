@@ -240,3 +240,20 @@ Since this report was drafted, PRIVACY.md has been fixed: the unremembered-voice
 8. After publishing, get a test key via a 100%-off code.
 9. Attorney review.
 10. Publish.
+
+---
+
+## Update: Humanity is now free (decided 2026-10-01)
+
+The owner chose free MIT software with an optional donation link instead of
+paid license keys. LicenseKit and the activation window were removed; the apps
+make no Gumroad requests. "Support Humanity…" opens a Gumroad pay-what-you-want
+page ($0 minimum) that unlocks nothing. TERMS.md was replaced with short Terms
+of Use (MIT, no warranty, acceptable use incl. recording consent, donations).
+
+Effect on this report: the consumer-sale items (93A seller claims, refunds,
+clickwrap enforceability, Gumroad license API, CRA "commercial activity",
+EU withdrawal rights, sales tax on sales) shrink substantially, assuming
+donations stay genuinely optional and unconditional. Recording-consent,
+biometric, trademark and safety items are unchanged. Confirm with counsel that
+the donation setup isn't treated as a sale.

@@ -10,8 +10,7 @@ You're welcome to:
 
 Please don't:
 - distribute your own builds under these names or icons, or in a way that
-  suggests they are the official apps;
-- sell license keys for, or unlocked builds of, the official apps.
+  suggests they are the official apps.
 
 Rename your fork and use your own icon if you distribute it.
 

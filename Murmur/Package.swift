@@ -14,11 +14,10 @@ let package = Package(
         .package(path: "../AIKit"),
         // Meeting capture, speaker diarization and voice profiles.
         .package(path: "../MeetingKit"),
-        .package(path: "../LicenseKit"),
     ],
     targets: [
         .target(name: "MurmurKit"),
-        .executableTarget(name: "Murmur", dependencies: ["MurmurUI", "LicenseKit", .product(name: "AIKitUI", package: "AIKit")]),
+        .executableTarget(name: "Murmur", dependencies: ["MurmurUI", .product(name: "AIKitUI", package: "AIKit")]),
         .target(
             name: "MurmurUI",
             dependencies: ["MurmurKit", .product(name: "AIKit", package: "AIKit"),

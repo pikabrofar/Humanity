@@ -12,5 +12,3 @@ Thanks for helping! Issues and pull requests are welcome.
 - Never add features designed for covert recording or tracking of other people.
 - Run `make test` in every package you touch.
 
-Don't post license keys, or builds that unlock the official apps, in issues or
-pull requests. Building from source is free and needs no key.

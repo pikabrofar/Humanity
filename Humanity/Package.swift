@@ -6,7 +6,6 @@ let package = Package(
     name: "Humanity",
     platforms: [.macOS(.v14)],
     dependencies: [
-        .package(path: "../LicenseKit"),
         .package(path: "../OculOS"),
         .package(path: "../ManOS"),
         .package(path: "../Murmur"),
@@ -16,7 +15,6 @@ let package = Package(
         .executableTarget(
             name: "Humanity",
             dependencies: [
-                "LicenseKit",
                 .product(name: "OculOSUI", package: "OculOS"),
                 .product(name: "GazeKit", package: "OculOS"),
                 .product(name: "ManOSUI", package: "ManOS"),

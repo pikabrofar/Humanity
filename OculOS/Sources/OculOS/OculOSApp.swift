@@ -1,17 +1,14 @@
 import AppKit
-import LicenseKit
 import SwiftUI
 import OculOSUI
 
 @main
 struct OculOSApp: App {
-    @State private var module: OculOSModule
+    @State private var module = OculOSModule()
 
     init() {
         // Allows `swift run` without an app bundle to show a regular window.
         NSApplication.shared.setActivationPolicy(.regular)
-        License.requireActivation(appName: "OculOS")
-        _module = State(initialValue: OculOSModule())
     }
 
     var body: some Scene {
