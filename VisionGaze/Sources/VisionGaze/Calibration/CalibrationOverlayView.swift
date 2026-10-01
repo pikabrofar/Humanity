@@ -265,15 +265,6 @@ private struct ResultsView: View {
                 }
             }
 
-            if let gaze {
-                Circle()
-                    .strokeBorder(Theme.signal, lineWidth: 2)
-                    .background(Circle().fill(Theme.signal.opacity(0.15)))
-                    .frame(width: 32, height: 32)
-                    .position(scaled(gaze, size))
-                    .allowsHitTesting(false)
-            }
-
             Panel {
                 VStack(spacing: 6) {
                     Eyebrow("Calibration complete")
@@ -298,6 +289,16 @@ private struct ResultsView: View {
                         .buttonStyle(PrimaryButtonStyle(large: true))
                         .keyboardShortcut(.defaultAction)
                 }
+            }
+
+            // Above the panel, so gaze can be checked everywhere.
+            if let gaze {
+                Circle()
+                    .strokeBorder(Theme.signal, lineWidth: 2)
+                    .background(Circle().fill(Theme.signal.opacity(0.15)))
+                    .frame(width: 32, height: 32)
+                    .position(scaled(gaze, size))
+                    .allowsHitTesting(false)
             }
         }
     }

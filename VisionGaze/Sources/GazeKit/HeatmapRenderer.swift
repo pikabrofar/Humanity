@@ -61,15 +61,15 @@ public enum HeatmapRenderer {
         )
     }
 
-    /// Single warm hue: deep orange → the app's signal orange → amber → near
-    /// white at the hottest spots. Ordered by lightness, so it reads correctly
-    /// without color vision and on both light and dark backgrounds.
+    /// Single warm hue: deep orange → the app's signal orange → amber at the
+    /// hottest spots. Ordered by lightness, so it reads without color vision,
+    /// and stays saturated so hot spots don't wash out on white pages.
     static func colormap(_ v: Double) -> (Double, Double, Double) {
         let stops: [(Double, (Double, Double, Double))] = [
-            (0.00, (0.80, 0.18, 0.10)),
-            (0.40, (1.00, 0.42, 0.14)),
-            (0.75, (1.00, 0.72, 0.28)),
-            (1.00, (1.00, 0.95, 0.82)),
+            (0.00, (0.78, 0.16, 0.10)),
+            (0.45, (1.00, 0.42, 0.14)),
+            (0.80, (1.00, 0.64, 0.20)),
+            (1.00, (1.00, 0.82, 0.36)),
         ]
         let t = min(max(v, 0), 1)
         for i in 1..<stops.count where t <= stops[i].0 {

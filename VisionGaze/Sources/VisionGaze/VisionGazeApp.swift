@@ -74,7 +74,8 @@ struct RootView: View {
                               options: AppSection.allCases.map { (value: $0, label: $0.title) })
             }
             ToolbarItemGroup(placement: .primaryAction) {
-                TrackingStatus()
+                // The Live viewport shows the same status in its own corner.
+                if model.section != .live { TrackingStatus() }
                 RecordButton()
             }
         }

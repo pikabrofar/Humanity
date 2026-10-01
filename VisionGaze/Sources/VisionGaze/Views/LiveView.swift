@@ -5,6 +5,7 @@ struct LiveView: View {
     var body: some View {
         HStack(alignment: .top, spacing: 32) {
             Viewport()
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
             Inspector()
                 .frame(width: 232)
         }
@@ -45,7 +46,6 @@ private struct Viewport: View {
                                 action: ("Try Again", { Task { await engine.start() } }))
             }
         }
-        .aspectRatio(16 / 10, contentMode: .fit)
         .overlay(alignment: .top) {
             if running { ViewportStatus() }
         }
@@ -53,6 +53,8 @@ private struct Viewport: View {
             if running { CursorBar().padding(16) }
         }
         .clipShape(RoundedRectangle(cornerRadius: Theme.radius, style: .continuous))
+        // Defines the edge against the dark canvas in dark mode.
+        .overlay(RoundedRectangle(cornerRadius: Theme.radius, style: .continuous).strokeBorder(.white.opacity(0.07)))
         .environment(\.colorScheme, .dark)
     }
 }
@@ -292,11 +294,13 @@ private struct EyeGlyph: View {
         ZStack {
             EyeShape().fill(Theme.wash)
             if let eye, !blinking {
+                // Iris in the signal color, like the app icon.
                 Circle()
-                    .fill(.primary)
+                    .fill(Theme.signal)
                     .frame(width: 16, height: 16)
+                    .overlay(Circle().fill(Color(white: 0.08)).frame(width: 6.5, height: 6.5))
                     .overlay(alignment: .topLeading) {
-                        Circle().fill(.background).frame(width: 4, height: 4).offset(x: 4, y: 3.5)
+                        Circle().fill(.white).frame(width: 3, height: 3).offset(x: 4.5, y: 4)
                     }
                     // Mirror x; pupil.y is in eye-widths with y up.
                     .offset(x: (0.5 - eye.pupil.x) * width * 1.4, y: -eye.pupil.y * width * 1.4)
