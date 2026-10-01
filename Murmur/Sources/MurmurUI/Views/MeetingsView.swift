@@ -148,7 +148,7 @@ struct MeetingsView: View {
                 }
             }
             .navigationDestination(item: $meetings.selection) { id in
-                MeetingPage(id: id)
+                MeetingPage(id: id).environment(model)
             }
             .toolbar {
                 ToolbarItem {

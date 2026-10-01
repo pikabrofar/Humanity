@@ -43,12 +43,17 @@ struct LibraryView: View {
                     }
                 }
             }
+            // Destinations can be hosted outside this view's environment (inside
+            // Humanity's split view), so hand the model over explicitly.
             .navigationDestination(item: $model.selection) { id in
-                if let recording = model.recordings.first(where: { $0.id == id }) {
-                    RecordingDetail(recording: recording)
-                } else {
-                    ContentUnavailableView("Recording Deleted", systemImage: "trash")
+                Group {
+                    if let recording = model.recordings.first(where: { $0.id == id }) {
+                        RecordingDetail(recording: recording)
+                    } else {
+                        ContentUnavailableView("Recording Deleted", systemImage: "trash")
+                    }
                 }
+                .environment(model)
             }
         }
         .navigationTitle("Library")
