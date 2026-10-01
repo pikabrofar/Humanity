@@ -4,7 +4,7 @@
 
 <br>
 
-<a href="https://github.com/pikabrofar/Humanity/releases"><img alt="Download" src="https://img.shields.io/badge/Download-free-7c3aed?style=for-the-badge&logo=apple&logoColor=white"></a>
+<a href="https://github.com/pikabrofar/sentidoS/releases"><img alt="Download" src="https://img.shields.io/badge/Download-free-7c3aed?style=for-the-badge&logo=apple&logoColor=white"></a>
 <a href="https://gumroad.com/l/hamkad"><img alt="Support development" src="https://img.shields.io/badge/Support-optional-f97316?style=for-the-badge&logo=gumroad&logoColor=white"></a>
 
 <img alt="macOS 14+" src="https://img.shields.io/badge/macOS-14%2B-111?logo=apple">
@@ -13,7 +13,7 @@
 <img alt="License: MIT" src="https://img.shields.io/badge/License-MIT-3b82f6">
 <img alt="On-device" src="https://img.shields.io/badge/Camera%20%26%20audio-on--device-16a34a">
 
-**[Download](https://github.com/pikabrofar/Humanity/releases)** ·
+**[Download](https://github.com/pikabrofar/sentidoS/releases)** ·
 **[Modules](#modules)** ·
 **[Controls](#controls)** ·
 **[Privacy](PRIVACY.md)** ·
@@ -75,7 +75,7 @@ no account, no subscription and no license key: it's free and open source.
 ## Install
 
 1. Download **Humanity** (or a single module) from
-   [Releases](https://github.com/pikabrofar/Humanity/releases) and drag it to
+   [Releases](https://github.com/pikabrofar/sentidoS/releases) and drag it to
    Applications.
 2. Open it once and click **Done**. Humanity isn't notarized by Apple yet.
 3. Open **System Settings → Privacy & Security**, click **Open Anyway** and enter
@@ -121,8 +121,8 @@ Your real mouse always takes over, and the menu bar panel shows what's on.
 Requires macOS 14+, and Xcode 16+ or just the Command Line Tools with Swift 6.
 
 ```sh
-git clone https://github.com/pikabrofar/Humanity.git
-cd Humanity/Humanity && make run      # the all-in-one app
+git clone https://github.com/pikabrofar/sentidoS.git
+cd sentidoS/Sentidos && make run      # the all-in-one app
 ```
 
 | Package | What's inside |

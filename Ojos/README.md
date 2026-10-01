@@ -24,8 +24,8 @@ Everything runs on-device. Video frames are processed in memory and never saved.
 ## Build & run
 
 ```sh
-git clone https://github.com/pikabrofar/Humanity.git
-cd Humanity/Ojos
+git clone https://github.com/pikabrofar/sentidoS.git
+cd sentidoS/Ojos
 make run      # builds build/Ojos.app and opens it
 make test     # runs the GazeKit test suite
 ```

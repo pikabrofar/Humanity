@@ -23,12 +23,12 @@ never fight.
 
 ## Install
 
-Download the DMG from [Releases](https://github.com/pikabrofar/Humanity/releases),
+Download the DMG from [Releases](https://github.com/pikabrofar/sentidoS/releases),
 or build it from source:
 
 ```sh
-git clone https://github.com/pikabrofar/Humanity.git
-cd Humanity/Manos
+git clone https://github.com/pikabrofar/sentidoS.git
+cd sentidoS/Manos
 make run
 ```
 
