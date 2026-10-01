@@ -46,6 +46,15 @@ final class SuitePermissions {
 
         var isOptional: Bool { self == .screenRecording }
 
+        /// `tccutil` service name for permissions granted by toggling an app in a list.
+        var tccService: String? {
+            switch self {
+            case .accessibility: "Accessibility"
+            case .screenRecording: "ScreenCapture"
+            default: nil
+            }
+        }
+
         var settingsPane: String {
             switch self {
             case .camera: "Privacy_Camera"
@@ -98,6 +107,24 @@ final class SuitePermissions {
         }
     }
 
+    /// For a stale entry in System Settings (toggle on, but macOS still says no):
+    /// earlier builds were identified by a different signature, so the old entry
+    /// no longer matches this app. Clearing *Humanity's own* entry and asking
+    /// again creates a fresh one that matches.
+    func resetAndRequest(_ kind: Kind) {
+        guard let service = kind.tccService, let bundleID = Bundle.main.bundleIdentifier else { return }
+        let reset = Process()
+        reset.executableURL = URL(fileURLWithPath: "/usr/bin/tccutil")
+        reset.arguments = ["reset", service, bundleID]
+        reset.terminationHandler = { _ in
+            Task { @MainActor in
+                self.refresh()
+                self.request(kind)
+            }
+        }
+        try? reset.run()
+    }
+
     func openSettings(_ kind: Kind) {
         NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.preference.security?\(kind.settingsPane)")!)
     }
@@ -136,9 +163,9 @@ struct PermissionsView: View {
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
                 ForEach(SuitePermissions.Kind.allCases) { kind in
-                    PermissionRow(kind: kind, state: permissions.states[kind] ?? .notAsked) {
-                        permissions.request(kind)
-                    }
+                    PermissionRow(kind: kind, state: permissions.states[kind] ?? .notAsked,
+                                  action: { permissions.request(kind) },
+                                  reset: kind.tccService == nil ? nil : { permissions.resetAndRequest(kind) })
                 }
                 Text("Using the standalone OculOS, ManOS or Murmur apps too? They're separate apps to macOS with their own entries. You only need Humanity.")
                     .font(.caption)
@@ -156,6 +183,7 @@ private struct PermissionRow: View {
     let kind: SuitePermissions.Kind
     let state: SuitePermissions.State
     let action: () -> Void
+    let reset: (() -> Void)?
 
     var body: some View {
         HStack(spacing: 12) {
@@ -173,12 +201,20 @@ private struct PermissionRow: View {
                 if state != .granted, kind == .accessibility || kind == .screenRecording {
                     // These two are toggled in a list of apps, where old standalone
                     // builds (ManOS, OculOS, Murmur…) can also appear.
-                    HStack(spacing: 4) {
-                        Text("In the list, turn on **Humanity**. Not listed? Click **+** and choose it.")
-                        Button("Show in Finder") {
-                            NSWorkspace.shared.activateFileViewerSelecting([Bundle.main.bundleURL])
+                    VStack(alignment: .leading, spacing: 3) {
+                        HStack(spacing: 4) {
+                            Text("In the list, turn on **Humanity**. Not listed? Click **+** and choose it.")
+                            Button("Show in Finder") {
+                                NSWorkspace.shared.activateFileViewerSelecting([Bundle.main.bundleURL])
+                            }
+                            .buttonStyle(.link)
                         }
-                        .buttonStyle(.link)
+                        if let reset {
+                            HStack(spacing: 4) {
+                                Text("Already on, but still not working?")
+                                Button("Reset & Grant Again", action: reset).buttonStyle(.link)
+                            }
+                        }
                     }
                     .font(.caption)
                 }

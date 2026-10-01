@@ -8,6 +8,7 @@ import SwiftUI
 
 @main
 struct HumanityApp: App {
+    @NSApplicationDelegateAdaptor private var appDelegate: AppDelegate
     @State private var suite = Suite()
 
     init() {
@@ -21,9 +22,7 @@ struct HumanityApp: App {
         MenuBarExtra {
             QuickPanel().environment(suite).environment(suite.permissions)
         } label: {
-            Image(systemName: suite.voice.isListening ? "waveform.circle.fill"
-                  : suite.hands.isControlling ? "hand.point.up.left.fill"
-                  : suite.gaze.isRecording ? "record.circle.fill" : "figure.arms.open")
+            MenuBarIcon(suite: suite)
         }
         .menuBarExtraStyle(.window)
 
@@ -70,6 +69,11 @@ final class Suite {
     @ObservationIgnored let permissions = SuitePermissions()
     var module: Module = .home
 
+    /// SwiftUI only exposes `openWindow` inside views; the always-rendered menu
+    /// bar icon hands it over so app-level events (Dock click, relaunch) can use it.
+    @ObservationIgnored var openWindow: ((String) -> Void)?
+    @ObservationIgnored static weak var current: Suite?
+
     var seenTutorial = UserDefaults.standard.bool(forKey: "Humanity.seenTutorial") {
         didSet { UserDefaults.standard.set(seenTutorial, forKey: "Humanity.seenTutorial") }
     }
@@ -78,6 +82,14 @@ final class Suite {
         // Created first, so OculOS configures the shared camera at the 1080p it needs.
         gaze = OculOSModule(camera: camera)
         hands = ManOSModule(camera: camera)
+        // Development: `open Humanity.app --args -Humanity.start voice.library`
+        if let start = UserDefaults.standard.string(forKey: "Humanity.start") { selection = start }
+        Self.current = self
+    }
+
+    func showMainWindow() {
+        openWindow?("main")
+        NSApp.activate(ignoringOtherApps: true)
     }
 
     /// Sidebar selection as "module.section", e.g. "hands.practice".
@@ -505,5 +517,31 @@ struct PermissionsBanner: View {
             .padding(8)
             .background(.orange.opacity(0.12), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
         }
+    }
+}
+
+/// The menu bar icon is rendered at launch even when no window is open.
+private struct MenuBarIcon: View {
+    let suite: Suite
+    @Environment(\.openWindow) private var openWindow
+
+    var body: some View {
+        Image(systemName: suite.voice.isListening ? "waveform.circle.fill"
+              : suite.hands.isControlling ? "hand.point.up.left.fill"
+              : suite.gaze.isRecording ? "record.circle.fill" : "figure.arms.open")
+            .task {
+                suite.openWindow = { openWindow(id: $0) }
+                // Launching the app should always show it, even if its window was
+                // closed last time (SwiftUI would otherwise restore "closed").
+                suite.showMainWindow()
+            }
+    }
+}
+
+final class AppDelegate: NSObject, NSApplicationDelegate {
+    /// Clicking the Dock icon or opening Humanity again while it runs.
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows: Bool) -> Bool {
+        if !hasVisibleWindows { MainActor.assumeIsolated { Suite.current?.showMainWindow() } }
+        return true
     }
 }

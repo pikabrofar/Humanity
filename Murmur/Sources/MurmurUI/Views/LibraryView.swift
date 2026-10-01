@@ -4,6 +4,8 @@ import MurmurKit
 import SwiftUI
 import UniformTypeIdentifiers
 
+/// Compact list → detail. One column at a time, so it fits a small window
+/// (and Humanity's sidebar) without squeezing either side.
 struct LibraryView: View {
     @Environment(AppModel.self) private var model
     @State private var query = ""
@@ -11,30 +13,44 @@ struct LibraryView: View {
     var body: some View {
         @Bindable var model = model
         let results = model.recordings.filter { $0.matches(query) }
-        HSplitView {
-            List(results, selection: $model.selection) { recording in
-                RecordingRow(recording: recording).tag(recording.id)
-            }
-            .frame(minWidth: 240, idealWidth: 280, maxWidth: 380)
-            .overlay {
-                if model.recordings.isEmpty {
-                    ContentUnavailableView("No Recordings", systemImage: "waveform",
-                                           description: Text("Dictations and notes appear here."))
-                } else if results.isEmpty {
-                    ContentUnavailableView.search(text: query)
+        NavigationStack {
+            VStack(spacing: 0) {
+                HStack(spacing: 6) {
+                    Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
+                    TextField("Search transcripts", text: $query).textFieldStyle(.plain)
+                    if !query.isEmpty {
+                        Button { query = "" } label: { Image(systemName: "xmark.circle.fill") }
+                            .buttonStyle(.borderless).foregroundStyle(.secondary)
+                    }
                 }
-            }
+                .padding(8)
+                .background(.quinary, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+                .padding([.horizontal, .top], 12)
+                .padding(.bottom, 6)
 
-            Group {
-                if let id = model.selection, let recording = model.recordings.first(where: { $0.id == id }) {
-                    RecordingDetail(recording: recording).id(id)
-                } else {
-                    ContentUnavailableView("Select a Recording", systemImage: "text.quote")
+                List(results) { recording in
+                    Button { model.selection = recording.id } label: {
+                        RecordingRow(recording: recording).contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                }
+                .overlay {
+                    if model.recordings.isEmpty {
+                        ContentUnavailableView("No Recordings", systemImage: "waveform",
+                                               description: Text("Dictations and notes appear here."))
+                    } else if results.isEmpty {
+                        ContentUnavailableView.search(text: query)
+                    }
                 }
             }
-            .frame(minWidth: 400, maxWidth: .infinity, maxHeight: .infinity)
+            .navigationDestination(item: $model.selection) { id in
+                if let recording = model.recordings.first(where: { $0.id == id }) {
+                    RecordingDetail(recording: recording)
+                } else {
+                    ContentUnavailableView("Recording Deleted", systemImage: "trash")
+                }
+            }
         }
-        .searchable(text: $query, prompt: "Search transcripts")
         .navigationTitle("Library")
     }
 }
@@ -75,28 +91,29 @@ private struct RecordingDetail: View {
             VStack(alignment: .leading, spacing: 16) {
                 VStack(alignment: .leading, spacing: 6) {
                     Text(recording.title).font(.title2.weight(.semibold)).textSelection(.enabled)
-                    HStack(spacing: 8) {
-                        StatusChip(text: recording.kind == .note ? "Note" : "Dictation",
-                                   symbol: recording.kind == .note ? "record.circle" : "text.cursor")
-                        StatusChip(text: Transcript.clock(recording.duration), symbol: "clock")
-                        if let app = recording.targetApp { StatusChip(text: app, symbol: "app") }
-                        Text(recording.createdAt.formatted(date: .abbreviated, time: .shortened))
-                            .font(.caption).foregroundStyle(.secondary)
-                    }
+                    Text(meta)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
                 }
 
-                HStack {
+                HStack(spacing: 8) {
                     if hasAudio {
                         Button { player.toggle(model.store.audioURL(for: recording.id)) } label: {
-                            Label(player.isPlaying ? "Pause" : "Play", systemImage: player.isPlaying ? "pause.fill" : "play.fill")
+                            Image(systemName: player.isPlaying ? "pause.fill" : "play.fill")
                         }
-                        if player.progress > 0 { ProgressView(value: player.progress).frame(width: 80) }
+                        .help(player.isPlaying ? "Pause" : "Play")
+                        if player.progress > 0 { ProgressView(value: player.progress).frame(width: 70) }
                     }
-                    Button { copy(recording.text) } label: { Label("Copy", systemImage: "doc.on.doc") }
-                    Button { export() } label: { Label("Export Markdown…", systemImage: "square.and.arrow.up") }
+                    Button { copy(recording.text) } label: { Image(systemName: "doc.on.doc") }
+                        .help("Copy transcript")
+                    Button { export() } label: { Image(systemName: "square.and.arrow.up") }
+                        .help("Export Markdown")
                     Spacer()
-                    Button(role: .destructive) { confirmDelete = true } label: { Label("Delete", systemImage: "trash") }
+                    Button(role: .destructive) { confirmDelete = true } label: { Image(systemName: "trash") }
+                        .help("Delete")
                 }
+                .controlSize(.regular)
 
                 Card(title: "Summary", symbol: "sparkles") {
                     if model.summarizing.contains(recording.id) {
@@ -138,14 +155,22 @@ private struct RecordingDetail: View {
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
             }
-            .padding(24)
+            .padding(18)
         }
+        .navigationTitle(recording.title)
         .onDisappear { player.stop() }
         .confirmationDialog("Delete this recording?", isPresented: $confirmDelete) {
             Button("Delete", role: .destructive) { model.delete(recording.id) }
         } message: {
             Text("The audio and transcript are removed from this Mac.")
         }
+    }
+
+    private var meta: String {
+        var parts = [recording.kind == .note ? "Note" : "Dictation", Transcript.clock(recording.duration)]
+        if let app = recording.targetApp { parts.append(app) }
+        parts.append(recording.createdAt.formatted(date: .abbreviated, time: .shortened))
+        return parts.joined(separator: " · ")
     }
 
     private func copy(_ text: String) {
