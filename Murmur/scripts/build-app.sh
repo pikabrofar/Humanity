@@ -21,6 +21,8 @@ ARCH_FLAGS=""
 # SCRATCH: build directory. Releases build outside the home folder so no local
 # path ends up in the binary.
 [ -n "${SCRATCH:-}" ] && ARCH_FLAGS="$ARCH_FLAGS --scratch-path $SCRATCH"
+# OFFICIAL=1: a release build that asks for a Gumroad license key (see LicenseKit).
+[ "${OFFICIAL:-0}" = 1 ] && ARCH_FLAGS="$ARCH_FLAGS -Xswiftc -DHUMANITY_OFFICIAL"
 swift build -c "$CONFIG" --product "$APP_NAME" $ARCH_FLAGS
 BIN="$(swift build -c "$CONFIG" $ARCH_FLAGS --show-bin-path)/$APP_NAME"
 

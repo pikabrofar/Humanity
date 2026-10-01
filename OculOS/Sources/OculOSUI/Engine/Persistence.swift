@@ -74,6 +74,12 @@ enum AppPaths {
             try? FileManager.default.moveItem(at: legacy, to: url)
         }
         try? FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
+        // Calibration holds eye crops (biometric data): owner-only, and kept out of backups.
+        try? FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: url.path)
+        var excluded = url
+        var values = URLResourceValues()
+        values.isExcludedFromBackup = true
+        try? excluded.setResourceValues(values)
         return url
     }()
 

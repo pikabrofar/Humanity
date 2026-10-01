@@ -94,7 +94,7 @@ You are responsible for how you use the Official Apps. In particular:
 
 ## 9. Refunds
 
-1. You may request a refund within **[14 / 30] days** of purchase through Gumroad or by emailing **[CONTACT EMAIL]**. We grant first-time refund requests within that window without questions.
+1. You may request a refund within **30 days** of purchase through Gumroad or by emailing **[CONTACT EMAIL]**, and we grant it without questions.
 2. Gumroad has final say over refunds, chargebacks and disputes ([Gumroad Terms §7.1](https://gumroad.com/terms)). Gumroad does not return its fees on refunds; we absorb them.
 3. **A refunded, charged-back or disputed Key stops working.** The Official Apps detect this at the next weekly check. You may still build Humanity from source.
 4. **EU/EEA/UK consumers.** By activating your Key you ask us to supply digital content immediately, and you acknowledge that you lose your 14-day right of withdrawal once activation succeeds. This does not affect our voluntary refund window in §9.1 or your statutory rights if the Official Apps are faulty.

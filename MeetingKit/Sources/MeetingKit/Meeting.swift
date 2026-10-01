@@ -70,12 +70,14 @@ public struct Meeting: Codable, Hashable, Sendable, Identifiable {
         speakers[cluster] = Speaker(name: profile?.name ?? name, profileID: profile?.id)
     }
 
-    /// Unremembered speakers' embeddings stay only so they can be remembered later. Like
-    /// unused profiles, they are deleted 12 months after the meeting.
+    /// Unremembered speakers' embeddings stay only so they can be remembered later, and are
+    /// deleted 30 days after the meeting.
+    public static let unrememberedVoiceprintLimit: TimeInterval = 30 * 86_400
+
     /// - Returns: true when embeddings were removed and the meeting should be saved.
     public mutating func dropExpiredVoiceprints(now: Date = Date()) -> Bool {
         guard !diarization.centroids.isEmpty,
-              now.timeIntervalSince(recording.startedAt) > VoiceProfile.unusedLimit else { return false }
+              now.timeIntervalSince(recording.startedAt) > Self.unrememberedVoiceprintLimit else { return false }
         diarization.centroids = [:]
         return true
     }
@@ -139,7 +141,9 @@ public struct MeetingProcessor: Sendable {
         // Nothing to show: fail, so the recording stays listed for another try.
         if let systemFailure, micWords.isEmpty, systemWords.isEmpty { throw systemFailure }
 
-        let matches = await profiles.assign(clusters: diarization.centroids)
+        // No recording consent (audio from elsewhere, e.g. a planted folder): transcribe it,
+        // but never identify anyone in it by voice.
+        let matches = recording.consentConfirmedAt == nil ? [:] : await profiles.assign(clusters: diarization.centroids)
         await profiles.markMatched(matches.values.map(\.profile.id))
         let meeting = Meeting(recording: recording, diarization: diarization, micWords: micWords, systemWords: systemWords,
                               speakers: Meeting.labels(for: diarization, matches: matches))

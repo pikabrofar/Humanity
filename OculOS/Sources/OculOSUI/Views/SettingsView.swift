@@ -105,8 +105,8 @@ struct SettingsView: View {
 
             Section("Recording") {
                 Toggle(isOn: $model.hideWhileRecording) {
-                    Text("Hide OculOS while recording")
-                    Text("Stop with ⌥⌘R or from the menu bar.")
+                    Text("Hide OculOS windows when a recording starts")
+                    Text("Keeps them out of the way and out of the heatmap screenshot. The menu bar icon stays visible; stop with ⌥⌘R or from the menu bar.")
                 }
                 Toggle(isOn: $model.captureScreenshot) {
                     Text("Capture screenshot as heatmap background")

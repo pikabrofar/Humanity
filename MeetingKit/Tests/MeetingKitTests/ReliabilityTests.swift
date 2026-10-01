@@ -76,6 +76,43 @@ struct ReliabilityTests {
     struct NoDiarizer: SpeakerDiarizer {
         func diarize(_ audioURL: URL) async throws -> Diarization { Diarization(segments: [], centroids: [:]) }
     }
+    struct Words: FileTranscribing {
+        func transcribe(_ audioURL: URL) async throws -> [TimedWord] { [TimedWord(text: "hi", start: 0, end: 0.5)] }
+    }
+    struct OneVoice: SpeakerDiarizer {
+        func diarize(_ audioURL: URL) async throws -> Diarization {
+            Diarization(segments: [SpeakerSegment(start: 0, end: 1, speaker: "S1")], centroids: ["S1": [1, 0]])
+        }
+    }
+
+    @MainActor @Test func noConsentMeansNoVoiceMatching() async throws {
+        let folder = try tempFolder()
+        let profiles = VoiceProfileStore(directory: folder)
+        try profiles.enroll(name: "Alice", embeddings: [[1, 0]], consentAt: Date())
+        var recording = MeetingRecording(id: UUID(), title: "Planted", startedAt: Date(), duration: 5, folder: folder)
+        for url in [recording.micURL, recording.systemURL] { FileManager.default.createFile(atPath: url.path, contents: Data()) }
+        let processor = MeetingProcessor(diarizer: OneVoice(), transcriber: Words())
+        let planted = try await processor.process(recording, profiles: profiles)
+        #expect(planted.speakers["S1"]?.name == "Speaker 1")
+        #expect(!planted.systemWords.isEmpty) // still transcribed
+        recording.consentConfirmedAt = Date()
+        #expect(try await processor.process(recording, profiles: profiles).speakers["S1"]?.name == "Alice")
+    }
+
+    @Test func deletesOnlyMeetingFolders() throws {
+        let root = try tempFolder(), outside = try tempFolder()
+        let meeting = root.appendingPathComponent("2026-01-01 10.00.00")
+        try FileManager.default.createDirectory(at: meeting, withIntermediateDirectories: true)
+        let link = root.appendingPathComponent("link")
+        try FileManager.default.createSymbolicLink(at: link, withDestinationURL: outside)
+        #expect(throws: (any Error).self) { try MeetingRecording.deleteFolder(outside, in: root) }
+        #expect(throws: (any Error).self) { try MeetingRecording.deleteFolder(link, in: root) }
+        #expect(throws: (any Error).self) { try MeetingRecording.deleteFolder(root.appendingPathComponent("x/../.."), in: root) }
+        #expect(throws: (any Error).self) { try MeetingRecording.deleteFolder(root, in: root) }
+        #expect(FileManager.default.fileExists(atPath: outside.path))
+        try MeetingRecording.deleteFolder(meeting, in: root)
+        #expect(!FileManager.default.fileExists(atPath: meeting.path))
+    }
 
     @MainActor @Test func keepsMicWordsWhenCallTrackFails() async throws {
         let folder = try tempFolder()

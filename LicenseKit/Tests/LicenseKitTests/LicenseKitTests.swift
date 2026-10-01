@@ -27,3 +27,9 @@ import Testing
     let won = #"{"success":true,"purchase":{"refunded":false,"chargebacked":false,"disputed":true,"dispute_won":true}}"#
     #expect(License.failure(in: Data(won.utf8)) == nil)
 }
+
+@Test func serverErrorsNeverRevoke() {
+    let reply = #"{"success":false,"message":"Internal error"}"#
+    #expect(License.failure(in: Data(reply.utf8), status: 500).map { if case .network = $0 { true } else { false } } == true)
+    #expect(License.failure(in: Data(reply.utf8), status: 429).map { if case .network = $0 { true } else { false } } == true)
+}

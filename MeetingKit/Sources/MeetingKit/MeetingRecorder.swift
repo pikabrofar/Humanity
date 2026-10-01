@@ -16,6 +16,8 @@ public struct MeetingRecording: Codable, Hashable, Sendable {
     /// When the user confirmed that everyone on the call knew about and agreed to the
     /// recording. Nil only for recordings made before the confirmation existed.
     public var consentConfirmedAt: Date?
+    /// When the user used "Copy to Chat" for this recording. Nil if they never did.
+    public var announcementCopiedAt: Date?
 
     public var micURL: URL { folder.appendingPathComponent("mic.m4a") }
     public var systemURL: URL { folder.appendingPathComponent("system.m4a") }
@@ -34,6 +36,15 @@ public struct MeetingRecording: Codable, Hashable, Sendable {
             .filter { !FileManager.default.fileExists(atPath: $0.appendingPathComponent("meeting.json").path) }
             .compactMap { try? JSONFile.read(MeetingRecording.self, from: $0.appendingPathComponent("recording.json")) }
             .sorted { $0.startedAt > $1.startedAt }
+    }
+
+    /// Deletes a meeting's folder, but only a direct child of `directory`: the path comes from
+    /// a JSON file, so a hand-edited one must not point the recursive delete anywhere else.
+    public static func deleteFolder(_ folder: URL, in directory: URL = defaultDirectory) throws {
+        let resolved = folder.standardizedFileURL.resolvingSymlinksInPath()
+        guard resolved.deletingLastPathComponent().path == directory.standardizedFileURL.resolvingSymlinksInPath().path
+        else { throw CaptureError("Refused to delete \(folder.path): it isn't a meeting folder.") }
+        try FileManager.default.removeItem(at: resolved)
     }
 }
 
@@ -71,7 +82,8 @@ public final class MeetingRecorder: ObservableObject {
     /// Recording needs `consentConfirmedAt`: when the user confirmed that everyone on the
     /// call knows and agrees. It is saved with the recording. Nothing starts a recording
     /// automatically; only the user's Record action calls this.
-    public func start(_ source: AudioSource, title: String? = nil, consentConfirmedAt: Date) async throws {
+    public func start(_ source: AudioSource, title: String? = nil, consentConfirmedAt: Date,
+                      announcementCopiedAt: Date? = nil) async throws {
         guard !isRecording, !starting else { return }
         starting = true
         defer { starting = false }
@@ -85,7 +97,8 @@ public final class MeetingRecorder: ObservableObject {
         let recording = MeetingRecording(
             id: UUID(), title: title ?? "\(source.displayName) call", startedAt: now, duration: 0,
             folder: directory.appendingPathComponent(Self.folderName(now), isDirectory: true),
-            consentConfirmedAt: consentConfirmedAt)
+            consentConfirmedAt: consentConfirmedAt, announcementCopiedAt: announcementCopiedAt)
+        try FileManager.default.createPrivateDirectory(at: directory)
         try FileManager.default.createDirectory(at: recording.folder, withIntermediateDirectories: true)
 
         // One host-clock origin for both tracks; each writer pads to it.
@@ -104,6 +117,8 @@ public final class MeetingRecorder: ObservableObject {
             writers.system.finish()
             throw error
         }
+        // A stub now, so a crash still leaves a folder listed under Process Again and Delete.
+        try? recording.save()
         self.writers = writers
         current = recording
         startedAt = now
@@ -147,6 +162,13 @@ public final class MeetingRecorder: ObservableObject {
         micLevel = 0
         systemLevel = 0
         return recording
+    }
+
+    /// "Copy to Chat" during the recording. The first copy is kept.
+    public func announcementCopied(at date: Date = Date()) {
+        guard isRecording, current?.announcementCopiedAt == nil else { return }
+        current?.announcementCopiedAt = date
+        try? current?.save()
     }
 
     /// "Stop & Delete", for when someone objects: stops and removes this recording's files.

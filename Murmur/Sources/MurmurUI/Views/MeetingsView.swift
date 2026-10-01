@@ -130,7 +130,12 @@ final class MeetingsModel {
     func delete(_ id: UUID) {
         guard let folder = meetings.first(where: { $0.id == id })?.recording.folder
                 ?? unprocessed.first(where: { $0.id == id })?.folder else { return }
-        try? FileManager.default.removeItem(at: folder)
+        do {
+            try MeetingRecording.deleteFolder(folder)
+        } catch {
+            self.error = error.localizedDescription
+            return
+        }
         meetings.removeAll { $0.id == id }
         unprocessed.removeAll { $0.id == id }
         summaries[id] = nil

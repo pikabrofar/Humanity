@@ -180,7 +180,7 @@ struct VoiceProfileTests {
     }
 
     @Test func unrememberedVoiceprintsExpireWithTheMeeting() {
-        let old = MeetingRecording(id: UUID(), title: "t", startedAt: Date() - 400 * 86_400, duration: 1,
+        let old = MeetingRecording(id: UUID(), title: "t", startedAt: Date() - 31 * 86_400, duration: 1,
                                    folder: FileManager.default.temporaryDirectory)
         var meeting = Meeting(recording: old, diarization: Diarization(segments: [], centroids: ["S1": voice(0)]),
                               micWords: [], systemWords: [], speakers: [:])
@@ -188,7 +188,7 @@ struct VoiceProfileTests {
         #expect(first && !second)
         #expect(meeting.diarization.centroids.isEmpty)
         var recent = meeting
-        recent.recording.startedAt = Date()
+        recent.recording.startedAt = Date() - 29 * 86_400 // still time to tick "Remember"
         recent.diarization.centroids = ["S1": voice(0)]
         let dropped = recent.dropExpiredVoiceprints()
         #expect(!dropped)
@@ -200,10 +200,13 @@ struct VoiceProfileTests {
         decoder.dateDecodingStrategy = .iso8601
         #expect(try decoder.decode(MeetingRecording.self, from: Data(old.utf8)).consentConfirmedAt == nil)
         var recording = try decoder.decode(MeetingRecording.self, from: Data(old.utf8))
+        #expect(recording.announcementCopiedAt == nil)
         recording.consentConfirmedAt = Date(timeIntervalSince1970: 1_800_000_000)
+        recording.announcementCopiedAt = Date(timeIntervalSince1970: 1_799_999_990)
         let encoder = JSONEncoder()
         encoder.dateEncodingStrategy = .iso8601
         let again = try decoder.decode(MeetingRecording.self, from: encoder.encode(recording))
         #expect(again.consentConfirmedAt == recording.consentConfirmedAt)
+        #expect(again.announcementCopiedAt == recording.announcementCopiedAt)
     }
 }

@@ -5,7 +5,8 @@ hardware, no cloud, no third-party dependencies.
 
 - **Multi-stage calibration**: 9-point grid, smooth-pursuit target, head-motion
   phase, and held-out validation that reports accuracy and precision in degrees
-- **Optional gaze CNN** (MobileGaze via Core ML, 1.6 ms/frame) combined with the geometric model
+- **Advanced:** load your own Core ML gaze model to combine with the geometric model (bring your own;
+  public research models are usually non-commercial)
 - **Tolerates common calibration mistakes**: fixation detection per point, retries for missed
   points, per-user pursuit lag, and Huber-weighted fitting
 - **Live gaze cursor** (ring, dot, or spotlight) drawn over every app

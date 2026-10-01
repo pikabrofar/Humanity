@@ -52,11 +52,15 @@ public enum InsertMethod: Equatable, Sendable {
 }
 
 /// Removes characters a terminal or editor may act on rather than display: C0/C1 controls
-/// (ESC, ^C, ^D, ^O, a bare CR…) and bidi overrides. Newline and tab stay.
+/// (ESC, ^C, ^D, ^O, a bare CR…), bidi overrides, line/paragraph separators, zero-width
+/// characters and Unicode tags (invisible text). Newline and tab stay.
 public func sanitizeForInsertion(_ text: String) -> String {
     String(String.UnicodeScalarView(text.unicodeScalars.filter { u in
         if u == "\n" || u == "\t" { return true }
         if (0x202A...0x202E).contains(u.value) || (0x2066...0x2069).contains(u.value) { return false }
+        if [0x2028, 0x2029, 0x200B, 0x2060, 0xFEFF].contains(u.value) || (0xE0000...0xE007F).contains(u.value) {
+            return false
+        }
         return u.properties.generalCategory != .control
     }))
 }

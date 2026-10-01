@@ -29,6 +29,7 @@ public struct MeetingRecorderControl: View {
     @State private var everyoneAgreed = false
     @State private var confirmDiscard = false
     @State private var copied = false
+    @State private var announcementCopiedAt: Date?
 
     public init(recorder: MeetingRecorder, onFinish: @escaping (MeetingRecording) -> Void) {
         self.recorder = recorder
@@ -123,6 +124,7 @@ public struct MeetingRecorderControl: View {
             NSPasteboard.general.clearContents()
             NSPasteboard.general.setString(Self.announcement, forType: .string)
             copied = true
+            if recorder.isRecording { recorder.announcementCopied() } else { announcementCopiedAt = Date() }
             Task { try? await Task.sleep(for: .seconds(2)); copied = false }
         }
         .controlSize(.small)
@@ -139,7 +141,7 @@ public struct MeetingRecorderControl: View {
                 Spacer()
                 announceButton
             }
-            Toggle("Everyone on this call knows it's being recorded and agrees.", isOn: $everyoneAgreed)
+            Toggle("I've told everyone on this call it's being recorded, and they agreed.", isOn: $everyoneAgreed)
             HStack {
                 Spacer()
                 Button("Cancel") { confirming = false }
@@ -169,6 +171,7 @@ public struct MeetingRecorderControl: View {
             showIntro = true
         } else {
             everyoneAgreed = false // asked every time, never remembered
+            announcementCopiedAt = nil
             confirming = true
         }
     }
@@ -188,7 +191,7 @@ public struct MeetingRecorderControl: View {
                 return
             }
             do {
-                try await recorder.start(source, consentConfirmedAt: consentConfirmedAt)
+                try await recorder.start(source, consentConfirmedAt: consentConfirmedAt, announcementCopiedAt: announcementCopiedAt)
             } catch {
                 self.error = error.localizedDescription
             }

@@ -15,7 +15,7 @@ final class OverlayWindow: NSWindow {
         hasShadow = false
         level = .screenSaver
         ignoresMouseEvents = !interactive
-        // "Hide OculOS while recording" must not hide the gaze cursor while dwell keeps clicking.
+        // "Hide OculOS windows when a recording starts" must not hide the gaze cursor while dwell keeps clicking.
         canHide = interactive
         isReleasedWhenClosed = false
         collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary, .ignoresCycle]

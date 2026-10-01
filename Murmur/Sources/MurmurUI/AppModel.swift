@@ -41,7 +41,10 @@ final class AppModel {
         if let loadedMeetings { return loadedMeetings }
         let meetings = MeetingsModel()
         loadedMeetings = meetings
-        meetingRecordingWatch = meetings.recorder.$isRecording.sink { [weak self] in self?.isRecordingMeeting = $0 }
+        meetingRecordingWatch = meetings.recorder.$isRecording.sink { [weak self] in
+            self?.isRecordingMeeting = $0
+            self?.updateMeetingBanner()
+        }
         return meetings
     }
     @ObservationIgnored private var meetingRecordingWatch: AnyCancellable?
@@ -110,10 +113,13 @@ final class AppModel {
     @ObservationIgnored private var hotKey: HotKey?
     @ObservationIgnored private var cancelKey: HotKey?
     @ObservationIgnored private var hud: HUDPanel?
+    @ObservationIgnored private var meetingBanner: HUDPanel?
     @ObservationIgnored private var noticeTask: Task<Void, Never>?
     @ObservationIgnored private var permissionTimer: Timer?
 
     init() {
+        if FileManager.default.fileExists(atPath: store.directory.path) { try? store.prepare() } // tightens to 0700
+        MeetingStorage.tidy()
         recordings = store.loadAll()
         for old in RecordingStore.expired(recordings, olderThanDays: retentionDays) { delete(old.id) }
         // ⌃⌥⌘D from any app: tap to toggle, hold to talk.
@@ -456,6 +462,24 @@ final class AppModel {
             guard !Task.isCancelled else { return }
             notice = nil
             updateHUD()
+        }
+    }
+
+    /// Floating "Recording call" banner on every Space while a meeting records, so it stays
+    /// visible with the window closed. It can't be closed; Stop ends the recording.
+    private func updateMeetingBanner() {
+        if isRecordingMeeting, let recorder = loadedMeetings?.recorder, let startedAt = recorder.startedAt {
+            let banner = MeetingBanner(startedAt: startedAt) { [weak self] in
+                Task {
+                    guard let self, let recording = await recorder.stop() else { return }
+                    await self.meetings.process(recording)
+                }
+            }
+            meetingBanner = HUDPanel(content: banner, size: MeetingBanner.size, clickable: true)
+            meetingBanner?.present(atTop: true)
+        } else {
+            meetingBanner?.orderOut(nil)
+            meetingBanner = nil
         }
     }
 

@@ -12,7 +12,7 @@ OUT="$ROOT/dist"
 
 # Packages are for sharing: never pin the signature to the bundle id (any app
 # claiming the id would inherit permission grants). Only local dev builds pin.
-PIN_DR="${PIN_DR:-0}" VERSION="$VERSION" "$APP_DIR/scripts/build-app.sh" release
+OFFICIAL="${OFFICIAL:-1}" PIN_DR="${PIN_DR:-0}" VERSION="$VERSION" "$APP_DIR/scripts/build-app.sh" release
 
 mkdir -p "$OUT"
 STAGE="$(mktemp -d)"

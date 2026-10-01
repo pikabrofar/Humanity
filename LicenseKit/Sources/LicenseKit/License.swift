@@ -3,8 +3,14 @@ import Foundation
 /// Humanity apps are free to download and unlocked with a Gumroad license key.
 /// One key, stored once, unlocks Humanity and the standalone apps.
 public enum License {
-    /// Set to false in an update to make every app free.
+    /// Only official release builds (scripts/package.sh) need a key; anyone building
+    /// from source gets a free, unlocked app, as the MIT license and Terms promise.
+    /// To make the official apps free too, stop passing OFFICIAL=1 in package.sh.
+    #if HUMANITY_OFFICIAL
     public static let required = true
+    #else
+    public static let required = false
+    #endif
 
     /// Where people buy a key.
     public static let buyURL = URL(string: "https://gumroad.com/l/hamkad")!
@@ -73,6 +79,13 @@ public enum License {
     /// Checks a key with Gumroad and stores it when valid.
     /// - Parameter activating: counts as a new activation (shown in Gumroad as "uses").
     public static func activate(_ key: String, activating: Bool = true) async throws {
+        // Already verified and only new Terms to agree to: record assent without
+        // needing Gumroad (offline or down shouldn't block a paying customer).
+        if activating, let stored = load(), stored.key == key,
+           Date().timeIntervalSince(stored.verifiedAt) < offlineGrace {
+            save(Stored(key: key, verifiedAt: stored.verifiedAt, termsVersion: termsVersion, agreedAt: Date()))
+            return
+        }
         var request = URLRequest(url: verifyURL)
         request.httpMethod = "POST"
         request.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
@@ -82,12 +95,15 @@ public enum License {
             ("increment_uses_count", activating ? "true" : "false"),
         ])
         let data: Data
+        let status: Int
         do {
-            data = try await URLSession(configuration: .ephemeral).data(for: request).0
+            let (body, response) = try await URLSession(configuration: .ephemeral).data(for: request)
+            data = body
+            status = (response as? HTTPURLResponse)?.statusCode ?? 0
         } catch {
             throw Failure.network("Couldn't reach Gumroad. Check your internet connection and try again.")
         }
-        if let failure = failure(in: data) { throw failure }
+        if let failure = failure(in: data, status: status) { throw failure }
         let previous = load()
         save(Stored(key: key, verifiedAt: Date(),
                     termsVersion: activating ? termsVersion : previous?.termsVersion,
@@ -105,7 +121,12 @@ public enum License {
     /// Nil when Gumroad's reply says the key is valid. Only a clear "no" from Gumroad
     /// is `.rejected`; anything unreadable (a captive portal, an outage page) is
     /// treated like being offline, so it never removes a paying customer's key.
-    static func failure(in data: Data) -> Failure? {
+    static func failure(in data: Data, status: Int = 200) -> Failure? {
+        // Gumroad answers 200 for a known key and 404 for an unknown one; any other
+        // status (rate limit, outage) says nothing about the key.
+        guard status == 200 || status == 404 else {
+            return .network("Gumroad is unavailable right now. Try again in a moment.")
+        }
         struct Reply: Decodable {
             struct Purchase: Decodable {
                 var refunded: Bool?; var chargebacked: Bool?; var disputed: Bool?; var dispute_won: Bool?

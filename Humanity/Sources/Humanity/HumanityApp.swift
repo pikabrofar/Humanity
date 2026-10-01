@@ -551,7 +551,7 @@ private struct MenuBarIcon: View {
         Image(systemName: suite.voice.isRecordingMeeting ? "record.circle.fill"
               : suite.voice.isListening ? "waveform.circle.fill"
               : suite.hands.isControlling ? "hand.point.up.left.fill"
-              : suite.gaze.isRecording ? "record.circle.fill" : "figure.arms.open")
+              : suite.gaze.isRecording ? "eye.circle.fill" : "figure.arms.open")
             .task {
                 suite.openWindow = { openWindow(id: $0) }
                 // A menu bar app stays out of the way: a window only on first launch

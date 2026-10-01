@@ -110,7 +110,7 @@ public struct MeetingDetailView: View {
                     Text("This saves a voiceprint of \(person): biometric data, not audio. It stays on this Mac, is deleted after 12 months unused (3 years at most), and \(person) can ask you to delete it at any time. Some places, such as Illinois, require their written consent.")
                         .font(.caption).foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
-                    Toggle("\(person) agreed to have their voiceprint saved on this Mac.", isOn: $agreed)
+                    Toggle("\(person) told me they agree to having their voiceprint saved on this Mac.", isOn: $agreed)
                 }
             }
             HStack {

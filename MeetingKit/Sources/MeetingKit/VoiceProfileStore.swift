@@ -185,7 +185,9 @@ public final class VoiceProfileStore: ObservableObject {
     }
 
     private func save() throws {
-        try FileManager.default.createDirectory(at: fileURL.deletingLastPathComponent(), withIntermediateDirectories: true)
+        let directory = fileURL.deletingLastPathComponent()
+        try FileManager.default.createPrivateDirectory(at: directory)
+        try? MeetingStorage.excludeFromBackup(directory) // biometric data stays off backups
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
         encoder.dateEncodingStrategy = .iso8601

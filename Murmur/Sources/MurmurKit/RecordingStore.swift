@@ -20,8 +20,11 @@ public struct RecordingStore: Sendable {
 
     public func hasAudio(_ id: UUID) -> Bool { FileManager.default.fileExists(atPath: audioURL(for: id).path) }
 
+    /// Creates the folder readable only by this user, and tightens an existing one.
     public func prepare() throws {
-        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true,
+                                                attributes: [.posixPermissions: 0o700])
+        try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: directory.path)
     }
 
     public func save(_ recording: Recording) throws {

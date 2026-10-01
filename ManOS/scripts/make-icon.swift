@@ -18,23 +18,33 @@ func render(_ px: Int) -> Data {
     NSGradient(colors: [NSColor(red: 0.42, green: 0.25, blue: 0.95, alpha: 1),
                         NSColor(red: 0.12, green: 0.08, blue: 0.35, alpha: 1)])!.draw(in: squircle, angle: -90)
 
-    // Open hand: rounded-rect palm, four fingers and an angled thumb.
-    NSColor.white.setFill()
-    let palm = NSRect(x: s * 0.375, y: s * 0.24, width: s * 0.2695, height: s * 0.28)
-    NSBezierPath(roundedRect: palm, xRadius: s * 0.08, yRadius: s * 0.08).fill()
-    let fw = s * 0.058
-    for (i, top) in [0.65, 0.71, 0.69, 0.62].enumerated() {
-        let x = s * 0.375 + CGFloat(i) * s * 0.0705
-        let finger = NSRect(x: x, y: s * 0.36, width: fw, height: s * CGFloat(top) - s * 0.36)
-        NSBezierPath(roundedRect: finger, xRadius: fw / 2, yRadius: fw / 2).fill()
+    // Cursor arrow with a soft, fingertip-round point, and a small spark where it "touches".
+    let arrow = NSBezierPath()
+    for (i, p) in [(0.36, 0.66), (0.36, 0.27), (0.46, 0.36), (0.54, 0.21),
+                   (0.62, 0.25), (0.545, 0.40), (0.67, 0.42)].enumerated() {
+        let pt = NSPoint(x: s * CGFloat(p.0), y: s * CGFloat(p.1))
+        i == 0 ? arrow.move(to: pt) : arrow.line(to: pt)
     }
-    let thumb = NSBezierPath(roundedRect: NSRect(x: -fw / 2, y: 0, width: fw * 1.1, height: s * 0.24),
-                             xRadius: fw / 2, yRadius: fw / 2)
-    let t = AffineTransform(translationByX: s * 0.43, byY: s * 0.29)
-    var r = AffineTransform(rotationByDegrees: 38)
-    r.append(t)
-    thumb.transform(using: r)
-    thumb.fill()
+    arrow.close()
+    arrow.lineWidth = s * 0.085   // fat round joins turn every corner into a soft fingertip curve
+    arrow.lineJoinStyle = .round
+    NSColor.white.setFill()
+    NSColor.white.setStroke()
+    arrow.fill()
+    arrow.stroke()
+
+    let c = NSPoint(x: s * 0.29, y: s * 0.75)
+    let spark = NSBezierPath()
+    let big = s * 0.075, small = s * 0.019
+    for i in 0..<8 {
+        let a = CGFloat(i) * .pi / 4
+        let rr = i % 2 == 0 ? big : small
+        let pt = NSPoint(x: c.x + rr * cos(a), y: c.y + rr * sin(a))
+        i == 0 ? spark.move(to: pt) : spark.line(to: pt)
+    }
+    spark.close()
+    NSColor(red: 1, green: 0.88, blue: 0.45, alpha: 1).setFill()
+    spark.fill()
 
     NSGraphicsContext.restoreGraphicsState()
     return rep.representation(using: .png, properties: [:])!

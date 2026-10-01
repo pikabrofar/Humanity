@@ -274,6 +274,11 @@ func neverSavesOrRestoresAPassword(type: String) async {
     #expect(sanitizeForInsertion("ls\u{0F}\u{1B}[201~ -la\r\u{03}\u{202E}x") == "ls[201~ -lax")
     #expect(sanitizeForInsertion("line one\nline\ttwo\r\n👍🏽 café") == "line one\nline\ttwo\n👍🏽 café")
     #expect(sanitizeForInsertion("\u{85}a\u{9B}b") == "ab") // C1 controls too
+    // Invisible text: separators, zero-width characters and Unicode tags.
+    #expect(sanitizeForInsertion("a\u{2028}b\u{2029}c\u{200B}d\u{2060}g\u{FEFF}h") == "abcdgh")
+    // Joiners stay: they build emoji and Persian/Indic spelling.
+    #expect(sanitizeForInsertion("a\u{200C}b\u{200D}c") == "a\u{200C}b\u{200D}c")
+    #expect(sanitizeForInsertion("ok\u{E0001}\u{E0069}\u{E007F}!") == "ok!")
 }
 
 @Test func modelMayNotAddLineBreaks() {

@@ -31,7 +31,7 @@ See [PRIVACY.md](PRIVACY.md) for exactly what is stored and what (little) goes o
 
 ## Requirements
 
-- macOS 14 Sonoma or later
+- macOS 14 Sonoma or later on an **Apple silicon** Mac (Intel Macs are untested)
 - A webcam (the built-in FaceTime camera works)
 - Xcode 16+ or just the Command Line Tools with Swift 6 (`xcode-select --install`)
 
@@ -60,7 +60,7 @@ Create a Certificate → Code Signing), then build with
   device**. Don't rely on it as your only way to use your Mac, or for anything
   urgent or safety-critical. Keep a keyboard and mouse or trackpad available.
 - Webcam eye and hand tracking is approximate (OculOS typically lands within a
-  few degrees) and can misread you, so clicks and keystrokes can land in the
+  2–5 degrees) and can misread you, so clicks and keystrokes can land in the
   wrong place. ⌃⌥⌘H stops hand control at any time, Esc cancels dictation, and
   your real mouse always takes over.
 - Recording a call or creating a voice profile of someone may require their

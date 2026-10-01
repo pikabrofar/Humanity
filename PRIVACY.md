@@ -61,10 +61,15 @@ never receives any of it. Retention schedule:
 |---|---|---|
 | Voice profiles (voiceprints) | Recognize people you named in later meetings | You delete them; automatically after 12 months unused, and at most 3 years |
 | OculOS calibration (eye measurements, 10×6-pixel eye crops) | Estimating where you look | You clear or redo calibration |
-| Meeting audio and transcripts | Your record of the call | You delete them (optionally automatically after 30, 90 or 365 days) |
+| Speaker voiceprints inside each meeting (people not remembered) | Labeling speakers in that meeting | Removed when you open Meetings 12 months after the meeting, or when you delete it |
+| Meeting audio and transcripts | Your record of the call | You delete them |
+| Dictations and notes | Your history | You delete them, or automatically after 30, 90 or 365 days if you choose |
+| OculOS gaze recordings and screenshots | Heatmaps you asked for | You delete them |
 
 Before saving someone's voiceprint, the app asks you to confirm they agreed.
-Settings → Data → **Delete All Humanity Data** erases everything the apps stored
+Settings → Data → **Delete All Humanity Data** erases the apps' files and settings
+on this Mac (not AI provider keys, which you remove in AI Providers, and not copies
+in your own backups such as Time Machine)
 (Settings → Murmur → **Delete All Murmur Data** erases just recordings, meetings
 and voice profiles). Humanity never uses this data to infer health,
 emotions or other sensitive traits.
