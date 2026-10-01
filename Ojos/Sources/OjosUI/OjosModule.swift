@@ -30,6 +30,14 @@ public final class OjosModule {
 
     public var isCalibrated: Bool { model.engine.isCalibrated }
     public var isTracking: Bool { model.engine.gaze != nil }
+    /// Why the camera isn't delivering frames (denied, failed), or nil when it's fine.
+    public var cameraProblem: String? {
+        switch model.engine.cameraState {
+        case .denied: "No camera access"
+        case .failed: "Camera unavailable"
+        default: nil
+        }
+    }
     public var isRecording: Bool { model.isRecording }
 
     public var showCursor: Bool {

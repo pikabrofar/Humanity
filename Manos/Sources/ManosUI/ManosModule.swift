@@ -33,6 +33,14 @@ public final class ManosModule {
     public var isPaused: Bool { model.engine.isPaused }
     public var canControl: Bool { model.canControl }
     public var handInView: Bool { model.engine.activeHand != nil }
+    /// Why the camera isn't delivering frames (denied, failed), or nil when it's fine.
+    public var cameraProblem: String? {
+        switch model.engine.cameraState {
+        case .denied: "No camera access"
+        case .failed: "Camera unavailable"
+        default: nil
+        }
+    }
 
     /// Aim with something else (e.g. gaze) and click with a pinch. Nil = the hand aims.
     public var pointerSource: (() -> CGPoint?)? {

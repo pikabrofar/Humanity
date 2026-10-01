@@ -225,40 +225,59 @@ struct QuickPanel: View {
         let missing = permissions.missingRequired.count
         VStack(spacing: 12) {
             ModuleTiles()
-            HStack(spacing: 6) {
-                if missing > 0 {
-                    Button { suite.show("permissions") } label: {
-                        Label("\(missing) permission\(missing == 1 ? "" : "s") needed", systemImage: "exclamationmark.triangle.fill")
-                    }
-                    .buttonStyle(.plain)
-                    .foregroundStyle(.orange)
-                } else {
-                    Text("⌃⌥⌘D dictate · ⌃⌥⌘H hands").foregroundStyle(.tertiary)
+            if missing > 0 {
+                Button { suite.show("permissions") } label: {
+                    Label("\(missing) permission\(missing == 1 ? "" : "s") needed", systemImage: "exclamationmark.triangle.fill")
+                        .font(.caption)
                 }
-                Spacer(minLength: 0)
+                .buttonStyle(.plain)
+                .foregroundStyle(.orange)
+            }
+            // Bottom bar: open the app, and everything else behind ⋯.
+            HStack(spacing: 8) {
+                Button { suite.show("home") } label: {
+                    Text("Open sentidoS").font(.callout.weight(.medium)).frame(maxWidth: .infinity)
+                }
+                .modifier(GlassBar())
                 Menu {
-                    Button("Open sentidoS") { suite.show("home") }
                     Button("Support sentidoS…") { NSWorkspace.shared.open(URL(string: "https://gumroad.com/l/hamkad")!) }
+                    Button("Tutorial") { suite.show(nil, window: "tutorial") }
+                    SettingsLink { Text("Settings…") }
                     Button("About sentidoS") {
                         NSApp.activate(ignoringOtherApps: true)
                         NSApp.orderFrontStandardAboutPanel()
                     }
-                    Button("Tutorial") { suite.show(nil, window: "tutorial") }
-                    SettingsLink { Text("Settings…") }
                     Divider()
-                    Button("Quit sentidoS") { NSApp.terminate(nil) }
+                    Button("Quit sentidoS") { NSApp.terminate(nil) }.keyboardShortcut("q")
                 } label: {
-                    Image(systemName: "ellipsis")
+                    Image(systemName: "ellipsis").frame(width: 20, height: 20)
                 }
                 .menuStyle(.button)
-                .buttonStyle(.borderless)
                 .menuIndicator(.hidden)
+                .modifier(GlassBar(circle: true))
                 .fixedSize()
+                .help("More")
             }
-            .font(.caption)
         }
         .padding(14)
         .frame(width: 236)
+    }
+}
+
+/// A glass capsule (or circle) button on macOS 26; bordered before that.
+private struct GlassBar: ViewModifier {
+    var circle = false
+
+    func body(content: Content) -> some View {
+        if #available(macOS 26, *) {
+            if circle {
+                content.buttonStyle(.glass).buttonBorderShape(.circle)
+            } else {
+                content.buttonStyle(.glass).buttonBorderShape(.capsule).controlSize(.large)
+            }
+        } else {
+            content.buttonStyle(.bordered).controlSize(circle ? .regular : .large)
+        }
     }
 }
 
@@ -270,8 +289,9 @@ struct ModuleTiles: View {
         let gaze = suite.gaze, hands = suite.hands, voice = suite.voice
         HStack(alignment: .top, spacing: 8) {
             Tile(symbol: "eye", name: "ojoS", tint: .blue, isOn: suite.gazeOn,
-                 status: !suite.gazeOn ? "Off" : !gaze.isCalibrated ? "Calibrate" : gaze.isTracking ? "Tracking" : "Searching",
+                 status: !suite.gazeOn ? "Off" : gaze.cameraProblem != nil ? "No camera" : !gaze.isCalibrated ? "Calibrate" : gaze.isTracking ? "Tracking" : "Searching",
                  help: "Eye tracking") {
+                if !suite.gazeOn, gaze.cameraProblem != nil { suite.show("permissions"); return }
                 suite.gazeOn.toggle()
                 gaze.showCursor = suite.gazeOn && gaze.isCalibrated
                 if suite.gazeOn, !gaze.isCalibrated { suite.show("gaze.setup") }
@@ -279,9 +299,10 @@ struct ModuleTiles: View {
 
             let handsOn = hands.isControlling
             Tile(symbol: "hand.raised", name: "manoS", tint: .purple, isOn: handsOn,
-                 status: !handsOn ? (hands.canControl ? "Off" : "No access") : hands.isPaused ? "Paused" : hands.handInView ? "Active" : "No hand",
+                 status: !handsOn ? (hands.canControl ? "Off" : "No access")
+                    : hands.cameraProblem != nil ? "No camera" : hands.isPaused ? "Paused" : hands.handInView ? "Active" : "No hand",
                  help: "Hand control · ⌃⌥⌘H") {
-                guard handsOn || hands.canControl else { suite.show("permissions"); return }
+                guard handsOn || (hands.canControl && hands.cameraProblem == nil) else { suite.show("permissions"); return }
                 hands.toggleControl()
             } open: { suite.show("hands.live") }
 
