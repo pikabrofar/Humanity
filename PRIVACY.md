@@ -60,8 +60,8 @@ never receives any of it. Retention schedule:
 | Data | Purpose | Kept until |
 |---|---|---|
 | Voice profiles (voiceprints) | Recognize people you named in later meetings | You delete them; automatically after 12 months unused, and at most 3 years |
-| OculOS calibration (eye measurements, 10×6-pixel eye crops) | Estimating where you look | You clear or redo calibration |
-| Speaker voiceprints inside each meeting (people not remembered) | Labeling speakers in that meeting | Removed when you open Meetings 12 months after the meeting, or when you delete it |
+| OculOS calibration (eye measurements, 10×6-pixel eye crops), including up to 400 samples taken when you click while tracking ("Learn from clicks", on by default, can be turned off in OculOS settings) | Estimating where you look | You clear or redo calibration |
+| Speaker voiceprints inside each meeting (people not remembered) | Letting you choose "Remember this voice" later | Removed 30 days after the meeting (checked when Meetings opens), or when you delete the meeting |
 | Meeting audio and transcripts | Your record of the call | You delete them |
 | Dictations and notes | Your history | You delete them, or automatically after 30, 90 or 365 days if you choose |
 | OculOS gaze recordings and screenshots | Heatmaps you asked for | You delete them |
