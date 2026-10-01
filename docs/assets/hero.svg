@@ -1,0 +1,158 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 560" width="1280" height="560" role="img" aria-labelledby="t d">
+  <title id="t">Humanity</title>
+  <desc id="d">Control your Mac with your eyes, hands and voice. A menu bar panel with three glass toggles: OculOS, ManOS and Murmur.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0b0b14"/>
+      <stop offset="1" stop-color="#160f2b"/>
+    </linearGradient>
+    <linearGradient id="title" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#7cc4ff"/>
+      <stop offset="0.5" stop-color="#c79bff"/>
+      <stop offset="1" stop-color="#ffb37a"/>
+    </linearGradient>
+    <radialGradient id="orbBlue"><stop offset="0" stop-color="#3b82f6" stop-opacity=".55"/><stop offset="1" stop-color="#3b82f6" stop-opacity="0"/></radialGradient>
+    <radialGradient id="orbPurple"><stop offset="0" stop-color="#a855f7" stop-opacity=".5"/><stop offset="1" stop-color="#a855f7" stop-opacity="0"/></radialGradient>
+    <radialGradient id="orbOrange"><stop offset="0" stop-color="#f97316" stop-opacity=".42"/><stop offset="1" stop-color="#f97316" stop-opacity="0"/></radialGradient>
+    <linearGradient id="glass" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff" stop-opacity=".14"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity=".05"/>
+    </linearGradient>
+    <linearGradient id="blueOn" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#4f9bff"/><stop offset="1" stop-color="#2563eb"/></linearGradient>
+    <linearGradient id="purpleOn" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#c084fc"/><stop offset="1" stop-color="#9333ea"/></linearGradient>
+    <linearGradient id="orangeOn" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fdba74"/><stop offset="1" stop-color="#ea580c"/></linearGradient>
+    <clipPath id="card"><rect width="1280" height="560" rx="28"/></clipPath>
+    <filter id="blur" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="40"/></filter>
+    <filter id="soft"><feDropShadow dx="0" dy="18" stdDeviation="22" flood-color="#000" flood-opacity=".45"/></filter>
+    <style>
+      text { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Helvetica Neue", Helvetica, Arial, sans-serif; }
+      .drift1 { animation: drift1 14s ease-in-out infinite alternate; }
+      .drift2 { animation: drift2 17s ease-in-out infinite alternate; }
+      .drift3 { animation: drift3 12s ease-in-out infinite alternate; }
+      @keyframes drift1 { to { transform: translate(120px, 60px); } }
+      @keyframes drift2 { to { transform: translate(-140px, -40px); } }
+      @keyframes drift3 { to { transform: translate(80px, -70px); } }
+      .rise { animation: rise 1.2s cubic-bezier(.2,.8,.2,1) both; }
+      .rise2 { animation: rise 1.2s .15s cubic-bezier(.2,.8,.2,1) both; }
+      .rise3 { animation: rise 1.2s .3s cubic-bezier(.2,.8,.2,1) both; }
+      @keyframes rise { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: none; } }
+      .blink { transform-box: fill-box; transform-origin: center; animation: blink 5s infinite; }
+      @keyframes blink { 0%, 92%, 100% { transform: scaleY(1); } 95% { transform: scaleY(.1); } }
+      .gaze { animation: gaze 9s ease-in-out infinite; }
+      @keyframes gaze {
+        0% { transform: translate(0px, 0px); } 22% { transform: translate(150px, 40px); }
+        45% { transform: translate(260px, -30px); } 70% { transform: translate(90px, 70px); }
+        100% { transform: translate(0px, 0px); }
+      }
+      .ring { transform-box: fill-box; transform-origin: center; animation: ring 2.4s ease-out infinite; }
+      @keyframes ring { 0% { transform: scale(.6); opacity: .9; } 100% { transform: scale(1.6); opacity: 0; } }
+      .wave { transform-box: fill-box; transform-origin: center; animation: wave 1.1s ease-in-out infinite; }
+      .w2 { animation-delay: .15s; } .w3 { animation-delay: .3s; } .w4 { animation-delay: .45s; } .w5 { animation-delay: .6s; }
+      @keyframes wave { 0%, 100% { transform: scaleY(.35); } 50% { transform: scaleY(1); } }
+      .pinch { transform-box: fill-box; transform-origin: 30% 70%; animation: pinch 3s ease-in-out infinite; }
+      @keyframes pinch { 0%, 60%, 100% { transform: rotate(0deg); } 75% { transform: rotate(-14deg); } }
+      .spark { transform-box: fill-box; transform-origin: center; animation: spark 3s ease-in-out infinite; }
+      @keyframes spark { 0%, 66%, 100% { opacity: 0; transform: scale(.4); } 76% { opacity: 1; transform: scale(1.1); } 86% { opacity: 0; transform: scale(1.4); } }
+      @media (prefers-reduced-motion: reduce) { * { animation: none !important; } }
+    </style>
+  </defs>
+
+  <g clip-path="url(#card)">
+    <rect width="1280" height="560" fill="url(#bg)"/>
+    <g filter="url(#blur)">
+      <circle class="drift1" cx="220" cy="140" r="220" fill="url(#orbBlue)"/>
+      <circle class="drift2" cx="1080" cy="160" r="240" fill="url(#orbPurple)"/>
+      <circle class="drift3" cx="760" cy="520" r="230" fill="url(#orbOrange)"/>
+    </g>
+    <!-- faint grid -->
+    <g stroke="#ffffff" stroke-opacity=".04">
+      <path d="M0 140H1280M0 280H1280M0 420H1280M160 0V560M320 0V560M480 0V560M640 0V560M800 0V560M960 0V560M1120 0V560"/>
+    </g>
+
+    <!-- copy -->
+    <g class="rise">
+      <text x="96" y="214" font-size="104" font-weight="800" letter-spacing="-3" fill="url(#title)">Humanity</text>
+    </g>
+    <g class="rise2">
+      <text x="100" y="272" font-size="30" font-weight="500" fill="#e8e6f3">Control your Mac with your eyes,</text>
+      <text x="100" y="312" font-size="30" font-weight="500" fill="#e8e6f3">hands and voice.</text>
+    </g>
+    <g class="rise3" font-size="18" fill="#a9a5c2">
+      <text x="100" y="368">Just your webcam and mic · on-device · free and open source</text>
+      <g transform="translate(100 398)">
+        <rect width="132" height="34" rx="17" fill="#ffffff" fill-opacity=".08" stroke="#ffffff" stroke-opacity=".12"/>
+        <text x="66" y="23" text-anchor="middle" font-size="15" fill="#d9d6ee">macOS 14+</text>
+        <rect x="144" width="150" height="34" rx="17" fill="#ffffff" fill-opacity=".08" stroke="#ffffff" stroke-opacity=".12"/>
+        <text x="219" y="23" text-anchor="middle" font-size="15" fill="#d9d6ee">Apple silicon</text>
+        <rect x="306" width="96" height="34" rx="17" fill="#ffffff" fill-opacity=".08" stroke="#ffffff" stroke-opacity=".12"/>
+        <text x="354" y="23" text-anchor="middle" font-size="15" fill="#d9d6ee">MIT</text>
+      </g>
+    </g>
+
+    <!-- mini screen with a gaze cursor -->
+    <g transform="translate(720 70)">
+      <rect width="460" height="300" rx="18" fill="#ffffff" fill-opacity=".04" stroke="#ffffff" stroke-opacity=".10"/>
+      <rect width="460" height="28" rx="14" fill="#ffffff" fill-opacity=".05"/>
+      <circle cx="20" cy="14" r="5" fill="#ff5f57"/><circle cx="38" cy="14" r="5" fill="#febc2e"/><circle cx="56" cy="14" r="5" fill="#28c840"/>
+      <g fill="#ffffff" fill-opacity=".08">
+        <rect x="28" y="56" width="180" height="14" rx="7"/>
+        <rect x="28" y="84" width="300" height="10" rx="5"/>
+        <rect x="28" y="104" width="260" height="10" rx="5"/>
+        <rect x="28" y="140" width="120" height="40" rx="10"/>
+        <rect x="160" y="140" width="120" height="40" rx="10"/>
+        <rect x="28" y="204" width="400" height="64" rx="12"/>
+      </g>
+      <g transform="translate(80 150)"><g class="gaze">
+        <circle class="ring" cx="0" cy="0" r="22" fill="none" stroke="#7cc4ff" stroke-width="2"/>
+        <circle cx="0" cy="0" r="16" fill="#3b82f6" fill-opacity=".18" stroke="#7cc4ff" stroke-width="2.5"/>
+        <circle cx="0" cy="0" r="3" fill="#7cc4ff"/>
+      </g></g>
+    </g>
+
+    <!-- menu bar panel -->
+    <g transform="translate(760 330)" filter="url(#soft)">
+      <rect width="380" height="186" rx="26" fill="#1c1b29" fill-opacity=".72"/>
+      <rect width="380" height="186" rx="26" fill="url(#glass)" stroke="#ffffff" stroke-opacity=".16"/>
+
+      <!-- OculOS (on) -->
+      <g transform="translate(70 66)">
+        <circle r="34" fill="url(#blueOn)"/>
+        <circle r="34" fill="none" stroke="#ffffff" stroke-opacity=".35"/>
+        <g class="blink">
+          <path d="M-17 0 C-10 -11 10 -11 17 0 C10 11 -10 11 -17 0 Z" fill="none" stroke="#fff" stroke-width="3" stroke-linejoin="round"/>
+          <circle r="5.5" fill="#fff"/>
+        </g>
+        <text y="62" text-anchor="middle" font-size="15" font-weight="700" fill="#f2f0fa">OculOS</text>
+        <text y="82" text-anchor="middle" font-size="13" fill="#a9a5c2">Tracking</text>
+      </g>
+
+      <!-- ManOS (on) -->
+      <g transform="translate(190 66)">
+        <circle r="34" fill="url(#purpleOn)"/>
+        <circle r="34" fill="none" stroke="#ffffff" stroke-opacity=".35"/>
+        <g class="pinch">
+          <path d="M-9 -15 L-9 13 L-2.5 6.5 L2 16.5 L6.5 14.5 L2 4.5 L11 4.5 Z" fill="#fff" stroke="#fff" stroke-width="2.5" stroke-linejoin="round"/>
+        </g>
+        <path class="spark" d="M-12 -20 l2 5 5 2 -5 2 -2 5 -2 -5 -5 -2 5 -2 z" fill="#fde68a"/>
+        <text y="62" text-anchor="middle" font-size="15" font-weight="700" fill="#f2f0fa">ManOS</text>
+        <text y="82" text-anchor="middle" font-size="13" fill="#a9a5c2">Active</text>
+      </g>
+
+      <!-- Murmur (listening) -->
+      <g transform="translate(310 66)">
+        <circle r="34" fill="url(#orangeOn)"/>
+        <circle r="34" fill="none" stroke="#ffffff" stroke-opacity=".35"/>
+        <g fill="#fff">
+          <rect class="wave" x="-15" y="-9" width="4" height="18" rx="2"/>
+          <rect class="wave w2" x="-8" y="-14" width="4" height="28" rx="2"/>
+          <rect class="wave w3" x="-1" y="-17" width="4" height="34" rx="2"/>
+          <rect class="wave w4" x="6" y="-12" width="4" height="24" rx="2"/>
+          <rect class="wave w5" x="13" y="-7" width="4" height="14" rx="2"/>
+        </g>
+        <text y="62" text-anchor="middle" font-size="15" font-weight="700" fill="#f2f0fa">Murmur</text>
+        <text y="82" text-anchor="middle" font-size="13" fill="#a9a5c2">Listening</text>
+      </g>
+    </g>
+  </g>
+  <rect x=".5" y=".5" width="1279" height="559" rx="28" fill="none" stroke="#ffffff" stroke-opacity=".08"/>
+</svg>
