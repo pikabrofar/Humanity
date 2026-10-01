@@ -13,10 +13,11 @@ enum Showcase {
         .map { URL(fileURLWithPath: $0, isDirectory: true) }
     static var isActive: Bool { directory != nil }
 
-    static func run(_ model: AppModel) async {
+    static func run(_ model: AppModel, openSettings: OpenSettingsAction) async {
         guard let directory, !started else { return }
         started = true
         try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        NSApp.activate(ignoringOtherApps: true)
 
         let calibration = makeCalibration()
         var screenshots: [UUID: NSImage] = [:]
@@ -30,7 +31,7 @@ enum Showcase {
 
         await settle(1)
         guard let window = NSApp.windows.first(where: { $0.title == "VisionGaze" && $0.isVisible }) else {
-            print("Showcase: main window not found")
+            log("main window not found")
             NSApp.terminate(nil)
             return
         }
@@ -60,16 +61,20 @@ enum Showcase {
         // Settings, one tab at a time.
         for (appearance, suffix) in [(NSAppearance.Name.aqua, "light"), (.darkAqua, "dark")] {
             NSApp.appearance = NSAppearance(named: appearance)
-            NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
-            await settle(1)
+            openSettings()
+            await settle(1.2)
+            let settings = NSApp.windows.first { $0.isVisible && $0 !== window && $0.styleMask.contains(.titled) }
+            if settings == nil {
+                log("settings window not found; windows: " + NSApp.windows
+                    .map { "\($0.title) \(Int($0.frame.width))x\(Int($0.frame.height)) visible=\($0.isVisible)" }
+                    .joined(separator: "; "))
+            }
             for tab in SettingsTab.allCases {
                 UserDefaults.standard.set(tab.rawValue, forKey: "settingsTab")
                 await settle(1)
-                if let settings = NSApp.keyWindow ?? NSApp.windows.first(where: { $0.isVisible && $0 !== window && $0.styleMask.contains(.titled) }) {
-                    capture(settings, "settings-\(tab.rawValue)-\(suffix)")
-                }
+                if let settings { capture(settings, "settings-\(tab.rawValue)-\(suffix)") }
             }
-            NSApp.keyWindow?.close()
+            settings?.close()
         }
 
         // Full-screen calibration: intro and results.
@@ -88,6 +93,10 @@ enum Showcase {
     }
 
     private static var started = false
+
+    private static func log(_ message: String) {
+        FileHandle.standardError.write(Data("Showcase: \(message)\n".utf8))
+    }
 
     private static func settle(_ seconds: Double) async {
         try? await Task.sleep(for: .seconds(seconds))
@@ -191,7 +200,7 @@ enum Showcase {
             let data = try JSONSerialization.data(withJSONObject: json)
             return try JSONDecoder().decode(StoredCalibration.self, from: data)
         } catch {
-            print("Showcase: calibration failed to decode: \(error)")
+            log("calibration failed to decode: \(error)")
             return nil
         }
     }

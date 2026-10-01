@@ -53,6 +53,9 @@ struct VisionGazeApp: App {
 
 struct RootView: View {
     @Environment(AppModel.self) private var model
+    #if DEBUG
+    @Environment(\.openSettings) private var openSettings
+    #endif
 
     var body: some View {
         @Bindable var model = model
@@ -82,7 +85,7 @@ struct RootView: View {
             window.titlebarSeparatorStyle = .none
         })
         #if DEBUG
-        .task { await Showcase.run(model) }
+        .task { await Showcase.run(model, openSettings: openSettings) }
         #endif
     }
 }
