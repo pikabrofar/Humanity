@@ -5,7 +5,7 @@ import Observation
 import SwiftUI
 import UniformTypeIdentifiers
 
-enum SidebarSection: String, CaseIterable, Identifiable {
+enum AppSection: String, CaseIterable, Identifiable {
     case live, calibrate, recordings
     var id: Self { self }
 
@@ -17,11 +17,12 @@ enum SidebarSection: String, CaseIterable, Identifiable {
         }
     }
 
-    var symbol: String {
+    /// ⌘1, ⌘2, ⌘3.
+    var shortcut: KeyEquivalent {
         switch self {
-        case .live: "eye"
-        case .calibrate: "scope"
-        case .recordings: "flame"
+        case .live: "1"
+        case .calibrate: "2"
+        case .recordings: "3"
         }
     }
 }
@@ -32,7 +33,7 @@ final class AppModel {
     let engine = GazeEngine()
     let recordings = RecordingStore()
 
-    var section: SidebarSection? = .live
+    var section: AppSection = .live
     var selectedRecordingID: Recording.ID?
     /// Display to calibrate on; defaults to the main display.
     var calibrationDisplayID: CGDirectDisplayID = NSScreen.main?.displayID ?? 0
@@ -70,7 +71,13 @@ final class AppModel {
     @ObservationIgnored private var clickMonitors: [Any] = []
 
     init() {
-        Task { await engine.start() }
+        #if DEBUG
+        let showcase = Showcase.isActive
+        #else
+        let showcase = false
+        #endif
+        // The showcase renders canned data and must not touch the camera.
+        if !showcase { Task { await engine.start() } }
         hotKey = HotKey(keyCode: kVK_ANSI_R, modifiers: cmdKey | optionKey) { [weak self] in
             MainActor.assumeIsolated { self?.toggleRecording() }
         }

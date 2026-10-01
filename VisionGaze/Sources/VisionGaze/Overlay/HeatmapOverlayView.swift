@@ -8,11 +8,16 @@ struct HeatmapOverlayView: View {
     var body: some View {
         ZStack(alignment: .top) {
             HeatmapCanvas(recording: recording, background: nil, showHeatmap: true, showScanpath: false, placeholder: false)
-            Text("\(recording.name) — click or press Esc to close")
-                .font(.callout.weight(.medium))
-                .padding(.horizontal, 14).padding(.vertical, 8)
-                .background(.regularMaterial, in: Capsule())
-                .padding(.top, 48)
+            HStack(spacing: 10) {
+                Text(recording.name).fontWeight(.semibold)
+                Text("Click or press Esc to close").foregroundStyle(.white.opacity(0.6))
+            }
+            .font(.system(size: 12.5))
+            .foregroundStyle(.white)
+            .padding(.horizontal, 16)
+            .frame(height: 34)
+            .background(Capsule().fill(.black.opacity(0.75)))
+            .padding(.top, 48)
         }
         .contentShape(Rectangle())
         .onTapGesture(perform: dismiss)

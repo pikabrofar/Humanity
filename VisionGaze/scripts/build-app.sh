@@ -15,7 +15,7 @@ mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp "$BIN" "$APP/Contents/MacOS/VisionGaze"
 cp Resources/Info.plist "$APP/Contents/Info.plist"
 
-if [ ! -f build/AppIcon.icns ]; then
+if [ ! -f build/AppIcon.icns ] || [ scripts/make-icon.swift -nt build/AppIcon.icns ]; then
     swift scripts/make-icon.swift build/AppIcon.iconset
     iconutil -c icns build/AppIcon.iconset -o build/AppIcon.icns
 fi

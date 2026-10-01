@@ -258,6 +258,15 @@ final class CalibrationController {
         return samples
     }
 
+    #if DEBUG
+    /// Jumps straight to the results screen, for UI screenshots (see `Showcase`).
+    func showcaseResults(_ stored: StoredCalibration) {
+        task?.cancel()
+        result = stored
+        phase = .results
+    }
+    #endif
+
     /// Sleeps, returning false if the calibration was cancelled.
     private func pause(_ seconds: Double) async -> Bool {
         try? await Task.sleep(for: .seconds(seconds))

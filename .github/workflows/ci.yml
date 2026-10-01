@@ -27,3 +27,23 @@ jobs:
         run: swift build
       - name: Test
         run: make test
+      # Renders every screen with canned data (no camera) so UI changes can be
+      # reviewed from the uploaded artifact. Never fails the build.
+      - name: UI screenshots
+        continue-on-error: true
+        run: |
+          out="$RUNNER_TEMP/screenshots"
+          mkdir -p "$out"
+          VISIONGAZE_SHOWCASE="$out" .build/debug/VisionGaze &
+          pid=$!
+          for _ in $(seq 1 120); do kill -0 "$pid" 2>/dev/null || break; sleep 1; done
+          kill "$pid" 2>/dev/null || true
+          swift scripts/make-icon.swift "$out/icon.iconset"
+          ls -la "$out"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ui-screenshots
+          path: ${{ runner.temp }}/screenshots
+          if-no-files-found: ignore
+          retention-days: 14

@@ -64,6 +64,8 @@ final class GazeEngine {
     /// Click samples arrived during a refit; run one more when it finishes.
     @ObservationIgnored private var needsRefit = false
     @ObservationIgnored private var saveTask: Task<Void, Never>?
+    /// False while showing canned data, so it can never overwrite the user's calibration.
+    @ObservationIgnored private var persistsCalibration = true
     @ObservationIgnored private let analyses = AnalysisMailbox()
     @ObservationIgnored private var offscreenFrames = 0
     @ObservationIgnored private var lastFaceTime: CFTimeInterval = 0
@@ -268,6 +270,7 @@ final class GazeEngine {
     /// Saves are debounced and encoded off the main thread: a calibration holds
     /// thousands of samples and changes on every learned click.
     private func scheduleSave() {
+        guard persistsCalibration else { return }
         saveTask?.cancel()
         saveTask = Task { [weak self] in
             try? await Task.sleep(for: .seconds(2))
@@ -279,6 +282,7 @@ final class GazeEngine {
     private func flushSave() {
         saveTask?.cancel()
         saveTask = nil
+        guard persistsCalibration else { return }
         CalibrationStore.saveInBackground(calibration)
     }
 
@@ -288,6 +292,25 @@ final class GazeEngine {
         CalibrationStore.waitForSaves()
     }
 }
+
+#if DEBUG
+extension GazeEngine {
+    /// Canned tracking state for UI screenshots (see `Showcase`). Never saved.
+    func showcase(calibration: StoredCalibration?, features: GazeFeatures? = nil,
+                  landmarks: FaceLandmarksSnapshot? = nil, gaze: CGPoint? = nil, trail: [CGPoint]? = nil) {
+        persistsCalibration = false
+        saveTask?.cancel()
+        cameraState = .running
+        imageSize = CGSize(width: 1920, height: 1080)
+        fps = 30
+        self.calibration = calibration
+        if let features { self.features = features }
+        if let landmarks { self.landmarks = landmarks }
+        if let trail { self.trail = calibration == nil ? [] : trail }
+        self.gaze = calibration == nil ? nil : gaze ?? self.gaze
+    }
+}
+#endif
 
 /// Hands the newest frame analysis from the camera queue to the main actor,
 /// dropping older ones if the main thread falls behind.

@@ -14,15 +14,23 @@ struct VisionGazeApp: App {
         Window("VisionGaze", id: "main") {
             RootView()
                 .environment(model)
-                .frame(minWidth: 860, minHeight: 560)
+                .frame(minWidth: 920, minHeight: 600)
         }
-        .windowToolbarStyle(.unified)
+        .windowToolbarStyle(.unified(showsTitle: false))
+        .defaultSize(width: 1120, height: 720)
         .commands {
             CommandGroup(after: .newItem) {
                 Button("Calibrate…", action: model.startCalibration)
                     .keyboardShortcut("k", modifiers: [.command, .shift])
                 Button(model.isRecording ? "Stop Recording" : "Start Recording", action: model.toggleRecording)
                     .disabled(!model.engine.isCalibrated)
+            }
+            CommandGroup(before: .toolbar) {
+                ForEach(AppSection.allCases) { section in
+                    Button(section.title) { model.section = section }
+                        .keyboardShortcut(section.shortcut, modifiers: .command)
+                }
+                Divider()
             }
             CommandGroup(after: .toolbar) {
                 Toggle("Show Gaze Cursor", isOn: Bindable(model).showCursor)
@@ -48,53 +56,80 @@ struct RootView: View {
 
     var body: some View {
         @Bindable var model = model
-        NavigationSplitView {
-            List(SidebarSection.allCases, selection: $model.section) { section in
-                Label(section.title, systemImage: section.symbol).tag(section)
-            }
-            .navigationSplitViewColumnWidth(min: 180, ideal: 200)
-            .safeAreaInset(edge: .bottom) { SidebarStatus().padding(12) }
-        } detail: {
-            switch model.section ?? .live {
+        Group {
+            switch model.section {
             case .live: LiveView()
             case .calibrate: CalibrationPage()
             case .recordings: RecordingsPage()
             }
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Theme.canvas)
+        .toolbar {
+            ToolbarItem(placement: .principal) {
+                SegmentedTabs(selection: $model.section,
+                              options: AppSection.allCases.map { (value: $0, label: $0.title) })
+            }
+            ToolbarItemGroup(placement: .primaryAction) {
+                TrackingStatus()
+                RecordButton()
+            }
+        }
+        .toolbarBackground(.hidden, for: .windowToolbar)
+        .background(WindowConfigurator { window in
+            // One continuous surface from the title bar down.
+            window.backgroundColor = .textBackgroundColor
+            window.titlebarSeparatorStyle = .none
+        })
+        #if DEBUG
+        .task { await Showcase.run(model) }
+        #endif
     }
 }
 
-/// Compact tracking status at the bottom of the sidebar.
-private struct SidebarStatus: View {
+/// Face and frame-rate status, shown in the toolbar.
+private struct TrackingStatus: View {
     @Environment(AppModel.self) private var model
 
     var body: some View {
         let engine = model.engine
-        VStack(alignment: .leading, spacing: 6) {
-            row(engine.faceDetected ? "Tracking face" : "No face",
-                engine.faceDetected ? .green : .orange)
-            if let calibration = engine.calibration {
-                row("Calibrated · \(calibration.quality)", .green)
-            } else {
-                row("Not calibrated", .secondary)
+        let running = engine.cameraState == .running
+        HStack(spacing: 7) {
+            StatusDot(active: running && engine.faceDetected)
+            Text(running ? (engine.faceDetected ? "Tracking" : "No face") : "Camera off")
+            if running {
+                Text("\(Int(engine.fps.rounded())) fps")
+                    .monospacedDigit()
+                    .foregroundStyle(.tertiary)
             }
-            if model.isRecording {
-                HStack(spacing: 6) {
+        }
+        .font(.system(size: 12, weight: .medium))
+        .foregroundStyle(.secondary)
+        .padding(.horizontal, 6)
+        .fixedSize()
+    }
+}
+
+struct RecordButton: View {
+    @Environment(AppModel.self) private var model
+
+    var body: some View {
+        Button(action: model.toggleRecording) {
+            HStack(spacing: 7) {
+                if let active = model.activeRecording {
                     RecordingIndicator()
-                    Text("Recording")
+                    TimelineView(.periodic(from: .now, by: 1)) { _ in
+                        Text(Date().timeIntervalSince(active.startDate).clockString).monospacedDigit()
+                    }
+                } else {
+                    Circle().fill(Theme.record).frame(width: 8, height: 8)
+                    Text("Record")
                 }
             }
         }
-        .font(.caption)
-        .foregroundStyle(.secondary)
-        .frame(maxWidth: .infinity, alignment: .leading)
-    }
-
-    private func row(_ text: String, _ color: Color) -> some View {
-        HStack(spacing: 6) {
-            Circle().fill(color).frame(width: 7, height: 7)
-            Text(text)
-        }
+        .buttonStyle(QuietButtonStyle())
+        .help("Start or stop recording (⌥⌘R, works from any app)")
+        .disabled(!model.engine.isCalibrated)
     }
 }
 

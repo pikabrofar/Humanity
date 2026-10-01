@@ -12,37 +12,35 @@ func render(_ px: Int) -> Data {
     NSGraphicsContext.saveGraphicsState()
     NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: rep)
 
-    // Squircle background, inset per macOS icon grid.
+    // Squircle background, inset per macOS icon grid: near-black, barely graded.
     let inset = s * 0.1
     let body = NSRect(x: inset, y: inset, width: s - 2 * inset, height: s - 2 * inset)
     let squircle = NSBezierPath(roundedRect: body, xRadius: body.width * 0.225, yRadius: body.width * 0.225)
-    NSGradient(colors: [NSColor(red: 0.10, green: 0.12, blue: 0.24, alpha: 1),
-                        NSColor(red: 0.04, green: 0.05, blue: 0.10, alpha: 1)])!.draw(in: squircle, angle: -90)
+    NSGradient(colors: [NSColor(white: 0.13, alpha: 1), NSColor(white: 0.05, alpha: 1)])!.draw(in: squircle, angle: -90)
+    NSColor(white: 1, alpha: 0.08).setStroke()
+    squircle.lineWidth = max(1, s * 0.004)
+    squircle.stroke()
 
-    // Heatmap glow.
+    // Eye outline: a thin white almond.
     let c = NSPoint(x: s / 2, y: s / 2)
-    NSGradient(colors: [NSColor(red: 1, green: 0.35, blue: 0.2, alpha: 0.9),
-                        NSColor(red: 1, green: 0.8, blue: 0.1, alpha: 0.5),
-                        NSColor(red: 0.1, green: 0.6, blue: 1, alpha: 0)])!
-        .draw(fromCenter: c, radius: 0, toCenter: c, radius: s * 0.3, options: [])
-
-    // Eye outline.
-    let w = s * 0.56, h = s * 0.3
+    let w = s * 0.58, h = s * 0.27
     let eye = NSBezierPath()
     eye.move(to: NSPoint(x: c.x - w / 2, y: c.y))
     eye.curve(to: NSPoint(x: c.x + w / 2, y: c.y), controlPoint1: NSPoint(x: c.x - w / 4, y: c.y + h), controlPoint2: NSPoint(x: c.x + w / 4, y: c.y + h))
     eye.curve(to: NSPoint(x: c.x - w / 2, y: c.y), controlPoint1: NSPoint(x: c.x + w / 4, y: c.y - h), controlPoint2: NSPoint(x: c.x - w / 4, y: c.y - h))
-    NSColor.white.setStroke()
-    eye.lineWidth = s * 0.028
+    NSColor(white: 1, alpha: 0.92).setStroke()
+    eye.lineWidth = s * 0.024
+    eye.lineCapStyle = .round
     eye.stroke()
 
-    // Iris + pupil.
-    let r = s * 0.085
-    NSColor.white.setFill()
-    NSBezierPath(ovalIn: NSRect(x: c.x - r, y: c.y - r, width: 2 * r, height: 2 * r)).fill()
-    NSColor(red: 0.05, green: 0.06, blue: 0.12, alpha: 1).setFill()
-    let p = r * 0.45
-    NSBezierPath(ovalIn: NSRect(x: c.x - p, y: c.y - p, width: 2 * p, height: 2 * p)).fill()
+    // Iris in the app's signal orange, pupil, and a catchlight.
+    func disc(_ center: NSPoint, _ r: CGFloat, _ color: NSColor) {
+        color.setFill()
+        NSBezierPath(ovalIn: NSRect(x: center.x - r, y: center.y - r, width: 2 * r, height: 2 * r)).fill()
+    }
+    disc(c, s * 0.1, NSColor(red: 1, green: 0.42, blue: 0.14, alpha: 1))
+    disc(c, s * 0.042, NSColor(white: 0.05, alpha: 1))
+    disc(NSPoint(x: c.x - s * 0.03, y: c.y + s * 0.032), s * 0.016, .white)
 
     NSGraphicsContext.restoreGraphicsState()
     return rep.representation(using: .png, properties: [:])!

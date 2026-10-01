@@ -81,6 +81,14 @@ final class RecordingStore {
         return image
     }
 
+    #if DEBUG
+    /// In-memory recordings for UI screenshots (see `Showcase`). Nothing is written to disk.
+    func showcase(_ items: [Recording], screenshots: [UUID: NSImage]) {
+        recordings = items
+        screenshotCache = screenshots
+    }
+    #endif
+
     private func save(_ recording: Recording) {
         guard let data = try? JSONEncoder().encode(recording) else { return }
         try? data.write(to: jsonURL(recording.id), options: .atomic)

@@ -6,56 +6,101 @@ struct RecordingsPage: View {
     @Environment(AppModel.self) private var model
 
     var body: some View {
-        @Bindable var model = model
         HStack(spacing: 0) {
-            List(selection: $model.selectedRecordingID) {
-                ForEach(model.recordings.recordings) { recording in
-                    RecordingRow(recording: recording)
-                        .tag(recording.id)
-                        .contextMenu {
-                            Button("Delete", role: .destructive) { model.recordings.delete(recording.id) }
-                        }
-                }
-            }
-            .frame(width: 240)
-            .overlay {
-                if model.recordings.recordings.isEmpty {
-                    ContentUnavailableView {
-                        Label("No Recordings", systemImage: "flame")
-                    } description: {
-                        Text("Press Record (⌥⌘R) to capture where you look.")
-                    }
-                }
-            }
-
-            Divider()
-
+            RecordingList()
+                .frame(width: 264)
+            Rectangle().fill(Theme.hairline).frame(width: 1)
             if let recording = model.recordings.recordings.first(where: { $0.id == model.selectedRecordingID }) {
                 RecordingDetail(recording: recording)
                     .id(recording.id)
             } else {
-                ContentUnavailableView("Select a Recording", systemImage: "square.stack")
+                Text(model.recordings.recordings.isEmpty ? "" : "Select a recording")
+                    .font(.system(size: 13))
+                    .foregroundStyle(.tertiary)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
-        .navigationTitle("Recordings")
-        .toolbar {
-            ToolbarItem { RecordButton() }
+    }
+}
+
+private struct RecordingList: View {
+    @Environment(AppModel.self) private var model
+
+    var body: some View {
+        let recordings = model.recordings.recordings
+        VStack(alignment: .leading, spacing: 0) {
+            HStack {
+                Eyebrow("Recordings")
+                Spacer()
+                Text("\(recordings.count)").font(.eyebrow).monospacedDigit().foregroundStyle(.tertiary)
+            }
+            .padding(.horizontal, 22)
+            .padding(.top, 10)
+            .padding(.bottom, 12)
+
+            if recordings.isEmpty {
+                VStack(spacing: 6) {
+                    Text("No recordings yet").font(.system(size: 13, weight: .semibold))
+                    Text("Press ⌥⌘R in any app to record where you look.")
+                        .font(.system(size: 12))
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                }
+                .padding(.horizontal, 28)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else {
+                ScrollView {
+                    LazyVStack(spacing: 2) {
+                        ForEach(recordings) { recording in
+                            RecordingRow(recording: recording, selected: recording.id == model.selectedRecordingID)
+                                .onTapGesture { model.selectedRecordingID = recording.id }
+                                .contextMenu {
+                                    Button("Delete", role: .destructive) { model.recordings.delete(recording.id) }
+                                }
+                        }
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.bottom, 12)
+                }
+                .focusable()
+                .focusEffectDisabled()
+                .onKeyPress(.upArrow) { select(offset: -1) }
+                .onKeyPress(.downArrow) { select(offset: 1) }
+                .onDeleteCommand {
+                    if let id = model.selectedRecordingID { model.recordings.delete(id) }
+                }
+            }
         }
+    }
+
+    private func select(offset: Int) -> KeyPress.Result {
+        let recordings = model.recordings.recordings
+        guard !recordings.isEmpty else { return .ignored }
+        let current = recordings.firstIndex { $0.id == model.selectedRecordingID } ?? -offset
+        model.selectedRecordingID = recordings[min(max(current + offset, 0), recordings.count - 1)].id
+        return .handled
     }
 }
 
 private struct RecordingRow: View {
     let recording: Recording
+    let selected: Bool
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 2) {
-            Text(recording.name).lineLimit(1)
-            Text("\(recording.duration.clockString) · \(recording.samples.count) samples")
-                .font(.caption)
+        VStack(alignment: .leading, spacing: 3) {
+            Text(recording.name)
+                .font(.system(size: 13, weight: .medium))
+                .lineLimit(1)
+            Text("\(recording.duration.clockString) · \(recording.samples.count.formatted()) samples")
+                .font(.system(size: 11.5))
+                .monospacedDigit()
                 .foregroundStyle(.secondary)
         }
-        .padding(.vertical, 3)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 8)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(selected ? Color.primary.opacity(0.07) : .clear))
+        .contentShape(Rectangle())
     }
 }
 
@@ -69,57 +114,67 @@ private struct RecordingDetail: View {
 
     var body: some View {
         let fixations = recording.fixations()
-        VStack(alignment: .leading, spacing: 16) {
-            HStack {
-                TextField("Name", text: $name)
-                    .textFieldStyle(.plain)
-                    .font(.title2.weight(.semibold))
-                    .onSubmit { model.recordings.rename(recording.id, to: name) }
-                Spacer()
-                Menu {
-                    Button("Heatmap Image (PNG)…") { model.export(recording, as: .png) }
-                    Button("Gaze Samples (CSV)…") { model.export(recording, as: .commaSeparatedText) }
-                } label: {
-                    Label("Export", systemImage: "square.and.arrow.up")
+        VStack(alignment: .leading, spacing: 20) {
+            HStack(alignment: .top) {
+                VStack(alignment: .leading, spacing: 4) {
+                    TextField("Name", text: $name)
+                        .textFieldStyle(.plain)
+                        .font(.system(size: 22, weight: .semibold))
+                        .onSubmit { model.recordings.rename(recording.id, to: name) }
+                    Text("\(recording.date.formatted(date: .abbreviated, time: .shortened)) · \(Int(recording.screenSize.width)) × \(Int(recording.screenSize.height)) pt")
+                        .font(.system(size: 12))
+                        .foregroundStyle(.secondary)
                 }
-                .fixedSize()
-                Button {
-                    model.showHeatmapOverlay(recording)
-                } label: {
-                    Label("Show on Screen", systemImage: "rectangle.inset.filled.on.rectangle")
+                Spacer(minLength: 20)
+                HStack(spacing: 8) {
+                    Button("Show on Screen") { model.showHeatmapOverlay(recording) }
+                        .buttonStyle(QuietButtonStyle())
+                    Menu {
+                        Button("Heatmap Image (PNG)…") { model.export(recording, as: .png) }
+                        Button("Gaze Samples (CSV)…") { model.export(recording, as: .commaSeparatedText) }
+                    } label: {
+                        Text("Export")
+                    }
+                    .menuStyle(.button)
+                    .buttonStyle(QuietButtonStyle())
+                    .menuIndicator(.hidden)
+                    .fixedSize()
                 }
             }
 
             HeatmapCanvas(recording: recording, background: model.recordings.screenshot(for: recording),
                           showHeatmap: showHeatmap, showScanpath: showScanpath, fixations: fixations)
                 .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-                .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(.separator))
+                .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(Theme.hairline))
                 .frame(maxWidth: .infinity)
 
-            HStack(spacing: 20) {
-                Toggle("Heatmap", isOn: $showHeatmap)
-                Toggle("Scanpath", isOn: $showScanpath)
-                Spacer()
-                stat(recording.duration.clockString, "duration")
-                stat("\(recording.samples.count)", "samples")
-                stat("\(fixations.count)", "fixations")
-                if !fixations.isEmpty {
-                    let mean = fixations.map(\.duration).reduce(0, +) / Double(fixations.count)
-                    stat(String(format: "%.0f ms", mean * 1000), "mean fixation")
+            HStack(alignment: .center) {
+                HStack(spacing: 6) {
+                    Toggle("Heatmap", isOn: $showHeatmap)
+                    Toggle("Scanpath", isOn: $showScanpath)
+                }
+                .toggleStyle(ChipToggleStyle())
+                Spacer(minLength: 20)
+                HStack(spacing: 28) {
+                    stat(recording.duration.clockString, "Duration")
+                    stat(recording.samples.count.formatted(), "Samples")
+                    stat("\(fixations.count)", "Fixations")
+                    if !fixations.isEmpty {
+                        let mean = fixations.map(\.duration).reduce(0, +) / Double(fixations.count)
+                        stat(String(format: "%.0f ms", mean * 1000), "Mean fixation")
+                    }
                 }
             }
-            .toggleStyle(.checkbox)
             Spacer(minLength: 0)
         }
-        .padding(20)
+        .padding(.horizontal, 28)
+        .padding(.top, 8)
+        .padding(.bottom, 28)
         .onAppear { name = recording.name }
     }
 
     private func stat(_ value: String, _ label: String) -> some View {
-        VStack(alignment: .trailing, spacing: 1) {
-            Text(value).font(.callout.weight(.medium).monospacedDigit())
-            Text(label).font(.caption2).foregroundStyle(.secondary)
-        }
+        Readout(label: label, value: value, font: .system(size: 16, weight: .regular).monospacedDigit())
     }
 }
 
@@ -140,10 +195,10 @@ struct HeatmapCanvas: View {
             if let background {
                 Image(nsImage: background).resizable()
             } else if placeholder {
-                Rectangle().fill(Color(white: 0.1))
-                    .overlay(alignment: .bottomTrailing) {
-                        Text("Enable “Capture screenshot” in Settings to see what you were looking at")
-                            .font(.caption).foregroundStyle(.white.opacity(0.4)).padding(10)
+                Rectangle().fill(Theme.viewport)
+                    .overlay(alignment: .bottomLeading) {
+                        Text("Turn on “Capture screenshot” in Settings to see what you were looking at.")
+                            .font(.system(size: 11)).foregroundStyle(.white.opacity(0.35)).padding(12)
                     }
             }
             if showHeatmap, let heatmap {
@@ -176,16 +231,16 @@ private struct ScanpathView: View {
 
             var path = Path()
             path.addLines(points)
-            context.stroke(path, with: .color(.white.opacity(0.55)), lineWidth: 1.5)
+            context.stroke(path, with: .color(.white.opacity(0.6)), lineWidth: 1)
 
             let labeled = fixations.count <= 50
             for (i, (fixation, p)) in zip(fixations, points).enumerated() {
                 let radius = max(5, min(28, sqrt(fixation.duration) * 22))
                 let circle = Path(ellipseIn: CGRect(center: p, radius: radius))
-                context.fill(circle, with: .color(.accentColor.opacity(0.45)))
-                context.stroke(circle, with: .color(.white.opacity(0.9)), lineWidth: 1)
+                context.fill(circle, with: .color(Theme.signal.opacity(0.4)))
+                context.stroke(circle, with: .color(Theme.signal), lineWidth: 1)
                 if labeled {
-                    context.draw(Text("\(i + 1)").font(.system(size: 10, weight: .bold)).foregroundColor(.white), at: p)
+                    context.draw(Text("\(i + 1)").font(.system(size: 10, weight: .semibold, design: .monospaced)).foregroundColor(.white), at: p)
                 }
             }
         }

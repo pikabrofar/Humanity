@@ -10,17 +10,18 @@ struct CalibrationOverlayView: View {
     var body: some View {
         GeometryReader { geo in
             ZStack {
-                background
+                Color(white: 0.04)
 
                 switch controller.phase {
                 case .intro:
-                    IntroCard(engine: engine, begin: controller.begin, cancel: controller.close)
+                    Intro(engine: engine, begin: controller.begin, cancel: controller.close)
                 case .countdown(let n):
                     Text("\(n)")
-                        .font(.system(size: 120, weight: .thin, design: .rounded))
-                        .foregroundStyle(.white.opacity(0.9))
+                        .font(.system(size: 96, weight: .ultraLight))
+                        .foregroundStyle(.white.opacity(0.85))
                         .contentTransition(.numericText(countsDown: true))
                         .animation(.snappy, value: n)
+                        .offset(y: -120)
                     CalibrationDot(collecting: false)
                         .position(point(controller.dotPosition, in: geo.size))
                         .opacity(0.5)
@@ -28,15 +29,11 @@ struct CalibrationOverlayView: View {
                     CalibrationDot(collecting: controller.collecting)
                         .position(point(controller.dotPosition, in: geo.size))
                     if controller.retrying {
-                        Text("Let's redo the points you missed")
-                            .font(.headline)
-                            .foregroundStyle(.white.opacity(0.6))
-                            .position(x: geo.size.width / 2, y: geo.size.height - 70)
+                        Caption("Let's redo the points you missed")
+                            .position(x: geo.size.width / 2, y: geo.size.height - 76)
                     } else if controller.phase == .validating {
-                        Text("Checking accuracy")
-                            .font(.headline)
-                            .foregroundStyle(.white.opacity(0.6))
-                            .position(x: geo.size.width / 2, y: geo.size.height - 70)
+                        Caption("Checking accuracy")
+                            .position(x: geo.size.width / 2, y: geo.size.height - 76)
                     }
                 case .pursuit:
                     // Position from the same clock the samples are matched against.
@@ -44,51 +41,73 @@ struct CalibrationOverlayView: View {
                         CalibrationDot(collecting: false)
                             .position(point(CalibrationController.pursuitPoint(CACurrentMediaTime() - controller.pursuitStart), in: geo.size))
                     }
-                    Text("Follow the dot with your eyes")
-                        .font(.headline)
-                        .foregroundStyle(.white.opacity(0.6))
-                        .position(x: geo.size.width / 2, y: 60)
+                    Caption("Follow the dot with your eyes")
+                        .position(x: geo.size.width / 2, y: 64)
                 case .headMotion:
                     CalibrationDot(collecting: false)
                         .position(point(controller.dotPosition, in: geo.size))
-                    VStack(spacing: 6) {
+                    VStack(spacing: 8) {
                         Text("Keep looking at the dot")
-                            .font(.title2.weight(.semibold))
-                        Text("Slowly turn, tilt, and move your head around. \(controller.headMotionRemaining)")
-                            .monospacedDigit()
-                            .foregroundStyle(.white.opacity(0.7))
+                            .font(.system(size: 22, weight: .semibold))
+                        Text("Slowly turn, tilt and move your head")
+                            .font(.system(size: 14))
+                            .foregroundStyle(.white.opacity(0.55))
+                        Text("\(controller.headMotionRemaining)")
+                            .font(.system(size: 14, weight: .medium, design: .monospaced))
+                            .foregroundStyle(Theme.signal)
+                            .padding(.top, 4)
                     }
                     .foregroundStyle(.white)
-                    .position(x: geo.size.width / 2, y: geo.size.height / 2 + 90)
+                    .position(x: geo.size.width / 2, y: geo.size.height / 2 + 110)
                 case .fitting:
-                    ProgressView("Fitting model…")
-                        .controlSize(.large)
-                        .tint(.white)
-                        .foregroundStyle(.white)
+                    VStack(spacing: 14) {
+                        ProgressView().controlSize(.small)
+                        Caption("Fitting your model")
+                    }
                 case .results:
                     if let result = controller.result {
                         ResultsView(result: result, gaze: engine.gaze, size: geo.size,
                                     redo: controller.begin, done: controller.close)
                     }
                 case .failed(let message):
-                    FailureCard(message: message, retry: controller.begin, cancel: controller.close)
+                    Panel {
+                        VStack(spacing: 10) {
+                            Text("Calibration failed").font(.system(size: 22, weight: .semibold))
+                            Text(message)
+                                .font(.system(size: 13))
+                                .foregroundStyle(.white.opacity(0.6))
+                                .multilineTextAlignment(.center)
+                        }
+                        HStack(spacing: 10) {
+                            Button("Close", action: controller.close)
+                                .buttonStyle(QuietButtonStyle())
+                                .keyboardShortcut(.cancelAction)
+                            Button("Try Again", action: controller.begin)
+                                .buttonStyle(PrimaryButtonStyle(large: true))
+                                .keyboardShortcut(.defaultAction)
+                        }
+                    }
+                    .frame(width: 400)
                 }
 
                 VStack {
-                    if [.running, .pursuit, .headMotion, .validating].contains(controller.phase) || isCountdown {
-                        if !engine.faceDetected {
-                            Label("Face not detected — look at the screen", systemImage: "exclamationmark.triangle.fill")
-                                .font(.headline)
-                                .padding(.horizontal, 16).padding(.vertical, 10)
-                                .background(.orange.opacity(0.9), in: Capsule())
-                                .foregroundStyle(.white)
-                                .transition(.move(edge: .top).combined(with: .opacity))
+                    if [.running, .pursuit, .headMotion, .validating].contains(controller.phase) || isCountdown,
+                       !engine.faceDetected {
+                        HStack(spacing: 8) {
+                            Circle().fill(Theme.signal).frame(width: 6, height: 6)
+                            Text("Face not detected. Look at the screen.")
                         }
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundStyle(.white.opacity(0.9))
+                        .padding(.horizontal, 16)
+                        .frame(height: 34)
+                        .background(Capsule().fill(.white.opacity(0.08)))
+                        .transition(.move(edge: .top).combined(with: .opacity))
                     }
                     Spacer()
                     if controller.phase == .running || controller.phase == .validating {
                         ProgressDots(total: controller.progressTotal, current: controller.currentIndex)
-                            .padding(.bottom, 28)
+                            .padding(.bottom, 32)
                     }
                 }
                 .padding(.top, 40)
@@ -96,18 +115,12 @@ struct CalibrationOverlayView: View {
             }
         }
         .ignoresSafeArea()
+        .environment(\.colorScheme, .dark)
     }
 
     private var isCountdown: Bool {
         if case .countdown = controller.phase { return true }
         return false
-    }
-
-    private var background: some View {
-        ZStack {
-            Color(white: 0.07)
-            RadialGradient(colors: [Color(white: 0.13), .clear], center: .center, startRadius: 0, endRadius: 900)
-        }
     }
 
     private func point(_ normalized: CGPoint, in size: CGSize) -> CGPoint {
@@ -123,14 +136,14 @@ private struct CalibrationDot: View {
     var body: some View {
         ZStack {
             Circle()
-                .stroke(Color.accentColor.opacity(0.85), lineWidth: 3)
-                .frame(width: collecting ? 16 : 64, height: collecting ? 16 : 64)
+                .stroke(Theme.signal, lineWidth: 2.5)
+                .frame(width: collecting ? 14 : 56, height: collecting ? 14 : 56)
                 .animation(collecting ? .easeIn(duration: CalibrationController.minCollectTime) : .easeOut(duration: 0.25),
                            value: collecting)
             Circle()
                 .fill(.white)
-                .frame(width: 8, height: 8)
-                .shadow(color: .accentColor, radius: 6)
+                .frame(width: 7, height: 7)
+                .shadow(color: Theme.signal.opacity(0.8), radius: 6)
         }
         .frame(width: 80, height: 80)
     }
@@ -141,100 +154,92 @@ private struct ProgressDots: View {
     let current: Int
 
     var body: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: 7) {
             ForEach(0..<total, id: \.self) { i in
-                Capsule()
-                    .fill(i < current ? Color.accentColor : i == current ? .white : .white.opacity(0.2))
-                    .frame(width: i == current ? 22 : 8, height: 8)
+                Circle()
+                    .fill(i < current ? Color.white.opacity(0.8) : i == current ? Theme.signal : .white.opacity(0.16))
+                    .frame(width: 6, height: 6)
             }
         }
         .animation(.snappy, value: current)
     }
 }
 
-private struct IntroCard: View {
+private struct Caption: View {
+    let text: String
+    init(_ text: String) { self.text = text }
+
+    var body: some View {
+        Text(text)
+            .font(.system(size: 15, weight: .medium))
+            .foregroundStyle(.white.opacity(0.55))
+    }
+}
+
+/// Dark rounded panel used for results and errors.
+private struct Panel<Content: View>: View {
+    @ViewBuilder var content: Content
+
+    var body: some View {
+        VStack(spacing: 24) { content }
+            .padding(32)
+            .background(RoundedRectangle(cornerRadius: 22, style: .continuous).fill(Color(white: 0.09).opacity(0.94)))
+            .overlay(RoundedRectangle(cornerRadius: 22, style: .continuous).strokeBorder(.white.opacity(0.08)))
+    }
+}
+
+private struct Intro: View {
     let engine: GazeEngine
     let begin: () -> Void
     let cancel: () -> Void
 
     var body: some View {
-        VStack(spacing: 22) {
-            Image(systemName: "scope")
-                .font(.system(size: 44, weight: .light))
-                .foregroundStyle(Color.accentColor)
-            VStack(spacing: 8) {
-                Text("Calibration").font(.largeTitle.weight(.semibold))
-                Text("About 45 seconds: look at nine dots, follow a moving dot, hold your gaze while moving your head, then five dots to check accuracy.")
-                    .multilineTextAlignment(.center)
-                    .foregroundStyle(.secondary)
-            }
-            VStack(alignment: .leading, spacing: 10) {
-                tip("face.smiling", "Sit about an arm's length from the screen")
-                tip("hand.raised", "Keep your head still — move only your eyes")
-                tip("lightbulb", "Light your face evenly, avoid bright light behind you")
-            }
-            .padding(.vertical, 4)
+        VStack(spacing: 0) {
+            Eyebrow("Calibration")
+            Text("Follow the dots with your eyes")
+                .font(.system(size: 34, weight: .semibold))
+                .foregroundStyle(.white)
+                .padding(.top, 14)
+            Text("About 45 seconds. Keep your head still unless a step asks you to move it.")
+                .font(.system(size: 15))
+                .foregroundStyle(.white.opacity(0.55))
+                .padding(.top, 10)
 
-            Label(engine.faceDetected ? "Face detected" : "Looking for your face…",
-                  systemImage: engine.faceDetected ? "checkmark.circle.fill" : "circle.dotted")
-                .foregroundStyle(engine.faceDetected ? .green : .orange)
-                .font(.callout.weight(.medium))
-                .animation(.default, value: engine.faceDetected)
+            CalibrationSteps()
+                .multilineTextAlignment(.leading)
+                .frame(width: 660)
+                .padding(.top, 44)
 
-            HStack(spacing: 12) {
+            HStack(spacing: 8) {
+                StatusDot(active: engine.faceDetected)
+                Text(engine.faceDetected ? "Face detected" : "Looking for your face…")
+            }
+            .font(.system(size: 13, weight: .medium))
+            .foregroundStyle(.white.opacity(0.75))
+            .animation(.default, value: engine.faceDetected)
+            .padding(.top, 44)
+
+            HStack(spacing: 10) {
                 Button("Cancel", action: cancel)
+                    .buttonStyle(QuietButtonStyle())
                     .keyboardShortcut(.cancelAction)
                 Button("Begin", action: begin)
+                    .buttonStyle(PrimaryButtonStyle(large: true))
                     .keyboardShortcut(.defaultAction)
-                    .buttonStyle(.borderedProminent)
             }
-            .controlSize(.large)
+            .padding(.top, 22)
+
             Text("Space to begin · Esc to cancel at any time")
-                .font(.caption)
-                .foregroundStyle(.tertiary)
+                .font(.system(size: 11.5))
+                .foregroundStyle(.white.opacity(0.3))
+                .padding(.top, 16)
         }
-        .padding(36)
-        .frame(width: 440)
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
-        .environment(\.colorScheme, .dark)
-    }
-
-    private func tip(_ symbol: String, _ text: String) -> some View {
-        Label {
-            Text(text)
-        } icon: {
-            Image(systemName: symbol).foregroundStyle(Color.accentColor).frame(width: 22)
-        }
-    }
-}
-
-private struct FailureCard: View {
-    let message: String
-    let retry: () -> Void
-    let cancel: () -> Void
-
-    var body: some View {
-        VStack(spacing: 18) {
-            Image(systemName: "exclamationmark.triangle")
-                .font(.system(size: 40))
-                .foregroundStyle(.orange)
-            Text("Calibration failed").font(.title2.weight(.semibold))
-            Text(message).multilineTextAlignment(.center).foregroundStyle(.secondary)
-            HStack {
-                Button("Close", action: cancel).keyboardShortcut(.cancelAction)
-                Button("Try Again", action: retry).keyboardShortcut(.defaultAction).buttonStyle(.borderedProminent)
-            }
-            .controlSize(.large)
-        }
-        .padding(32)
-        .frame(width: 400)
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
-        .environment(\.colorScheme, .dark)
+        .multilineTextAlignment(.center)
     }
 }
 
 /// Shows each target against the model's mean prediction, plus the live gaze
-/// dot so the user can sanity-check the result before accepting it.
+/// ring so the user can sanity-check the result before accepting it.
 private struct ResultsView: View {
     let result: StoredCalibration
     let gaze: CGPoint?
@@ -254,52 +259,53 @@ private struct ResultsView: View {
                     var line = Path()
                     line.move(to: target)
                     line.addLine(to: predicted)
-                    context.stroke(line, with: .color(color.opacity(0.6)), style: StrokeStyle(lineWidth: 2, dash: [4, 4]))
-                    context.stroke(Path(ellipseIn: CGRect(center: target, radius: 14)), with: .color(.white.opacity(0.5)), lineWidth: 1.5)
-                    context.fill(Path(ellipseIn: CGRect(center: predicted, radius: 5)), with: .color(color))
+                    context.stroke(line, with: .color(color.opacity(0.5)), style: StrokeStyle(lineWidth: 1.5, dash: [3, 4]))
+                    context.stroke(Path(ellipseIn: CGRect(center: target, radius: 12)), with: .color(.white.opacity(0.35)), lineWidth: 1)
+                    context.fill(Path(ellipseIn: CGRect(center: predicted, radius: 4)), with: .color(color))
                 }
             }
 
             if let gaze {
                 Circle()
-                    .fill(Color.accentColor.opacity(0.35))
-                    .overlay(Circle().stroke(Color.accentColor, lineWidth: 2))
-                    .frame(width: 34, height: 34)
+                    .strokeBorder(Theme.signal, lineWidth: 2)
+                    .background(Circle().fill(Theme.signal.opacity(0.15)))
+                    .frame(width: 32, height: 32)
                     .position(scaled(gaze, size))
                     .allowsHitTesting(false)
             }
 
-            VStack(spacing: 16) {
-                Text(result.quality)
-                    .font(.system(size: 34, weight: .semibold, design: .rounded))
-                HStack(spacing: 28) {
-                    stat(String(format: "%.1f°", result.accuracyDegrees), "accuracy")
+            Panel {
+                VStack(spacing: 6) {
+                    Eyebrow("Calibration complete")
+                    Text(result.quality)
+                        .font(.system(size: 30, weight: .semibold))
+                        .foregroundStyle(.white)
+                }
+                HStack(spacing: 36) {
+                    stat(String(format: "%.1f°", result.accuracyDegrees), "Accuracy")
                     if let precision = result.validation?.precisionDegrees {
-                        stat(String(format: "%.1f°", precision), "precision")
+                        stat(String(format: "%.1f°", precision), "Precision")
                     }
-                    stat(String(format: "%.0f pt", result.errorPoints), "fit error")
+                    stat(String(format: "%.0f pt", result.errorPoints), "Fit error")
                 }
-                Text("The blue circle follows your gaze. Look around to check it.")
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
-                HStack(spacing: 12) {
+                Text("The orange ring follows your gaze. Look around to check it.")
+                    .font(.system(size: 12.5))
+                    .foregroundStyle(.white.opacity(0.5))
+                HStack(spacing: 10) {
                     Button("Recalibrate", action: redo)
+                        .buttonStyle(QuietButtonStyle())
                     Button("Done", action: done)
+                        .buttonStyle(PrimaryButtonStyle(large: true))
                         .keyboardShortcut(.defaultAction)
-                        .buttonStyle(.borderedProminent)
                 }
-                .controlSize(.large)
             }
-            .padding(28)
-            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
-            .environment(\.colorScheme, .dark)
         }
     }
 
     private func stat(_ value: String, _ label: String) -> some View {
-        VStack(spacing: 2) {
-            Text(value).font(.title2.monospacedDigit().weight(.medium))
-            Text(label).font(.caption).foregroundStyle(.secondary)
+        VStack(spacing: 4) {
+            Text(value).font(.figure).foregroundStyle(.white)
+            Text(label).font(.system(size: 11)).foregroundStyle(.white.opacity(0.5))
         }
     }
 
@@ -307,9 +313,10 @@ private struct ResultsView: View {
         CGPoint(x: p.x * size.width, y: p.y * size.height)
     }
 
+    /// Small misses read white, moderate ones orange, large ones red.
     private func color(for error: Double) -> Color {
         let points = error * Double(size.width)
-        return points < 40 ? .green : points < 90 ? .yellow : .red
+        return points < 40 ? .white : points < 90 ? Theme.signal : Theme.record
     }
 }
 

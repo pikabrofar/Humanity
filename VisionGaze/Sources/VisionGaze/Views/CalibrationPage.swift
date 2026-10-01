@@ -7,176 +7,219 @@ struct CalibrationPage: View {
     var body: some View {
         @Bindable var model = model
         ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
-                Card {
-                    HStack(alignment: .top, spacing: 24) {
-                        GridIllustration()
-                            .frame(width: 180, height: 112)
-                        VStack(alignment: .leading, spacing: 10) {
-                            Text("Calibration").font(.title2.weight(.semibold))
-                            Text("Four steps, about 45 seconds: a 3×3 grid of dots, a moving dot to follow, a head-movement step, and five held-out dots that measure accuracy.")
-                                .foregroundStyle(.secondary)
-                                .fixedSize(horizontal: false, vertical: true)
-                            HStack(spacing: 12) {
-                                Picker("Display", selection: $model.calibrationDisplayID) {
-                                    ForEach(NSScreen.screens, id: \.displayID) { screen in
-                                        Text(screen.localizedName).tag(screen.displayID)
-                                    }
-                                }
-                                .frame(maxWidth: 260)
-                                Button {
-                                    model.startCalibration()
-                                } label: {
-                                    Label("Start Calibration", systemImage: "play.fill")
-                                }
-                                .buttonStyle(.borderedProminent)
-                                .controlSize(.large)
-                                .disabled(model.engine.cameraState != .running)
-                            }
-                            .padding(.top, 4)
-                        }
-                    }
+            VStack(alignment: .leading, spacing: 0) {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Calibration")
+                        .font(.system(size: 28, weight: .semibold))
+                    Text("Teaches VisionGaze how your eyes map to the screen. About 45 seconds.")
+                        .font(.system(size: 14))
+                        .foregroundStyle(.secondary)
                 }
 
-                Card(title: "Tips for accuracy", symbol: "lightbulb") {
-                    Grid(alignment: .leading, horizontalSpacing: 24, verticalSpacing: 10) {
-                        GridRow {
-                            tip("ruler", "Sit 50–70 cm from the screen, centered on the camera.")
-                            tip("sun.max", "Even, front-facing light. Avoid a window behind you.")
+                CalibrationSteps()
+                    .padding(.top, 32)
+
+                HStack(spacing: 14) {
+                    Button("Start Calibration", action: model.startCalibration)
+                        .buttonStyle(PrimaryButtonStyle(large: true))
+                        .disabled(model.engine.cameraState != .running)
+                    if NSScreen.screens.count > 1 {
+                        Picker("Display", selection: $model.calibrationDisplayID) {
+                            ForEach(NSScreen.screens, id: \.displayID) { screen in
+                                Text(screen.localizedName).tag(screen.displayID)
+                            }
                         }
-                        GridRow {
-                            tip("figure.stand", "Keep your head still during and after calibration.")
-                            tip("eyeglasses", "Glasses are fine, but reflections reduce accuracy.")
-                        }
+                        .labelsHidden()
+                        .fixedSize()
                     }
-                    .font(.callout)
+                    Text("⇧⌘K")
+                        .font(.system(size: 12, design: .monospaced))
+                        .foregroundStyle(.tertiary)
                 }
+                .padding(.top, 28)
 
                 if let calibration = model.engine.calibration {
-                    CurrentCalibrationCard(calibration: calibration)
+                    CurrentCalibration(calibration: calibration)
+                        .padding(.top, 52)
                 }
-            }
-            .padding(20)
-        }
-        .navigationTitle("Calibrate")
-    }
 
-    private func tip(_ symbol: String, _ text: String) -> some View {
-        Label {
-            Text(text).fixedSize(horizontal: false, vertical: true)
-        } icon: {
-            Image(systemName: symbol).foregroundStyle(Color.accentColor).frame(width: 20)
+                Tips()
+                    .padding(.top, 52)
+            }
+            .frame(maxWidth: 720, alignment: .leading)
+            .padding(.horizontal, 40)
+            .padding(.top, 28)
+            .padding(.bottom, 40)
+            .frame(maxWidth: .infinity)
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 
-private struct CurrentCalibrationCard: View {
+/// The four calibration steps as a numbered row. Shared with the full-screen intro.
+struct CalibrationSteps: View {
+    private static let steps = [
+        ("Grid", "Look at nine dots as they appear."),
+        ("Pursuit", "Follow a moving dot with your eyes."),
+        ("Head", "Hold your gaze and move your head."),
+        ("Check", "Five more dots measure accuracy."),
+    ]
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 20) {
+            ForEach(Self.steps.indices, id: \.self) { i in
+                VStack(alignment: .leading, spacing: 5) {
+                    Text(String(format: "%02d", i + 1))
+                        .font(.system(size: 11, weight: .medium, design: .monospaced))
+                        .foregroundStyle(.tertiary)
+                    Text(Self.steps[i].0)
+                        .font(.system(size: 13, weight: .semibold))
+                        .padding(.top, 4)
+                    Text(Self.steps[i].1)
+                        .font(.system(size: 12.5))
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.top, 14)
+                .overlay(alignment: .top) { Hairline() }
+            }
+        }
+    }
+}
+
+private struct CurrentCalibration: View {
     @Environment(AppModel.self) private var model
     let calibration: StoredCalibration
 
     var body: some View {
-        Card(title: "Current calibration", symbol: "checkmark.seal") {
-            HStack(alignment: .top, spacing: 24) {
-                ErrorPlot(report: calibration.model.report, aspect: calibration.screenSize.width / calibration.screenSize.height)
-                    .frame(width: 260)
+        VStack(alignment: .leading, spacing: 22) {
+            HStack {
+                Eyebrow("Current calibration")
+                Spacer()
+                Button("Clear", action: model.clearCalibration)
+                    .buttonStyle(QuietButtonStyle())
+            }
 
-                VStack(alignment: .leading, spacing: 12) {
-                    HStack(spacing: 28) {
-                        stat(calibration.quality, "quality")
-                        stat(String(format: "%.1f°", calibration.accuracyDegrees), calibration.validation == nil ? "fit error" : "accuracy")
+            HStack(alignment: .top, spacing: 36) {
+                // Held-out validation points when available: an honest picture of accuracy.
+                ErrorPlot(points: calibration.validation?.points ?? calibration.model.report.points,
+                          aspect: calibration.screenSize.width / calibration.screenSize.height)
+                    .frame(width: 240)
+
+                VStack(alignment: .leading, spacing: 16) {
+                    HStack(alignment: .firstTextBaseline, spacing: 32) {
+                        Readout(label: calibration.validation == nil ? "Fit error" : "Accuracy",
+                                value: String(format: "%.1f°", calibration.accuracyDegrees), font: .figure)
                         if let precision = calibration.validation?.precisionDegrees {
-                            stat(String(format: "%.1f°", precision), "precision")
+                            Readout(label: "Precision", value: String(format: "%.1f°", precision), font: .figure)
                         }
+                        Readout(label: "Quality", value: calibration.quality, font: .figure)
                     }
                     Text("\(calibration.displayName) · \(calibration.model.createdAt.formatted(date: .abbreviated, time: .shortened))")
-                        .font(.callout)
+                        .font(.system(size: 12))
                         .foregroundStyle(.secondary)
-                    LayoutEstimate(model: calibration.model)
-                    Text("Head movement is compensated. Recalibrate after moving the camera or switching displays.")
-                        .font(.callout)
-                        .foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                    Button("Clear Calibration", role: .destructive, action: model.clearCalibration)
                 }
+            }
+
+            DetailsTable(rows: details)
+
+            Text("Head movement is compensated. Recalibrate after moving the camera or switching displays.")
+                .font(.system(size: 12))
+                .foregroundStyle(.tertiary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    private var details: [(String, String)] {
+        let m = calibration.model
+        let offsetMM = (m.cameraPosition - 0.5) * m.geometry.widthMM
+        let weights = m.headRotationWeights
+        var rows = [
+            ("Camera", String(format: "%.0f mm above screen, %.0f mm %@ of center",
+                              m.cameraGapMM, abs(offsetMM), offsetMM < 0 ? "left" : "right")),
+            ("Screen", String(format: "%.0f × %.0f mm", m.geometry.widthMM, m.geometry.heightMM)),
+            ("Your distance", String(format: "%.0f cm", m.calibrationDistanceMM / 10)),
+            ("Head weights", String(format: "yaw %+.2f · pitch %+.2f", weights.yaw, weights.pitch)),
+            ("Eye appearance model", m.appearanceRidge.map { String(format: "On (ridge %g)", $0) } ?? "Off"),
+        ]
+        if !calibration.clickSamples.isEmpty {
+            rows.append(("Learned from clicks", "\(calibration.clickSamples.count) samples"))
+        }
+        return rows
+    }
+}
+
+/// Label/value rows separated by hairlines.
+private struct DetailsTable: View {
+    let rows: [(String, String)]
+
+    var body: some View {
+        VStack(spacing: 0) {
+            Hairline()
+            ForEach(rows.indices, id: \.self) { i in
+                HStack {
+                    Text(rows[i].0).foregroundStyle(.secondary)
+                    Spacer(minLength: 24)
+                    Text(rows[i].1).monospacedDigit()
+                }
+                .font(.system(size: 12.5))
+                .padding(.vertical, 9)
+                Hairline()
             }
         }
     }
-
-    private func stat(_ value: String, _ label: String) -> some View {
-        VStack(alignment: .leading, spacing: 2) {
-            Text(value).font(.title3.weight(.semibold).monospacedDigit())
-            Text(label).font(.caption).foregroundStyle(.secondary)
-        }
-    }
 }
 
-/// Physical layout the geometric model estimated during calibration.
-private struct LayoutEstimate: View {
-    let model: GazeCalibration
-
-    var body: some View {
-        let offsetMM = (model.cameraPosition - 0.5) * model.geometry.widthMM
-        let weights = model.headRotationWeights
-        Grid(alignment: .leading, horizontalSpacing: 16, verticalSpacing: 4) {
-            row("Camera", String(format: "%.0f mm above screen, %.0f mm %@ of center",
-                                 model.cameraGapMM, abs(offsetMM), offsetMM < 0 ? "left" : "right"))
-            row("Screen", String(format: "%.0f × %.0f mm", model.geometry.widthMM, model.geometry.heightMM))
-            row("Your distance", String(format: "%.0f cm", model.calibrationDistanceMM / 10))
-            row("Head weights", String(format: "yaw %+.2f, pitch %+.2f", weights.yaw, weights.pitch))
-            row("Eye appearance model", model.appearanceRidge.map { String(format: "on (ridge %g)", $0) }
-                ?? "off (didn't improve validation)")
-        }
-        .font(.callout)
-    }
-
-    private func row(_ label: String, _ value: String) -> some View {
-        GridRow {
-            Text(label).foregroundStyle(.secondary)
-            Text(value).monospacedDigit()
-        }
-    }
-}
-
-/// Targets (rings) vs. mean predictions (dots) for each calibration point.
+/// Targets (rings) against mean predictions (dots) for each calibration point.
 private struct ErrorPlot: View {
-    let report: CalibrationReport
+    let points: [CalibrationReport.Point]
     let aspect: CGFloat
 
     var body: some View {
         Canvas { context, size in
-            let rect = CGRect(origin: .zero, size: size)
-            context.fill(Path(roundedRect: rect, cornerRadius: 6), with: .color(.primary.opacity(0.06)))
-            for point in report.points {
+            let frame = Path(roundedRect: CGRect(origin: .zero, size: size).insetBy(dx: 0.5, dy: 0.5), cornerRadius: 8)
+            context.fill(frame, with: .color(Theme.wash))
+            context.stroke(frame, with: .color(Theme.hairline), lineWidth: 1)
+            for point in points {
                 let t = CGPoint(x: point.target.x * size.width, y: point.target.y * size.height)
                 let p = CGPoint(x: point.predicted.x * size.width, y: point.predicted.y * size.height)
                 var line = Path()
                 line.move(to: t)
                 line.addLine(to: p)
                 context.stroke(line, with: .color(.secondary), lineWidth: 1)
-                context.stroke(Path(ellipseIn: CGRect(center: t, radius: 6)), with: .color(.secondary), lineWidth: 1)
-                context.fill(Path(ellipseIn: CGRect(center: p, radius: 3)), with: .color(.accentColor))
+                context.stroke(Path(ellipseIn: CGRect(center: t, radius: 5)), with: .color(.secondary), lineWidth: 1)
+                context.fill(Path(ellipseIn: CGRect(center: p, radius: 2.5)), with: .color(Theme.signal))
             }
         }
         .aspectRatio(aspect, contentMode: .fit)
     }
 }
 
-private struct GridIllustration: View {
+private struct Tips: View {
     var body: some View {
-        ZStack {
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .fill(Color(white: 0.1))
-            GeometryReader { geo in
-                ForEach(0..<9, id: \.self) { i in
-                    let x = [0.12, 0.5, 0.88][i % 3], y = [0.15, 0.5, 0.85][i / 3]
-                    Circle()
-                        .stroke(Color.accentColor.opacity(i == 4 ? 1 : 0.45), lineWidth: 1.5)
-                        .frame(width: i == 4 ? 18 : 10, height: i == 4 ? 18 : 10)
-                        .overlay(Circle().fill(.white).frame(width: 3, height: 3))
-                        .position(x: x * geo.size.width, y: y * geo.size.height)
+        VStack(alignment: .leading, spacing: 16) {
+            Eyebrow("Tips")
+            Grid(alignment: .leading, horizontalSpacing: 32, verticalSpacing: 16) {
+                GridRow {
+                    tip("Distance", "Sit 50–70 cm away, centered on the camera.")
+                    tip("Light", "Light your face evenly. Avoid a bright window behind you.")
+                }
+                GridRow {
+                    tip("Stillness", "Keep your head still unless the step asks you to move it.")
+                    tip("Glasses", "Fine to wear, but reflections cost some accuracy.")
                 }
             }
         }
+    }
+
+    private func tip(_ title: String, _ text: String) -> some View {
+        VStack(alignment: .leading, spacing: 3) {
+            Text(title).font(.system(size: 12.5, weight: .semibold))
+            Text(text)
+                .font(.system(size: 12.5))
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }

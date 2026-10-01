@@ -77,6 +77,14 @@ public struct FaceLandmarksSnapshot: Sendable, Equatable {
     public var rightEye: [CGPoint]
     public var leftPupil: CGPoint
     public var rightPupil: CGPoint
+
+    public init(faceBounds: CGRect, leftEye: [CGPoint], rightEye: [CGPoint], leftPupil: CGPoint, rightPupil: CGPoint) {
+        self.faceBounds = faceBounds
+        self.leftEye = leftEye
+        self.rightEye = rightEye
+        self.leftPupil = leftPupil
+        self.rightPupil = rightPupil
+    }
 }
 
 /// A single gaze estimate in normalized screen coordinates (0...1, origin top-left).

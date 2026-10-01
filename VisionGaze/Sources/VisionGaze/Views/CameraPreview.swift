@@ -37,8 +37,8 @@ struct CameraPreview: NSViewRepresentable {
     }
 }
 
-/// Draws eye contours and pupils on top of `CameraPreview`, matching its
-/// aspect-fill, mirrored geometry.
+/// Draws the face as corner brackets, eye contours as hairlines and pupils as
+/// signal dots on top of `CameraPreview`, matching its aspect-fill, mirrored geometry.
 struct LandmarkOverlay: View {
     let landmarks: FaceLandmarksSnapshot?
     let imageSize: CGSize
@@ -48,23 +48,30 @@ struct LandmarkOverlay: View {
             guard let landmarks else { return }
             let map = mapper(for: size)
 
-            var face = Path()
             let b = landmarks.faceBounds
-            face.addRoundedRect(in: CGRect(p1: map(CGPoint(x: b.minX, y: b.minY)), p2: map(CGPoint(x: b.maxX, y: b.maxY))),
-                                cornerSize: CGSize(width: 14, height: 14))
-            context.stroke(face, with: .color(.white.opacity(0.35)), style: StrokeStyle(lineWidth: 1, dash: [5, 5]))
+            let face = CGRect(p1: map(CGPoint(x: b.minX, y: b.minY)), p2: map(CGPoint(x: b.maxX, y: b.maxY)))
+            context.stroke(Self.brackets(around: face, length: min(face.width, face.height) * 0.12),
+                           with: .color(.white.opacity(0.75)), style: StrokeStyle(lineWidth: 1.5, lineCap: .round, lineJoin: .round))
 
             for (contour, pupil) in [(landmarks.leftEye, landmarks.leftPupil), (landmarks.rightEye, landmarks.rightPupil)] {
                 var eye = Path()
                 eye.addLines(contour.map(map))
                 eye.closeSubpath()
-                context.stroke(eye, with: .color(.accentColor), lineWidth: 1.5)
-                let p = map(pupil)
-                context.fill(Path(ellipseIn: CGRect(center: p, radius: 3)), with: .color(.white))
-                context.stroke(Path(ellipseIn: CGRect(center: p, radius: 6)), with: .color(.accentColor.opacity(0.8)), lineWidth: 1)
+                context.stroke(eye, with: .color(.white.opacity(0.55)), lineWidth: 1)
+                context.fill(Path(ellipseIn: CGRect(center: map(pupil), radius: 2.5)), with: .color(Theme.signal))
             }
         }
         .allowsHitTesting(false)
+    }
+
+    /// The four corners of `rect`, like a camera's focus box.
+    static func brackets(around r: CGRect, length l: CGFloat) -> Path {
+        var p = Path()
+        p.addLines([CGPoint(x: r.minX, y: r.minY + l), CGPoint(x: r.minX, y: r.minY), CGPoint(x: r.minX + l, y: r.minY)])
+        p.addLines([CGPoint(x: r.maxX - l, y: r.minY), CGPoint(x: r.maxX, y: r.minY), CGPoint(x: r.maxX, y: r.minY + l)])
+        p.addLines([CGPoint(x: r.maxX, y: r.maxY - l), CGPoint(x: r.maxX, y: r.maxY), CGPoint(x: r.maxX - l, y: r.maxY)])
+        p.addLines([CGPoint(x: r.minX + l, y: r.maxY), CGPoint(x: r.minX, y: r.maxY), CGPoint(x: r.minX, y: r.maxY - l)])
+        return p
     }
 
     /// Normalized Vision point (origin bottom-left) → view point.
