@@ -13,6 +13,9 @@ public struct MeetingRecording: Codable, Hashable, Sendable {
     public var callAudioError: String?
     /// Set when the microphone track lost audio or stopped.
     public var micError: String?
+    /// When the user confirmed that everyone on the call knew about and agreed to the
+    /// recording. Nil only for recordings made before the confirmation existed.
+    public var consentConfirmedAt: Date?
 
     public var micURL: URL { folder.appendingPathComponent("mic.m4a") }
     public var systemURL: URL { folder.appendingPathComponent("system.m4a") }
@@ -65,7 +68,10 @@ public final class MeetingRecorder: ObservableObject {
 
     public static func availableApps() -> [AudioApp] { AudioApp.running() }
 
-    public func start(_ source: AudioSource, title: String? = nil) async throws {
+    /// Recording needs `consentConfirmedAt`: when the user confirmed that everyone on the
+    /// call knows and agrees. It is saved with the recording. Nothing starts a recording
+    /// automatically; only the user's Record action calls this.
+    public func start(_ source: AudioSource, title: String? = nil, consentConfirmedAt: Date) async throws {
         guard !isRecording, !starting else { return }
         starting = true
         defer { starting = false }
@@ -78,7 +84,8 @@ public final class MeetingRecorder: ObservableObject {
         let now = Date()
         let recording = MeetingRecording(
             id: UUID(), title: title ?? "\(source.displayName) call", startedAt: now, duration: 0,
-            folder: directory.appendingPathComponent(Self.folderName(now), isDirectory: true))
+            folder: directory.appendingPathComponent(Self.folderName(now), isDirectory: true),
+            consentConfirmedAt: consentConfirmedAt)
         try FileManager.default.createDirectory(at: recording.folder, withIntermediateDirectories: true)
 
         // One host-clock origin for both tracks; each writer pads to it.
@@ -140,6 +147,12 @@ public final class MeetingRecorder: ObservableObject {
         micLevel = 0
         systemLevel = 0
         return recording
+    }
+
+    /// "Stop & Delete", for when someone objects: stops and removes this recording's files.
+    public func discard() async {
+        guard let recording = await stop() else { return }
+        try? FileManager.default.removeItem(at: recording.folder) // the folder this recorder just created
     }
 
     /// Process tap first (no Screen Recording permission, macOS 14.4+), else ScreenCaptureKit.

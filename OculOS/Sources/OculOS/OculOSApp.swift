@@ -27,7 +27,7 @@ struct OculOSApp: App {
             Divider()
             AppMenuItems()
         } label: {
-            Image(systemName: module.isRecording ? "record.circle.fill" : "eye")
+            Image(systemName: module.isRecording ? "record.circle.fill" : module.dwellClick ? "eye.circle.fill" : "eye")
         }
     }
 }

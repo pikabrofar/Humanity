@@ -18,13 +18,23 @@ func render(_ px: Int) -> Data {
     NSGradient(colors: [NSColor(red: 0.42, green: 0.25, blue: 0.95, alpha: 1),
                         NSColor(red: 0.12, green: 0.08, blue: 0.35, alpha: 1)])!.draw(in: squircle, angle: -90)
 
-    let config = NSImage.SymbolConfiguration(pointSize: s * 0.46, weight: .medium)
-        .applying(.init(paletteColors: [.white]))
-    if let symbol = NSImage(systemSymbolName: "hand.point.up.left.fill", accessibilityDescription: nil)?
-        .withSymbolConfiguration(config) {
-        let size = symbol.size
-        symbol.draw(in: NSRect(x: (s - size.width) / 2, y: (s - size.height) / 2, width: size.width, height: size.height))
+    // Open hand: rounded-rect palm, four fingers and an angled thumb.
+    NSColor.white.setFill()
+    let palm = NSRect(x: s * 0.375, y: s * 0.24, width: s * 0.2695, height: s * 0.28)
+    NSBezierPath(roundedRect: palm, xRadius: s * 0.08, yRadius: s * 0.08).fill()
+    let fw = s * 0.058
+    for (i, top) in [0.65, 0.71, 0.69, 0.62].enumerated() {
+        let x = s * 0.375 + CGFloat(i) * s * 0.0705
+        let finger = NSRect(x: x, y: s * 0.36, width: fw, height: s * CGFloat(top) - s * 0.36)
+        NSBezierPath(roundedRect: finger, xRadius: fw / 2, yRadius: fw / 2).fill()
     }
+    let thumb = NSBezierPath(roundedRect: NSRect(x: -fw / 2, y: 0, width: fw * 1.1, height: s * 0.24),
+                             xRadius: fw / 2, yRadius: fw / 2)
+    let t = AffineTransform(translationByX: s * 0.43, byY: s * 0.29)
+    var r = AffineTransform(rotationByDegrees: 38)
+    r.append(t)
+    thumb.transform(using: r)
+    thumb.fill()
 
     NSGraphicsContext.restoreGraphicsState()
     return rep.representation(using: .png, properties: [:])!

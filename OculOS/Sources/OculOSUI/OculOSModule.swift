@@ -37,6 +37,12 @@ public final class OculOSModule {
         set { model.showCursor = newValue }
     }
 
+    /// Dwell clicking. Always off at launch; hosts can disarm it from a kill switch.
+    public var dwellClick: Bool {
+        get { model.dwellClick }
+        set { model.dwellClick = newValue }
+    }
+
     /// Where the user is looking, in global display points (top-left origin, as
     /// CGEvent uses); nil when not tracking.
     public var gazePoint: CGPoint? { model.gazePoint }
@@ -137,7 +143,8 @@ struct MenuItems: View {
         Toggle("Show Gaze Cursor", isOn: $model.showCursor)
             .disabled(!model.engine.isCalibrated)
         Toggle("Dwell to Click", isOn: $model.dwellClick)
-            .disabled(!model.engine.isCalibrated)
+            .keyboardShortcut("e", modifiers: [.control, .option, .command])
+            .disabled(!model.engine.isCalibrated && !model.dwellClick)
         Button(model.isRecording ? "Stop Recording" : "Start Recording", action: model.toggleRecording)
             .keyboardShortcut("r", modifiers: [.command, .option])
             .disabled(!model.engine.isCalibrated)

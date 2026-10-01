@@ -337,6 +337,39 @@ import Testing
         #expect(abs(ppd - 50.3) < 0.5)
     }
 
+    @Test func dwellCancelWaitsForNewFixation() {
+        var dwell = Dwell(duration: 1, radius: 50)
+        func fire(_ p: CGPoint, at t: Double) -> Bool { dwell.update(p, at: t) }
+        let p = CGPoint(x: 100, y: 100)
+        #expect(!fire(p, at: 0))
+        #expect(!fire(p, at: 0.6))
+        dwell.cancel() // Esc
+        #expect(dwell.progress == 0)
+        #expect(!fire(p, at: 1.2))
+        #expect(!fire(p, at: 5))
+        #expect(!fire(CGPoint(x: 300, y: 100), at: 5.1)) // a new fixation re-arms
+        #expect(fire(CGPoint(x: 300, y: 100), at: 6.1))
+    }
+
+    @Test func dwellSnapIsTighterThanExplicitClick() {
+        let ppd = 50.0
+        let p = CGPoint(x: 500, y: 500)
+        let button = CGRect(x: 650, y: 490, width: 60, height: 20) // 150 pt to the side
+        #expect(GazeClick.nearest(to: p, in: [button], radius: GazeClick.dwellSnapDegrees * ppd) == nil)
+        #expect(GazeClick.nearest(to: p, in: [button], radius: GazeClick.clickSnapDegrees * ppd) != nil)
+        #expect(GazeClick.dwellSnapDegrees <= 2)
+    }
+
+    @Test func dwellAvoidsDestructiveUI() {
+        #expect(GazeClick.dwellAvoids(role: "AXButton", subrole: "AXCloseButton"))
+        #expect(GazeClick.dwellAvoids(role: "AXSheet", subrole: nil))
+        #expect(GazeClick.dwellAvoids(role: "AXWindow", subrole: "AXSystemDialog"))
+        #expect(GazeClick.dwellAvoids(role: "AXWindow", subrole: "AXDialog"))
+        #expect(!GazeClick.dwellAvoids(role: "AXButton", subrole: nil))
+        #expect(!GazeClick.dwellAvoids(role: "AXButton", subrole: "AXMinimizeButton"))
+        #expect(!GazeClick.dwellAvoids(role: "AXWindow", subrole: "AXStandardWindow"))
+    }
+
     @Test func detectsFixations() {
         var samples: [GazeSample] = []
         for i in 0..<30 { samples.append(GazeSample(t: Double(i) / 30, x: 100, y: 100)) }

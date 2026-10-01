@@ -86,6 +86,13 @@ public enum Tasks {
 
     // MARK: - Internals
 
+    /// The cloud provider `task` is routed to, or nil when it runs on-device. Lets callers
+    /// ask before sending other people's words off the Mac.
+    public static func providerName(for task: AITask, settings: AISettings = .load()) -> String? {
+        guard case let .provider(id, _) = settings[task] else { return nil }
+        return Provider.named(id)?.name
+    }
+
     static func route(_ task: AITask, _ settings: AISettings) -> (LLMClient, String)? {
         guard case let .provider(id, model) = settings[task], let provider = Provider.named(id) else { return nil }
         return (LLMClient(provider: provider), model)

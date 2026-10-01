@@ -81,7 +81,7 @@ struct HUDView: View {
             if !model.engineReady { return "Loading Apple's speech model…" }
             return model.cleanup ? "Polishing…" : "Finishing…"
         default:
-            if !model.partial.isEmpty { return model.partial }
+            if model.showsPartial, !model.partial.isEmpty { return model.partial }
             return model.mode == .note ? "Recording a note…" : "Listening…"
         }
     }

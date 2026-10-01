@@ -131,7 +131,7 @@ enum Defaults {
         case cameraID, pupilRefinement, stability, responsiveness
         case showCursor, cursorStyle, cursorSize, completedSetup
         case hideWhileRecording, captureScreenshot, learnFromClicks
-        case dwellClick, dwellTime, snapToTargets
+        case dwellTime, snapToTargets
 
         /// Prefixed so modules can share one defaults domain inside Humanity.
         var name: String { "OculOS." + rawValue }

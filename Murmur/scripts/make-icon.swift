@@ -18,12 +18,15 @@ func render(_ px: Int) -> Data {
     NSGradient(colors: [NSColor(red: 0.98, green: 0.47, blue: 0.36, alpha: 1),
                         NSColor(red: 0.45, green: 0.12, blue: 0.42, alpha: 1)])!.draw(in: squircle, angle: -90)
 
-    let config = NSImage.SymbolConfiguration(pointSize: s * 0.46, weight: .medium)
-        .applying(.init(paletteColors: [.white]))
-    if let symbol = NSImage(systemSymbolName: "waveform", accessibilityDescription: nil)?
-        .withSymbolConfiguration(config) {
-        let size = symbol.size
-        symbol.draw(in: NSRect(x: (s - size.width) / 2, y: (s - size.height) / 2, width: size.width, height: size.height))
+    // Sound wave: centered vertical rounded bars of varying heights.
+    NSColor.white.setFill()
+    let heights: [CGFloat] = [0.14, 0.30, 0.48, 0.34, 0.52, 0.28, 0.14]
+    let bw = s * 0.055, gap = s * 0.035
+    let total = CGFloat(heights.count) * bw + CGFloat(heights.count - 1) * gap
+    for (i, h) in heights.enumerated() {
+        let x = (s - total) / 2 + CGFloat(i) * (bw + gap)
+        let bar = NSRect(x: x, y: (s - s * h) / 2, width: bw, height: s * h)
+        NSBezierPath(roundedRect: bar, xRadius: bw / 2, yRadius: bw / 2).fill()
     }
 
     NSGraphicsContext.restoreGraphicsState()

@@ -36,6 +36,7 @@ struct ActivationView: View {
     @State private var key = ""
     @State private var error: String?
     @State private var busy = false
+    @State private var agreed = false
 
     var body: some View {
         VStack(spacing: 14) {
@@ -51,6 +52,13 @@ struct ActivationView: View {
                 .font(.body.monospaced())
                 .multilineTextAlignment(.center)
                 .onSubmit(activate)
+            // Massachusetts courts look for clear notice and an affirmative act of assent.
+            Toggle(isOn: $agreed) {
+                Text("I agree to the [Terms of Sale](\(License.termsURL.absoluteString)) and have read the [Privacy Policy](\(License.privacyURL.absoluteString)).")
+                    .font(.caption)
+            }
+            .toggleStyle(.checkbox)
+            .frame(maxWidth: .infinity, alignment: .leading)
             if let error {
                 Text(error).font(.caption).foregroundStyle(.red).multilineTextAlignment(.center)
                     .fixedSize(horizontal: false, vertical: true)
@@ -59,21 +67,22 @@ struct ActivationView: View {
                 Button("Buy a License") { NSWorkspace.shared.open(License.buyURL) }
                 Spacer()
                 if busy { ProgressView().controlSize(.small) }
-                Button("Activate", action: activate)
+                Button("Agree and Activate", action: activate)
                     .keyboardShortcut(.defaultAction)
-                    .disabled(busy || License.findKey(in: key) == nil)
+                    .disabled(busy || !agreed || License.findKey(in: key) == nil)
             }
         }
         .padding(24)
         .frame(width: 380)
         .onAppear {
-            // Copied the key from the receipt? It's already filled in.
+            // Already activated (new Terms to agree to), or copied from the receipt? Prefill.
+            if let saved = License.savedKey { key = saved; return }
             if let copied = NSPasteboard.general.string(forType: .string).flatMap(License.findKey) { key = copied }
         }
     }
 
     private func activate() {
-        guard let found = License.findKey(in: key), !busy else { return }
+        guard let found = License.findKey(in: key), agreed, !busy else { return }
         busy = true
         error = nil
         Task {

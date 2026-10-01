@@ -27,10 +27,10 @@
 	<key>NSHighResolutionCapable</key>
 	<true/>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>Murmur listens only while you dictate or record. Audio is transcribed on this Mac and never uploaded.</string>
+	<string>Murmur listens only while you dictate or record. Audio is transcribed on this Mac and never uploaded. Only text goes to an AI provider, if you set one up.</string>
 	<key>NSPrincipalClass</key>
 	<string>NSApplication</string>
 	<key>NSSpeechRecognitionUsageDescription</key>
-	<string>Murmur turns your speech into text with Apple's on-device recognizer. Nothing is sent to Apple or anyone else.</string>
+	<string>Murmur turns your speech into text with Apple's on-device recognizer. Recognition runs on this Mac; your audio is not sent to Apple.</string>
 </dict>
 </plist>

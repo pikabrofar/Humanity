@@ -42,6 +42,17 @@ public struct RecordingStore: Sendable {
             .sorted { $0.createdAt > $1.createdAt }
     }
 
+    /// Recordings older than `days` (nil means keep forever), for the history retention setting.
+    public static func expired(_ recordings: [Recording], olderThanDays days: Int?, now: Date = Date()) -> [Recording] {
+        guard let days, days > 0 else { return [] }
+        return recordings.filter { now.timeIntervalSince($0.createdAt) > TimeInterval(days) * 86_400 }
+    }
+
+    /// Removes the whole folder, including audio a crash left without a transcript.
+    public func deleteEverything() throws {
+        if FileManager.default.fileExists(atPath: directory.path) { try FileManager.default.removeItem(at: directory) }
+    }
+
     public func delete(_ id: UUID) {
         try? FileManager.default.removeItem(at: jsonURL(for: id))
         try? FileManager.default.removeItem(at: audioURL(for: id))

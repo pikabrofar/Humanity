@@ -72,6 +72,8 @@ final class HandEngine {
     @ObservationIgnored private var chirality = ChiralityVote()
     @ObservationIgnored private var fatigue = FatigueTimer()
     @ObservationIgnored private var lastCropped = false
+    @ObservationIgnored private var lastFrameTime: CFTimeInterval = 0
+    @ObservationIgnored private var watchdog: Timer?
 
     /// Whether frames are processed. Off = no CPU spent on hands, control released.
     var isActive = true {
@@ -95,6 +97,14 @@ final class HandEngine {
         recognizer = GestureRecognizer(profile: profile, mapper: PointerMapper(bounds: Self.displayBounds, cursor: .zero))
         recognizer.doubleClickInterval = NSEvent.doubleClickInterval
         syncCursorToMouse()
+        // Gesture releases are frame-driven; if frames stop mid-drag, nothing would
+        // ever post the mouse-up. Check from outside the frame path.
+        watchdog = Timer.scheduledTimer(withTimeInterval: 0.25, repeats: true) { [weak self] _ in
+            MainActor.assumeIsolated {
+                guard let self, self.recognizer.isStalled(lastFrame: self.lastFrameTime, now: CACurrentMediaTime()) else { return }
+                self.release()
+            }
+        }
     }
 
     /// Union of all displays in global coordinates (origin top-left of the main display).
@@ -163,6 +173,7 @@ final class HandEngine {
 
     private func handle(_ result: HandProcessor.Result) {
         let now = CACurrentMediaTime()
+        lastFrameTime = now
         countFrame(at: now)
         imageSize = result.imageSize
         hands = chirality.apply(result.hands)

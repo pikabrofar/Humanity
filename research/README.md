@@ -20,7 +20,7 @@ Treat any figure marked as unverified in a file accordingly.
 | [09](09-gesture-vocabulary.md) | Gesture vocabulary and teaching | ManOS |
 | [10](10-ergonomics.md) | Mid-air fatigue and posture | ManOS |
 | [11](11-jitter-latency.md) | Jitter, latency, click rewind | ManOS |
-| [12](12-accessibility.md) | Users with motor disabilities | All |
+| [12](12-accessibility.md) | Accessible design and input settings | All |
 | [13](13-hci-pointing.md) | Fitts' law, MAGIC, Gaze + Pinch | OculOS, ManOS |
 | [14](14-apple-apis.md) | Apple APIs and pitfalls | All |
 | [15](15-dictation-apps.md) | Dictation app landscape | Voice app |

@@ -52,6 +52,7 @@ model = ct.convert(
     compute_precision=ct.precision.FLOAT16,
 )
 model.short_description = f"MobileGaze {arch} gaze estimation (Gaze360). Output: [yaw, pitch] radians."
-model.license = "MIT (github.com/yakhyo/gaze-estimation). Trained on Gaze360."
+model.license = ("Code MIT (github.com/yakhyo/gaze-estimation); weights trained on Gaze360: "
+                 "non-commercial research use only; do not redistribute (github.com/erkil1452/gaze360)")
 model.save(output)
 print(f"Saved {output}")

@@ -29,21 +29,21 @@ Requires macOS 14 or later. Builds with the Command Line Tools alone: run `swift
 - **Diarization.** [FluidAudio](https://github.com/FluidInference/FluidAudio) 0.17 (Apache-2.0) runs its offline pipeline: pyannote community-1 segmentation, WeSpeaker 256-d embeddings and VBx clustering, all in Core ML. It runs once after the meeting, which is more accurate than live diarization. The models download from Hugging Face on first use into `~/Library/Application Support/FluidAudio/Models`. FluidAudio also links a prebuilt text-normalization binary (about 8 MB) that MeetingKit doesn't use. Dropping it needs swift-tools 6.2 traits, which isn't worth the bump.
 - **Transcription.** This follows Murmur: on macOS 26 it uses `SpeechAnalyzer`/`SpeechTranscriber` with `audioTimeRange` attributes for word timings. Otherwise it uses `SFSpeechRecognizer` with `requiresOnDeviceRecognition`, fed windows under a minute long and cut at quiet points.
 - **Alignment.** Each system-track word goes to the diarization segment it overlaps most. Words in gaps go to the nearest segment. Words are grouped into utterances per track before the tracks are interleaved, so crosstalk becomes two whole turns rather than alternating fragments. A mic word that matches a system word within 0.5 s is treated as speaker echo and dropped.
-- **Voice profiles.** `VoiceProfileStore` keeps `~/Library/Application Support/Humanity/VoiceProfiles/profiles.json`: a name plus up to 20 L2-normalized embeddings per person. Each cluster centroid is compared with a profile's embeddings by cosine similarity, and the best one counts. Assignment is one-to-one, most confident pair first. `matchThreshold` defaults to **0.5**. FluidAudio's own streaming matcher accepts 0.35, but a wrong name is worse than "Speaker 2". Raise the threshold if similar voices get confused; lower it if known people stay unnamed. Automatic matches never change a profile. Embeddings are added only when the user names a speaker (`Meeting.name(speaker:as:in:)`), so a wrong match leaves nothing to undo.
+- **Voice profiles.** `VoiceProfileStore` keeps `~/Library/Application Support/Humanity/VoiceProfiles/profiles.json`: a name plus up to 20 L2-normalized embeddings per person. Each cluster centroid is compared with a profile's embeddings by cosine similarity, and the best one counts. Assignment is one-to-one, most confident pair first. `matchThreshold` defaults to **0.5**. FluidAudio's own streaming matcher accepts 0.35, but a wrong name is worse than "Speaker 2". Raise the threshold if similar voices get confused; lower it if known people stay unnamed. Automatic matches never change a profile. Naming a speaker only labels the transcript; embeddings are saved only when the user also attests the person agreed (`Meeting.name(speaker:as:rememberWithConsentAt:in:)`), so a wrong match leaves nothing to undo. Profiles store `consentAt` and `lastMatchedAt`, and are deleted on load when unused for 12 months or 3 years after consent.
 
 ## Integrating
 
 ```swift
 let recorder = MeetingRecorder()                 // @MainActor ObservableObject
 let apps = MeetingRecorder.availableApps()       // [AudioApp], playing first
-try await recorder.start(.app(apps[0]))          // or .allSystemAudio
+try await recorder.start(.app(apps[0]), consentConfirmedAt: Date()) // or .allSystemAudio; after the user confirms consent
 let recording = await recorder.stop()!           // MeetingRecording (mic.m4a + system.m4a)
 
 let profiles = VoiceProfileStore()
 var meeting = try await MeetingProcessor().process(recording, profiles: profiles) // saves meeting.json
 meeting.transcript.markdown(title: recording.title) // "**Alice** [00:01:23]: …"
 meeting.transcript.plainText                         // "Alice: …" lines for AIKit
-try meeting.name(speaker: "S2", as: "Bob", in: profiles); try meeting.save()
+try meeting.name(speaker: "S2", as: "Bob", rememberWithConsentAt: Date(), in: profiles); try meeting.save()
 let reopened = try Meeting.load(from: recording.folder)
 ```
 
@@ -63,7 +63,7 @@ The UI pieces are `MeetingRecorderControl(recorder:onFinish:)`, `MeetingDetailVi
 
 - **Tell participants before you record.** Many jurisdictions require consent from every party, and the recorder UI says so. Some meeting apps also show their own recording notices, and MeetingKit does not trigger those.
 - Recordings stay in `~/Library/Application Support/Humanity/Meetings/<date>/`. Delete that folder to remove a meeting.
-- Voice profiles store only embeddings, which are numeric fingerprints of timbre that can't be turned back into audio. Still, they are biometric-like data: name people only with their agreement, and delete a profile when asked.
+- Voice profiles store only embeddings, numeric voiceprints of timbre. They are biometric data: name people only with their agreement, and delete a profile when asked.
 - Nothing is sent off the Mac. The only network use is downloading models.
 
 ## Accuracy limits

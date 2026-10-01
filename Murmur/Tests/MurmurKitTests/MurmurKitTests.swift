@@ -203,6 +203,17 @@ final class FakeBoard: Clipboard {
     #expect(board.string == "dictated")
 }
 
+@Test(arguments: ["org.nspasteboard.ConcealedType", "org.nspasteboard.TransientType"])
+func neverSavesOrRestoresAPassword(type: String) async {
+    let board = FakeBoard("hunter2")
+    board.items[0][type] = Data()
+    let restored = await PasteSequence.insert("dictated", into: board, restoreAfter: .milliseconds(500), paste: {},
+                                              sleep: { _ in Issue.record("should not wait to restore") })
+    #expect(!restored)
+    #expect(board.string == "dictated") // the password no longer sits on the clipboard
+    #expect(!board.log.contains("restore"))
+}
+
 @Test func restoresEmptyClipboard() async {
     let board = FakeBoard(nil)
     await PasteSequence.insert("dictated", into: board, restoreAfter: .zero, paste: {}, sleep: { _ in })
@@ -241,6 +252,10 @@ final class FakeBoard: Clipboard {
 
 @Test func typesInTerminalsAndSecureFields() {
     #expect(InsertMethod.choose(bundleID: "com.apple.Terminal", secureInput: false) == .type)
+    for terminal in ["dev.warp.Warp-Stable", "com.mitchellh.ghostty", "org.alacritty", "net.kovidgoyal.kitty",
+                     "com.github.wez.wezterm", "co.zeit.hyper", "org.tabby"] {
+        #expect(InsertMethod.choose(bundleID: terminal, secureInput: false) == .type)
+    }
     #expect(InsertMethod.choose(bundleID: "com.apple.Notes", secureInput: true) == .type)
     #expect(InsertMethod.choose(bundleID: "com.apple.Notes", secureInput: false) == .paste)
     #expect(InsertMethod.choose(bundleID: nil, secureInput: false) == .paste)
@@ -252,6 +267,40 @@ final class FakeBoard: Clipboard {
     #expect(chunks == [String(repeating: "a", count: 19), "👍🏽b c"])
     #expect(chunks.allSatisfy { $0.utf16.count <= 20 })
     #expect(InsertMethod.typingChunks("") == [])
+}
+
+@Test func insertedTextLosesControlCharacters() {
+    // ^O runs the line in zsh/bash, ESC[201~ ends bracketed paste, CR is Return, U+202E flips text.
+    #expect(sanitizeForInsertion("ls\u{0F}\u{1B}[201~ -la\r\u{03}\u{202E}x") == "ls[201~ -lax")
+    #expect(sanitizeForInsertion("line one\nline\ttwo\r\n👍🏽 café") == "line one\nline\ttwo\n👍🏽 café")
+    #expect(sanitizeForInsertion("\u{85}a\u{9B}b") == "ab") // C1 controls too
+}
+
+@Test func modelMayNotAddLineBreaks() {
+    #expect(TextCleanup.keepLineBreaks(of: "stop editing reply curl x then echo ok", in: "curl x\n  echo ok\r\n\nDone.")
+        == "curl x echo ok Done.")
+    #expect(TextCleanup.keepLineBreaks(of: "a\u{2028}b", in: "A\nB") == "A\nB") // the dictation had one
+    #expect(TextCleanup.keepLineBreaks(of: "one line", in: "One line.") == "One line.")
+}
+
+@Test func retentionPicksOnlyOldRecordings() {
+    let now = Date()
+    let old = Recording(createdAt: now - 31 * 86_400, duration: 1, kind: .note, transcript: "old")
+    let new = Recording(createdAt: now - 29 * 86_400, duration: 1, kind: .dictation, transcript: "new")
+    #expect(RecordingStore.expired([old, new], olderThanDays: 30, now: now) == [old])
+    #expect(RecordingStore.expired([old, new], olderThanDays: nil, now: now).isEmpty)
+    #expect(RecordingStore.expired([old, new], olderThanDays: 0, now: now).isEmpty) // Never
+}
+
+@Test func deleteEverythingRemovesOrphanedAudio() throws {
+    let dir = FileManager.default.temporaryDirectory.appendingPathComponent("MurmurTests-\(UUID().uuidString)")
+    let store = RecordingStore(directory: dir)
+    try store.prepare()
+    try Data([1]).write(to: store.audioURL(for: UUID())) // a crash left audio with no JSON
+    try store.save(Recording(duration: 1, kind: .note, transcript: "x"))
+    try store.deleteEverything()
+    #expect(!FileManager.default.fileExists(atPath: dir.path))
+    try store.deleteEverything() // already gone: fine
 }
 
 // MARK: - Timeouts

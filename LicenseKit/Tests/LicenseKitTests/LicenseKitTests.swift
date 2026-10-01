@@ -11,13 +11,19 @@ import Testing
     let ok = #"{"success":true,"uses":1,"purchase":{"refunded":false,"chargebacked":false,"license_key":"X"}}"#
     let refunded = #"{"success":true,"purchase":{"refunded":true,"chargebacked":false}}"#
     let unknown = #"{"success":false,"message":"That license does not exist for the provided product."}"#
-    #expect(License.problem(in: Data(ok.utf8)) == nil)
-    #expect(License.problem(in: Data(refunded.utf8)) != nil)
-    #expect(License.problem(in: Data(unknown.utf8)) != nil)
-    #expect(License.problem(in: Data("<html>".utf8)) != nil)
+    #expect(License.failure(in: Data(ok.utf8)) == nil)
+    #expect(License.failure(in: Data(refunded.utf8)).map { if case .rejected = $0 { true } else { false } } == true)
+    #expect(License.failure(in: Data(unknown.utf8)).map { if case .rejected = $0 { true } else { false } } == true)
+    // A captive portal or outage page must never count as a rejection.
+    #expect(License.failure(in: Data("<html>".utf8)).map { if case .network = $0 { true } else { false } } == true)
 }
 
 @Test func formBodyEscapesProductID() {
     let body = String(decoding: License.formBody([("product_id", "ab_C==")]), as: UTF8.self)
     #expect(body == "product_id=ab_C%3D%3D")
+}
+
+@Test func wonDisputeKeepsWorking() {
+    let won = #"{"success":true,"purchase":{"refunded":false,"chargebacked":false,"disputed":true,"dispute_won":true}}"#
+    #expect(License.failure(in: Data(won.utf8)) == nil)
 }

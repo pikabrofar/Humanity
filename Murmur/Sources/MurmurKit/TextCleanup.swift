@@ -45,6 +45,14 @@ public enum TextCleanup {
         return t
     }
 
+    /// A model must not add line breaks: pasted into a terminal, a newline can run the
+    /// first line. When the dictation had none, every run of them becomes one space.
+    public static func keepLineBreaks(of original: String, in rewrite: String) -> String {
+        guard !original.contains(where: \.isNewline), rewrite.contains(where: \.isNewline) else { return rewrite }
+        return rewrite.components(separatedBy: .newlines).map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty }.joined(separator: " ")
+    }
+
     /// The user's custom words, one per comma or line, without duplicates.
     public static func terms(from list: String) -> [String] {
         var seen = Set<String>()

@@ -45,25 +45,39 @@ public struct Meeting: Codable, Hashable, Sendable, Identifiable {
         return speakers
     }
 
-    /// "This cluster is Alice." Saves the voice so Alice is recognized next time:
-    /// an existing profile with that name gets this meeting's embedding as another
-    /// sample; otherwise a new profile is created. An automatic match that the user
-    /// overrides was never written to the old profile, so nothing needs undoing.
+    /// "This cluster is Alice." Labels the transcript only, unless `rememberWithConsentAt` is
+    /// set: the time the user attested that Alice agreed to have her voiceprint saved. Then
+    /// the voice is saved so Alice is recognized next time: an existing profile with that
+    /// name gets this meeting's embedding as another sample; otherwise a new profile is
+    /// created. Without it, a same-named profile is linked but gets no new samples. An
+    /// automatic match that the user overrides was never written to the old profile, so
+    /// nothing needs undoing.
     @MainActor
-    public mutating func name(speaker cluster: String, as name: String, in store: VoiceProfileStore) throws {
+    public mutating func name(speaker cluster: String, as name: String, rememberWithConsentAt consent: Date? = nil,
+                              in store: VoiceProfileStore) throws {
         let name = name.trimmingCharacters(in: .whitespaces)
         guard !name.isEmpty, cluster != TranscriptAligner.localSpeakerID else { return }
         let samples = diarization.centroids[cluster].map { [$0] } ?? []
-        let profile: VoiceProfile?
-        if let existing = store.profile(named: name) {
-            try store.refine(existing.id, with: samples)
-            profile = existing
-        } else if !samples.isEmpty {
-            profile = try store.enroll(name: name, embeddings: samples)
-        } else {
-            profile = nil
+        var profile = store.profile(named: name)
+        if let consent {
+            if let existing = profile {
+                try store.refine(existing.id, with: samples, consentAt: consent)
+            } else if !samples.isEmpty {
+                profile = try store.enroll(name: name, embeddings: samples, consentAt: consent)
+            }
+            diarization.centroids[cluster] = nil // now kept in the profile, under its retention
         }
         speakers[cluster] = Speaker(name: profile?.name ?? name, profileID: profile?.id)
+    }
+
+    /// Unremembered speakers' embeddings stay only so they can be remembered later. Like
+    /// unused profiles, they are deleted 12 months after the meeting.
+    /// - Returns: true when embeddings were removed and the meeting should be saved.
+    public mutating func dropExpiredVoiceprints(now: Date = Date()) -> Bool {
+        guard !diarization.centroids.isEmpty,
+              now.timeIntervalSince(recording.startedAt) > VoiceProfile.unusedLimit else { return false }
+        diarization.centroids = [:]
+        return true
     }
 
     public var fileURL: URL { recording.folder.appendingPathComponent("meeting.json") }
@@ -126,6 +140,7 @@ public struct MeetingProcessor: Sendable {
         if let systemFailure, micWords.isEmpty, systemWords.isEmpty { throw systemFailure }
 
         let matches = await profiles.assign(clusters: diarization.centroids)
+        await profiles.markMatched(matches.values.map(\.profile.id))
         let meeting = Meeting(recording: recording, diarization: diarization, micWords: micWords, systemWords: systemWords,
                               speakers: Meeting.labels(for: diarization, matches: matches))
         try meeting.save()

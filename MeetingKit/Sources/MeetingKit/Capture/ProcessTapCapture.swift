@@ -50,7 +50,7 @@ final class ProcessTapCapture {
                 kAudioAggregateDeviceNameKey: "MeetingKit Tap",
                 kAudioAggregateDeviceUIDKey: UUID().uuidString,
                 kAudioAggregateDeviceMainSubDeviceKey: outputUID,
-                kAudioAggregateDeviceIsPrivateKey: true, // invisible to other apps, gone if we crash
+                kAudioAggregateDeviceIsPrivateKey: true, // not listed for other apps, gone if we crash
                 kAudioAggregateDeviceIsStackedKey: false,
                 kAudioAggregateDeviceTapAutoStartKey: true,
                 kAudioAggregateDeviceSubDeviceListKey: [[kAudioSubDeviceUIDKey: outputUID]],

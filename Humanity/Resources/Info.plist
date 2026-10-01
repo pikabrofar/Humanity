@@ -25,18 +25,18 @@
 	<key>LSUIElement</key>
 	<true/>
 	<key>NSAudioCaptureUsageDescription</key>
-	<string>Murmur records the meeting app's audio so it can transcribe the call and tell speakers apart. It stays on this Mac.</string>
+	<string>Humanity records the meeting app's audio so it can transcribe the call and tell speakers apart. It stays on this Mac.</string>
 	<key>NSCameraReactionEffectGesturesEnabledDefault</key>
 	<false/>
 	<key>NSCameraUsageDescription</key>
-	<string>Humanity uses the camera to track your eyes and hands. Video is processed on-device and never stored or transmitted.</string>
+	<string>Humanity uses the camera to track your eyes and hands. Video is processed on this Mac and never uploaded or saved as video.</string>
 	<key>NSHighResolutionCapable</key>
 	<true/>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>Humanity listens only while you dictate or record. Audio is transcribed on this Mac and never uploaded.</string>
+	<string>Humanity listens only while you dictate or record. Audio is transcribed on this Mac and never uploaded. Only text goes to an AI provider, if you set one up.</string>
 	<key>NSPrincipalClass</key>
 	<string>NSApplication</string>
 	<key>NSSpeechRecognitionUsageDescription</key>
-	<string>Humanity turns your speech into text with Apple's on-device recognizer. Nothing is sent to Apple or anyone else.</string>
+	<string>Humanity turns your speech into text with Apple's on-device recognizer. Recognition runs on this Mac; your audio is not sent to Apple.</string>
 </dict>
 </plist>

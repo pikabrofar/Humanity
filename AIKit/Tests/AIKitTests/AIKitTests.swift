@@ -19,6 +19,23 @@ private func json(_ request: URLRequest) -> NSDictionary? {
     #expect(anthropic.defaultModel == "claude-sonnet-5-5")
     #expect(!ollama.needsKey && ollama.baseURL.absoluteString == "http://localhost:11434/v1")
     #expect(Provider.all.filter { $0.api == .anthropic }.count == 1)
+    #expect(Provider.all.allSatisfy { !$0.dataUse.isEmpty })
+}
+
+@Test func redirectsStayOnTheSameHost() {
+    let api = URL(string: "https://api.anthropic.com/v1/messages")
+    #expect(RedirectPolicy.allows(from: api, to: URL(string: "https://api.anthropic.com/v1/other")))
+    #expect(!RedirectPolicy.allows(from: api, to: URL(string: "https://evil.example/v1/messages")))
+    #expect(!RedirectPolicy.allows(from: api, to: URL(string: "http://api.anthropic.com/v1/messages")))
+    #expect(!RedirectPolicy.allows(from: api, to: URL(string: "https://api.anthropic.com:8443/v1/messages")))
+    #expect(!RedirectPolicy.allows(from: api, to: nil))
+}
+
+@Test func providerNameOnlyForCloudTasks() {
+    var settings = AISettings()
+    #expect(Tasks.providerName(for: .summaries, settings: settings) == nil)
+    settings[.summaries] = .provider(id: "anthropic", model: "m")
+    #expect(Tasks.providerName(for: .summaries, settings: settings) == "Anthropic")
 }
 
 // MARK: - Request building

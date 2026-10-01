@@ -23,6 +23,22 @@ public enum AIError: Error, Equatable, LocalizedError {
     }
 }
 
+/// None of the providers need redirects, and URLSession forwards `x-api-key` (and a 307/308
+/// keeps the transcript body) to whatever host a redirect names. So follow a redirect only
+/// within the same scheme, host and port; refuse it otherwise and the 3xx fails the request.
+public final class RedirectPolicy: NSObject, URLSessionTaskDelegate {
+    public static func allows(from old: URL?, to new: URL?) -> Bool {
+        guard let old, let new else { return false }
+        return old.scheme?.lowercased() == new.scheme?.lowercased() && old.host?.lowercased() == new.host?.lowercased()
+            && old.port == new.port
+    }
+
+    public func urlSession(_ session: URLSession, task: URLSessionTask, willPerformHTTPRedirection response: HTTPURLResponse,
+                           newRequest request: URLRequest) async -> URLRequest? {
+        Self.allows(from: task.originalRequest?.url, to: request.url) ? request : nil
+    }
+}
+
 /// One provider, one key. Stateless; make one per call or keep it around.
 public struct LLMClient: Sendable {
     public let provider: Provider
@@ -36,7 +52,7 @@ public struct LLMClient: Sendable {
         config.timeoutIntervalForRequest = 120   // non-streaming replies can take a while to start
         config.timeoutIntervalForResource = 300
         config.urlCache = nil
-        return URLSession(configuration: config)
+        return URLSession(configuration: config, delegate: RedirectPolicy(), delegateQueue: nil)
     }()
 
     /// Reads the key from the Keychain unless one is passed (e.g. to test a

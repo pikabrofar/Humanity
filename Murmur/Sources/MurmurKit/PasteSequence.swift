@@ -20,7 +20,13 @@ public enum InsertMethod: Equatable, Sendable {
     /// shells) and secure fields, which may refuse paste.
     case type
 
-    static let terminals: Set = ["com.apple.Terminal", "com.googlecode.iterm2"]
+    /// Typed into, so no pasted newline can run a command. VS Code's (and other editors')
+    /// integrated terminals can't be told apart from the editor, so they aren't listed.
+    static let terminals: Set = [
+        "com.apple.Terminal", "com.googlecode.iterm2", "dev.warp.Warp-Stable", "dev.warp.Warp-Preview",
+        "com.mitchellh.ghostty", "org.alacritty", "io.alacritty", "net.kovidgoyal.kitty",
+        "com.github.wez.wezterm", "co.zeit.hyper", "org.tabby",
+    ]
 
     public static func choose(bundleID: String?, secureInput: Bool) -> InsertMethod {
         secureInput || bundleID.map(terminals.contains) == true ? .type : .paste
@@ -45,7 +51,25 @@ public enum InsertMethod: Equatable, Sendable {
     }
 }
 
+/// Removes characters a terminal or editor may act on rather than display: C0/C1 controls
+/// (ESC, ^C, ^D, ^O, a bare CR…) and bidi overrides. Newline and tab stay.
+public func sanitizeForInsertion(_ text: String) -> String {
+    String(String.UnicodeScalarView(text.unicodeScalars.filter { u in
+        if u == "\n" || u == "\t" { return true }
+        if (0x202A...0x202E).contains(u.value) || (0x2066...0x2069).contains(u.value) { return false }
+        return u.properties.generalCategory != .control
+    }))
+}
+
 public enum PasteSequence {
+    /// Clipboard contents a password manager (or another app) marked as not to be kept:
+    /// they're never saved and put back, so they don't outlive the manager's auto-clear.
+    public static let sensitiveTypes: Set = ["org.nspasteboard.ConcealedType", "org.nspasteboard.TransientType"]
+
+    public static func isSensitive(_ items: [[String: Data]]) -> Bool {
+        items.contains { !sensitiveTypes.isDisjoint(with: $0.keys) }
+    }
+
     /// Puts `text` on the pasteboard, triggers `paste`, then puts the user's
     /// previous clipboard back.
     ///
@@ -53,6 +77,8 @@ public enum PasteSequence {
     /// pasteboard asynchronously after receiving ⌘V. It is skipped if anything
     /// else wrote to the pasteboard in the meantime, so a copy the user made
     /// during that window is never overwritten. Pass nil to leave the text there.
+    /// A concealed or transient previous item (a copied password) is never saved or
+    /// restored; the dictated text simply replaces it.
     ///
     /// - Returns: whether the previous clipboard was restored.
     @discardableResult
@@ -67,7 +93,7 @@ public enum PasteSequence {
         board.write(text)
         let ours = board.changeCount
         paste()
-        guard let delay else { return false }
+        guard let delay, !isSensitive(saved) else { return false }
         await sleep(delay)
         guard board.changeCount == ours else { return false }
         board.restore(saved)

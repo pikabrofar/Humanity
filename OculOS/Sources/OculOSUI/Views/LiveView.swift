@@ -77,7 +77,7 @@ private struct CameraCard: View {
                 CameraMessage(
                     symbol: "video.slash",
                     title: "Camera access needed",
-                    message: "OculOS processes video on-device only. Nothing leaves your Mac.",
+                    message: "OculOS processes camera frames on this Mac. They are never uploaded.",
                     action: ("Open Privacy Settings", {
                         NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Camera")!)
                     })

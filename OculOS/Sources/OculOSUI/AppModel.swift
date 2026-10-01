@@ -57,9 +57,10 @@ final class AppModel {
     var learnFromClicks = Defaults.bool(.learnFromClicks, default: true) {
         didSet { Defaults.set(learnFromClicks, .learnFromClicks) }
     }
-    /// Gaze never clicks by itself unless this is on (research 07, 12, 13).
-    var dwellClick = Defaults.bool(.dwellClick, default: false) {
-        didSet { Defaults.set(dwellClick, .dwellClick); dwellProgress = 0; updateCursorWindow() }
+    /// Gaze never clicks by itself unless this is on (research 07, 12, 13). Not
+    /// persisted: every launch starts with dwell off, so clicks never resume unnoticed.
+    var dwellClick = false {
+        didSet { dwellProgress = 0; updateEscMonitors(); updateCursorWindow() }
     }
     /// Seconds, 0.3 … 3.
     var dwellTime = Defaults.double(.dwellTime, default: 1) {
@@ -81,6 +82,8 @@ final class AppModel {
     @ObservationIgnored private var keyMonitor: Any?
     @ObservationIgnored private var hotKey: HotKey?
     @ObservationIgnored private var clickHotKey: HotKey?
+    @ObservationIgnored private var dwellHotKey: HotKey?
+    @ObservationIgnored private var escMonitors: [Any] = []
     @ObservationIgnored private var dwell = Dwell()
     @ObservationIgnored private var screenObserver: Any?
     @ObservationIgnored private var clickMonitors: [Any] = []
@@ -93,6 +96,9 @@ final class AppModel {
         }
         clickHotKey = HotKey(keyCode: kVK_ANSI_G, modifiers: controlKey | optionKey | cmdKey) { [weak self] in
             MainActor.assumeIsolated { self?.clickAfterModifiersUp() }
+        }
+        dwellHotKey = HotKey(keyCode: kVK_ANSI_E, modifiers: controlKey | optionKey | cmdKey) { [weak self] in
+            MainActor.assumeIsolated { self?.toggleDwell() }
         }
         engine.onGaze = { [weak self] in self?.updateDwell() }
         screenObserver = NotificationCenter.default.addObserver(
@@ -133,25 +139,54 @@ final class AppModel {
         return CGPoint(x: frame.minX + gaze.x * frame.width, y: top - frame.maxY + gaze.y * frame.height)
     }
 
-    /// Where a click would land: the gaze, snapped to the nearest control within about 4°.
-    private var clickTarget: CGPoint? {
+    /// Where a click would land: the gaze, snapped to the nearest control within
+    /// about 4° for explicit clicks, 1.5° (and never onto `dwellAvoids` controls) for dwell.
+    private func clickTarget(forDwell: Bool = false) -> CGPoint? {
         guard calibration == nil, let point = gazePoint else { return nil }
         guard snapToTargets, let ppd = engine.calibration?.pointsPerDegree else { return point }
-        return GazeClick.snap(point, radius: 4 * ppd) ?? point
+        let degrees = forDwell ? GazeClick.dwellSnapDegrees : GazeClick.clickSnapDegrees
+        return GazeClick.snap(point, radius: degrees * ppd, forDwell: forDwell) ?? point
     }
 
     /// Clicks where the user looks. False when not tracking.
     @discardableResult
     func click() -> Bool {
-        guard let point = clickTarget else { return false }
+        guard let point = clickTarget() else { return false }
         GazeClick.click(at: point)
         return true
+    }
+
+    /// ⌃⌥⌘E: arms or disarms dwell from any app.
+    func toggleDwell() {
+        if dwellClick || engine.isCalibrated { dwellClick.toggle() }
+    }
+
+    /// Esc cancels a dwell in progress. Monitors observe without swallowing the key,
+    /// so Esc still reaches the frontmost app (the global one needs Accessibility,
+    /// which dwell clicking needs anyway).
+    private func updateEscMonitors() {
+        escMonitors.forEach(NSEvent.removeMonitor)
+        escMonitors = []
+        guard dwellClick else { return }
+        let cancel: (NSEvent) -> Void = { [weak self] event in
+            guard Int(event.keyCode) == kVK_Escape else { return }
+            MainActor.assumeIsolated { self?.cancelDwell() }
+        }
+        escMonitors = [
+            NSEvent.addGlobalMonitorForEvents(matching: .keyDown, handler: cancel) as Any,
+            NSEvent.addLocalMonitorForEvents(matching: .keyDown) { cancel($0); return $0 } as Any,
+        ]
+    }
+
+    private func cancelDwell() {
+        dwell.cancel()
+        dwellProgress = 0
     }
 
     /// The hot key's modifiers would turn the click into a ⌘/⌃/⌥-click, so wait
     /// for their release (up to 1 s). The target is taken at the press.
     private func clickAfterModifiersUp() {
-        guard let point = clickTarget else { return }
+        guard let point = clickTarget() else { return }
         Task {
             for _ in 0..<50 where !NSEvent.modifierFlags.intersection([.command, .control, .option, .shift]).isEmpty {
                 try? await Task.sleep(for: .milliseconds(20))
@@ -165,7 +200,10 @@ final class AppModel {
         dwell.duration = dwellTime
         dwell.radius = engine.fixationRadius
         // Without Accessibility macOS drops the click; don't pretend it happened.
-        if dwell.update(gazePoint, at: CACurrentMediaTime()), AXIsProcessTrusted() { click() }
+        if dwell.update(gazePoint, at: CACurrentMediaTime()), AXIsProcessTrusted(),
+           let point = clickTarget(forDwell: true), !GazeClick.dwellBlocked(at: point) {
+            GazeClick.click(at: point)
+        }
         if dwellProgress != dwell.progress { dwellProgress = dwell.progress }
     }
 

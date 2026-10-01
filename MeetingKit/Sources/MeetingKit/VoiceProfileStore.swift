@@ -2,7 +2,7 @@ import Combine
 import Foundation
 
 /// A named person and a few voice embeddings of them. Embeddings are 256 floats
-/// summarizing timbre; the original audio can't be recovered from them, and none is kept.
+/// summarizing timbre. No audio is kept with them, but treat them as biometric data.
 public struct VoiceProfile: Codable, Hashable, Sendable, Identifiable {
     public var id: UUID
     public var name: String
@@ -10,12 +10,31 @@ public struct VoiceProfile: Codable, Hashable, Sendable, Identifiable {
     /// through a headset, a laptop mic or a phone bridge.
     public var embeddings: [[Float]]
     public var updatedAt: Date
+    /// When the user attested that this person agreed to have their voiceprint saved.
+    /// Nil only for profiles saved before attestation existed.
+    public var consentAt: Date?
+    /// Last time a meeting was labeled with this profile.
+    public var lastMatchedAt: Date?
 
-    public init(id: UUID = UUID(), name: String, embeddings: [[Float]], updatedAt: Date = Date()) {
+    public init(id: UUID = UUID(), name: String, embeddings: [[Float]], updatedAt: Date = Date(),
+                consentAt: Date? = nil, lastMatchedAt: Date? = nil) {
         self.id = id
         self.name = name
         self.embeddings = embeddings.map(VoiceMath.normalized)
         self.updatedAt = updatedAt
+        self.consentAt = consentAt
+        self.lastMatchedAt = lastMatchedAt
+    }
+
+    /// Retention: a profile not matched or updated for 12 months is deleted, and so is any
+    /// profile 3 years after its consent (BIPA's outer bound), however often it is used.
+    public static let unusedLimit: TimeInterval = 365 * 86_400
+    public static let ageLimit: TimeInterval = 3 * 365 * 86_400
+
+    public func isExpired(now: Date = Date()) -> Bool {
+        let lastUsed = max(updatedAt, lastMatchedAt ?? updatedAt)
+        return now.timeIntervalSince(lastUsed) > Self.unusedLimit
+            || now.timeIntervalSince(consentAt ?? updatedAt) > Self.ageLimit
     }
 }
 
@@ -53,6 +72,32 @@ public final class VoiceProfileStore: ObservableObject {
             decoder.dateDecodingStrategy = .iso8601
             profiles = (try? decoder.decode([VoiceProfile].self, from: data)) ?? []
         }
+        // Enforce retention on every load; a failed write retries on the next one.
+        let kept = profiles.filter { !$0.isExpired() }
+        if kept.count != profiles.count {
+            profiles = kept
+            try? save()
+        }
+    }
+
+    /// Removes every saved voiceprint on disk, e.g. from a host's "delete all data".
+    /// A live store must also call `removeAll()`, or its next save writes them back.
+    public nonisolated static func deleteAll(in directory: URL = VoiceProfileStore.defaultDirectory) throws {
+        let file = directory.appendingPathComponent("profiles.json")
+        if FileManager.default.fileExists(atPath: file.path) { try FileManager.default.removeItem(at: file) }
+    }
+
+    public func removeAll() throws {
+        profiles = []
+        try Self.deleteAll(in: fileURL.deletingLastPathComponent())
+    }
+
+    /// Records that these profiles labeled a meeting, which keeps them from expiring.
+    public func markMatched(_ ids: some Sequence<UUID>, at date: Date = Date()) {
+        let ids = Set(ids)
+        guard !ids.isEmpty else { return }
+        for i in profiles.indices where ids.contains(profiles[i].id) { profiles[i].lastMatchedAt = date }
+        try? save()
     }
 
     public func profile(id: UUID) -> VoiceProfile? { profiles.first { $0.id == id } }
@@ -93,10 +138,12 @@ public final class VoiceProfileStore: ObservableObject {
         return result
     }
 
+    /// Saves a new voiceprint. `consentAt` is when the user attested that the person agreed;
+    /// there is deliberately no way to enroll without it.
     @discardableResult
-    public func enroll(name: String, embeddings: [[Float]]) throws -> VoiceProfile {
+    public func enroll(name: String, embeddings: [[Float]], consentAt: Date) throws -> VoiceProfile {
         let profile = VoiceProfile(name: name.trimmingCharacters(in: .whitespaces),
-                                   embeddings: Array(embeddings.suffix(maxEmbeddingsPerProfile)))
+                                   embeddings: Array(embeddings.suffix(maxEmbeddingsPerProfile)), consentAt: consentAt)
         profiles.append(profile)
         try save()
         return profile
@@ -106,10 +153,14 @@ public final class VoiceProfileStore: ObservableObject {
         try update(id) { $0.name = name.trimmingCharacters(in: .whitespaces) }
     }
 
-    /// Adds embeddings after the user confirms or corrects who a cluster was.
-    public func refine(_ id: UUID, with embeddings: [[Float]]) throws {
+    /// Adds embeddings after the user confirms who a cluster was and attests consent again.
+    /// The first consent date is kept, so the 3-year limit can't be extended by refining.
+    public func refine(_ id: UUID, with embeddings: [[Float]], consentAt: Date) throws {
         let cap = maxEmbeddingsPerProfile
-        try update(id) { $0.embeddings = Array(($0.embeddings + embeddings.map(VoiceMath.normalized)).suffix(cap)) }
+        try update(id) {
+            $0.embeddings = Array(($0.embeddings + embeddings.map(VoiceMath.normalized)).suffix(cap))
+            $0.consentAt = $0.consentAt ?? consentAt
+        }
     }
 
     /// Folds duplicate profiles of one person into `target`, keeping all their samples.

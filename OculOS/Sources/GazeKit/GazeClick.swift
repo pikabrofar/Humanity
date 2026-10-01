@@ -38,6 +38,12 @@ public struct Dwell: Sendable {
         progress = 0
         return true
     }
+
+    /// Abandons the current dwell (e.g. Esc). Like a completed one, it needs a new fixation to restart.
+    public mutating func cancel() {
+        fired = true
+        progress = 0
+    }
 }
 
 /// Commits a click where the user looks: snaps to the nearest clickable
@@ -51,6 +57,41 @@ public enum GazeClick {
         "AXButton", "AXLink", "AXMenuItem", "AXMenuBarItem", "AXMenuButton", "AXPopUpButton",
         "AXCheckBox", "AXRadioButton", "AXDisclosureTriangle", "AXTextField", "AXComboBox", "AXDockItem",
     ]
+
+    /// Snap radii in degrees. Passive dwell gets a tight one so it can't reach a
+    /// neighboring control; an explicit trigger (hot key, pinch) can reach further.
+    public static let dwellSnapDegrees = 1.5
+    public static let clickSnapDegrees = 4.0
+
+    /// Controls and windows a passive dwell never clicks: closing windows, sheets
+    /// and alerts (Don't Save, Delete…), and system prompts. ⌃⌥⌘G still works there.
+    public static func dwellAvoids(role: String?, subrole: String?) -> Bool {
+        role == "AXSheet" || ["AXCloseButton", "AXDialog", "AXSystemDialog"].contains(subrole ?? "")
+    }
+
+    /// Whether the element under `p` (or its window) is one `dwellAvoids` covers.
+    public static func dwellBlocked(at p: CGPoint) -> Bool {
+        guard AXIsProcessTrusted(), let e = element(at: p) else { return false }
+        return avoided(e) || attribute(e, kAXWindowAttribute).map { avoided($0 as! AXUIElement) } == true
+    }
+
+    private static func avoided(_ e: AXUIElement) -> Bool {
+        var element: AXUIElement? = e
+        for _ in 0..<4 {
+            guard let e = element else { break }
+            if dwellAvoids(role: attribute(e, kAXRoleAttribute) as? String,
+                           subrole: attribute(e, kAXSubroleAttribute) as? String) { return true }
+            element = attribute(e, kAXParentAttribute).map { $0 as! AXUIElement }
+        }
+        return false
+    }
+
+    private static func element(at p: CGPoint) -> AXUIElement? {
+        let system = AXUIElementCreateSystemWide()
+        AXUIElementSetMessagingTimeout(system, 0.05)
+        var hit: AXUIElement?
+        return AXUIElementCopyElementAtPosition(system, Float(p.x), Float(p.y), &hit) == .success ? hit : nil
+    }
 
     /// Visual angle to screen points: `widthPoints` across `widthMM` viewed from `distanceMM`.
     public static func pointsPerDegree(widthPoints: Double, widthMM: Double, distanceMM: Double) -> Double {
@@ -77,7 +118,8 @@ public enum GazeClick {
 
     /// Center of the nearest clickable element within `radius` of `p`. Points are
     /// global display coordinates with a top-left origin, as CGEvent uses.
-    public static func snap(_ p: CGPoint, radius: Double) -> CGPoint? {
+    /// With `forDwell`, controls `dwellAvoids` covers are never snap targets.
+    public static func snap(_ p: CGPoint, radius: Double, forDwell: Bool = false) -> CGPoint? {
         guard AXIsProcessTrusted() else { return nil }
         let system = AXUIElementCreateSystemWide()
         AXUIElementSetMessagingTimeout(system, 0.05) // global: a hung app can't stall us long
@@ -91,6 +133,7 @@ public enum GazeClick {
             for _ in 0..<4 {
                 guard let e = element else { break }
                 if clickableRoles.contains(attribute(e, kAXRoleAttribute) as? String ?? "") {
+                    if forDwell, dwellAvoids(role: nil, subrole: attribute(e, kAXSubroleAttribute) as? String) { break }
                     if !found.contains(where: { CFEqual($0, e) }) { found.append(e) }
                     break
                 }

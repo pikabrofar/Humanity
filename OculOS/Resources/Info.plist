@@ -25,7 +25,7 @@
 	<key>NSCameraReactionEffectGesturesEnabledDefault</key>
 	<false/>
 	<key>NSCameraUsageDescription</key>
-	<string>OculOS uses the camera to track your eyes. Video is processed on-device and never stored or transmitted.</string>
+	<string>OculOS uses the camera to track your eyes. Video is processed on this Mac and never uploaded or saved as video.</string>
 	<key>NSHighResolutionCapable</key>
 	<true/>
 	<key>NSPrincipalClass</key>

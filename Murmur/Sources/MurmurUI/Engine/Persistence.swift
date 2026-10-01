@@ -6,6 +6,7 @@ import Speech
 enum Defaults {
     enum Key: String {
         case completedSetup, cleanup, useIntelligence, keepHistory, restoreClipboard, vocabulary
+        case keepDictationAudio, retentionDays
 
         /// Prefixed so modules can share one defaults domain inside Humanity.
         var name: String { "Murmur." + rawValue }
@@ -14,6 +15,7 @@ enum Defaults {
     static func bool(_ key: Key, default value: Bool) -> Bool {
         UserDefaults.standard.object(forKey: key.name) as? Bool ?? value
     }
+    static func int(_ key: Key) -> Int { UserDefaults.standard.integer(forKey: key.name) }
     static func string(_ key: Key) -> String { UserDefaults.standard.string(forKey: key.name) ?? "" }
     static func set(_ value: Any?, _ key: Key) { UserDefaults.standard.set(value, forKey: key.name) }
 }

@@ -19,9 +19,10 @@ Each module also builds as a standalone app.
 
 ## Install
 
-Download **Humanity** (or a single module) for free from
+Download **Humanity** (or a single module) from
 [Releases](https://github.com/pikabrofar/Humanity/releases) and drag it to
-Applications. On first launch, paste a license key from
+Applications. The download costs nothing, but **the apps need a paid license key
+to run** (from $5). On first launch, paste a license key from
 [Gumroad](https://gumroad.com/l/hamkad). One key unlocks every Humanity app, and
 buying one funds development. The source stays MIT licensed. It isn't notarized yet, so macOS blocks the first launch. Open **System Settings → Privacy & Security** and click
 **Open Anyway**. Each app then walks you through a one-minute Quick Setup.
@@ -52,6 +53,22 @@ share these builds. For a stable signature, create a code-signing certificate
 named **Humanity Self-Signed** in Keychain Access (Certificate Assistant →
 Create a Certificate → Code Signing), then build with
 `SIGN_ID="Humanity Self-Signed" make app`.
+
+## Limitations and safe use
+
+- Humanity is general-purpose input software, **not a medical or assistive
+  device**. Don't rely on it as your only way to use your Mac, or for anything
+  urgent or safety-critical. Keep a keyboard and mouse or trackpad available.
+- Webcam eye and hand tracking is approximate (OculOS typically lands within a
+  few degrees) and can misread you, so clicks and keystrokes can land in the
+  wrong place. ⌃⌥⌘H stops hand control at any time, Esc cancels dictation, and
+  your real mouse always takes over.
+- Recording a call or creating a voice profile of someone may require their
+  consent by law (in Massachusetts and other states, everyone on the call must
+  agree). You are responsible for getting it.
+
+Humanity is not affiliated with or endorsed by Apple. Mac and macOS are
+trademarks of Apple Inc.
 
 ## Research
 

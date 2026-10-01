@@ -43,6 +43,7 @@ enum TextInserter {
     ///   on the clipboard for the user to paste.
     @MainActor
     static func insert(_ text: String, restoreClipboard: Bool) async -> Bool {
+        let text = sanitizeForInsertion(text)
         let board = SystemPasteboard()
         guard Permissions.canPaste else {
             board.write(text)
@@ -54,11 +55,17 @@ enum TextInserter {
             type(text)
         } else {
             Task {
-                await PasteSequence.insert(text, into: board, restoreAfter: restoreClipboard ? .milliseconds(500) : nil,
+                await PasteSequence.insert(text, into: board, restoreAfter: restoreClipboard ? restoreDelay(text) : nil,
                                            paste: sendCommandV)
             }
         }
         return true
+    }
+
+    /// Busy apps (Electron, VMs, remote desktops) can read the pasteboard late; restoring
+    /// too early would paste the old clipboard. Longer text takes longer to land.
+    static func restoreDelay(_ text: String) -> Duration {
+        .milliseconds(1000 + min(text.count, 4000) / 4)
     }
 
     private static func type(_ text: String) {

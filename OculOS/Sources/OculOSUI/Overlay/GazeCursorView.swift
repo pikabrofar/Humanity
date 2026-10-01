@@ -27,6 +27,14 @@ struct GazeCursorView: View {
                     if model.showCursor {
                         cursor(at: point)
                     }
+                    if model.dwellClick {
+                        // Always visible while dwell is armed, even between fixations.
+                        Circle()
+                            .stroke(Color.accentColor.opacity(0.35), lineWidth: 2)
+                            .shadow(color: .black.opacity(0.35), radius: 2)
+                            .frame(width: 28, height: 28)
+                            .position(point)
+                    }
                     if model.dwellProgress > 0 {
                         Circle()
                             .trim(from: 0, to: model.dwellProgress)

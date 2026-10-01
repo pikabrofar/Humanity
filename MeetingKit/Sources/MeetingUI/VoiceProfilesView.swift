@@ -1,11 +1,12 @@
 import MeetingKit
 import SwiftUI
 
-/// Saved voices: rename, merge duplicates of one person, delete.
+/// Saved voices: rename, merge duplicates of one person, delete one or all.
 public struct VoiceProfilesView: View {
     @ObservedObject var store: VoiceProfileStore
     @State private var selection = Set<UUID>()
     @State private var error: String?
+    @State private var confirmDeleteAll = false
 
     public init(store: VoiceProfileStore) {
         self.store = store
@@ -14,7 +15,7 @@ public struct VoiceProfilesView: View {
     public var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             if store.profiles.isEmpty {
-                Text("No saved voices yet. Name a speaker in a meeting transcript to add one.")
+                Text("No saved voices. Name a speaker in a meeting transcript and choose “Remember this voice” to add one.")
                     .font(.callout).foregroundStyle(.secondary).padding(12)
             } else {
                 List(selection: $selection) {
@@ -44,14 +45,22 @@ public struct VoiceProfilesView: View {
                 }
                 .disabled(selection.isEmpty)
                 Spacer()
-                if let error { Text(error).font(.caption).foregroundStyle(.red).lineLimit(1) }
+                Button("Delete All Voice Profiles…", role: .destructive) { confirmDeleteAll = true }
+                    .disabled(store.profiles.isEmpty)
             }
             .controlSize(.small)
             .padding(8)
-            Text("Only voice fingerprints are saved, never audio. Stored on this Mac.")
+            if let error { Text(error).font(.caption).foregroundStyle(.red).padding(.horizontal, 8) }
+            Text("Each profile is a voiceprint, which is biometric data (no audio). It stays on this Mac and is never sent anywhere. Only save people who agree; anyone can ask you to delete theirs. Profiles unused for 12 months, or older than 3 years, are deleted automatically.")
                 .font(.caption2).foregroundStyle(.tertiary).padding([.horizontal, .bottom], 8)
+                .fixedSize(horizontal: false, vertical: true)
         }
         .frame(minWidth: 260, minHeight: 200)
+        .confirmationDialog("Delete all \(store.profiles.count) voice profiles?", isPresented: $confirmDeleteAll) {
+            Button("Delete All", role: .destructive) { run { try store.removeAll() }; selection = [] }
+        } message: {
+            Text("Every saved voiceprint is removed from this Mac. Meetings keep their speaker names.")
+        }
     }
 
     private func run(_ action: () throws -> Void) {
@@ -70,6 +79,8 @@ private struct ProfileRow: View {
                 .textFieldStyle(.plain)
                 .onSubmit { if !name.trimmingCharacters(in: .whitespaces).isEmpty { try? rename(name) } }
             Spacer()
+            Text(profile.consentAt.map { "Agreed \($0.formatted(date: .abbreviated, time: .omitted))" } ?? "No consent recorded")
+                .font(.caption).foregroundStyle(profile.consentAt == nil ? .orange : .secondary)
             Text("\(profile.embeddings.count) sample\(profile.embeddings.count == 1 ? "" : "s")")
                 .font(.caption).foregroundStyle(.secondary)
         }

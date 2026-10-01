@@ -59,7 +59,7 @@ struct SettingsView: View {
             Section("Accuracy") {
                 Toggle(isOn: $model.learnFromClicks) {
                     Text("Learn from clicks")
-                    Text("You look where you click. Each click refines the calibration, correcting drift as you move.")
+                    Text("You usually look where you click, so each click is added as a calibration sample. This can reduce drift but may not always help.")
                 }
                 if let clicks = model.engine.calibration?.clickSamples.count, clicks > 0 {
                     LabeledContent("Learned samples", value: "\(clicks)")
@@ -69,7 +69,7 @@ struct SettingsView: View {
             Section("Clicking") {
                 Toggle(isOn: $model.dwellClick) {
                     Text("Dwell to click")
-                    Text("Clicks after you look at one spot; a ring shows the progress. Off, gaze never clicks by itself.")
+                    Text("Clicks after you look at one spot; a ring shows the progress. Esc cancels a click in progress, ⌃⌥⌘E turns dwell on or off. Off at every launch, and off, gaze never clicks by itself. Dwell skips close buttons, sheets and alerts.")
                 }
                 if model.dwellClick {
                     Slider(value: $model.dwellTime, in: 0.3...3, step: 0.1) {
@@ -78,7 +78,7 @@ struct SettingsView: View {
                 }
                 Toggle(isOn: $model.snapToTargets) {
                     Text("Snap to buttons and links")
-                    Text("Clicks the nearest control within about 4° of your gaze.")
+                    Text("Clicks the nearest control within about 4° of your gaze (1.5° for dwell).")
                 }
                 Text("Press ⌃⌥⌘G to click where you look.")
                     .font(.caption)

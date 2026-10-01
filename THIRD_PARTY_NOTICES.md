@@ -15,6 +15,76 @@ below). Includes:
   2.0); rustfst, Copyright (c) Alexandre Caulier and contributors, and flate2,
   Copyright (c) Alex Crichton and contributors (MIT OR Apache-2.0).
 
+FluidAudio sections apply to Humanity and Murmur only; OculOS and ManOS do not contain FluidAudio.
+
+### FluidAudio Japanese text frontend (compiled in)
+- cutlet (Swift port), Copyright (c) 2020 Paul O'Leary McCann. MIT License.
+- Convert-Numbers-to-Japanese (Swift port), Copyright (c) 2018 David Wilson. MIT License.
+- misaki (hexgrad/misaki), Apache License 2.0.
+
+### NemoTextProcessing (text-processing-rs v0.3.1), statically linked
+NOTICE (reproduced as required by Apache License 2.0, section 4(d)):
+
+    text-processing-rs
+    Copyright 2026 FluidInference
+
+    This product is a Rust port of NVIDIA NeMo Text Processing
+    (https://github.com/NVIDIA/NeMo-text-processing), which is licensed
+    under the Apache License, Version 2.0.
+
+       Copyright (c) NVIDIA CORPORATION & AFFILIATES.
+       Licensed under the Apache License, Version 2.0.
+
+    In addition, when built with the optional `fst-engine` feature, this
+    product includes and redistributes artifacts derived from NVIDIA NeMo
+    Text Processing (Apache-2.0, pinned commit
+    1f1263579fe57ba7ed783cad3dddee710fcc5064):
+
+       * the compiled weighted-FST grammars under `grammars/` (exported from
+         NeMo's Pynini source), and
+       * the text-normalization test fixtures under `tests/fixtures/`
+         (copied from, or regenerated as the deterministic output of, NeMo's
+         `data_text_normalization` test cases).
+
+    This product's binary distributions (e.g. the published xcframework) also
+    statically link third-party libraries. See THIRD-PARTY-LICENSES.md for the
+    full list and their licenses.
+
+Rust components linked into NemoTextProcessing. Where a choice of license is
+offered, Humanity uses them under the Apache License 2.0 (text below):
+rustfst, flate2, miniz_oxide, adler2, crc32fast, anyhow, bimap, bitflags,
+typenum, itertools, either, minimal-lexical, num-traits, rand, rand_core,
+rand_chacha, ppv-lite86, getrandom, libc, cfg-if, serde, zerocopy, lazy_static,
+superslice; memchr (under MIT); and the Rust standard library, Copyright (c)
+The Rust Project Contributors.
+
+The following are MIT-licensed (MIT text below):
+- nom, Copyright (c) 2014-2019 Geoffroy Couprie
+- generic-array, Copyright (c) 2015 Bartłomiej Kamiński
+- ordered-float, Copyright (c) 2015 Jonathan Reem
+- simd-adler32, Copyright (c) 2021 Marvin Countryman
+- memchr, Copyright (c) 2015 Andrew Gallant
+- cutlet and Convert-Numbers-to-Japanese (above)
+
+## MIT License (for the third-party components marked MIT above)
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
 ## Speaker diarization models
 
 Downloaded the first time a meeting is processed, from

@@ -28,7 +28,10 @@ rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp "$BIN" "$APP/Contents/MacOS/$APP_NAME"
 cp Resources/Info.plist "$APP/Contents/Info.plist"
-[ -n "${VERSION:-}" ] && /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $VERSION" "$APP/Contents/Info.plist"
+if [ -n "${VERSION:-}" ]; then
+    /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $VERSION" "$APP/Contents/Info.plist"
+    /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $VERSION" "$APP/Contents/Info.plist"
+fi
 
 if [ ! -f build/AppIcon.icns ]; then
     swift scripts/make-icon.swift build/AppIcon.iconset
@@ -42,7 +45,11 @@ cat ../LICENSE ../THIRD_PARTY_NOTICES.md | textutil -stdin -format txt -convert 
 BUNDLE_ID="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' Resources/Info.plist)"
 # Hardened runtime: no injected libraries or debugger attach into a process that
 # holds camera, microphone and Accessibility grants.
-SIGN="codesign --force --options runtime --entitlements ../scripts/app.entitlements"
+# Only the devices this app uses (hardened runtime blocks the rest).
+ENT="$(mktemp)"
+printf '<?xml version="1.0" encoding="UTF-8"?>\n<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">\n<plist version="1.0"><dict>%s</dict></plist>\n' \
+    "<key>com.apple.security.device.audio-input</key><true/>" > "$ENT"
+SIGN="codesign --force --options runtime --entitlements $ENT"
 if [ "$SIGN_ID" = "-" ] && [ "${PIN_DR:-1}" = 1 ]; then
     # An ad-hoc signature is identified by its hash, which changes every build, so
     # macOS silently stops honoring Accessibility / Screen Recording grants after a
@@ -51,6 +58,7 @@ if [ "$SIGN_ID" = "-" ] && [ "${PIN_DR:-1}" = 1 ]; then
     # would match, so releases use a certificate or plain ad-hoc (PIN_DR=0).
     $SIGN --sign - --requirements "=designated => identifier \"$BUNDLE_ID\"" "$APP"
 else
-    $SIGN --sign "$SIGN_ID" "$APP"
+    # Notarization needs a secure timestamp on real-certificate signatures.
+    $SIGN --timestamp --sign "$SIGN_ID" "$APP"
 fi
 echo "Built $APP"

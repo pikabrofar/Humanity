@@ -14,15 +14,18 @@ network requests in only these cases:
   as summaries or dictation cleanup. Only then is that task's *text* (a
   transcript, never audio) sent to the provider you chose, under its terms.
   Keys live in your macOS Keychain. Every task defaults to on-device. Dictation
-  into password fields is never sent.
+  while macOS reports a password field (secure input) is never sent, cleaned up
+  or saved. Some apps and web pages don't report this, so don't dictate passwords.
 - **Speaker-separation models.** The first time you process a meeting, MeetingKit
   downloads its Core ML models (pyannote and WeSpeaker, via FluidAudio) from
   Hugging Face.
 - **Apple's speech models.** On macOS 26, macOS may download its on-device speech
   model the first time you dictate. Apple handles this download.
-- **License check.** When you activate, and about once a week after that, the
+- **License check.** When you activate, and at app launch once a week has passed since the last check, the
   apps send your license key and the product ID to Gumroad
-  (`api.gumroad.com`) to confirm the key is valid. Nothing else is sent.
+  (`api.gumroad.com`) to confirm the key is valid. Nothing else is sent. Gumroad's
+  reply includes purchase details (such as the buyer email); the app reads only
+  the refund and dispute status and discards the rest.
 - **Scripts you run yourself**, such as OculOS's `make cnn-model`.
 
 ## What is stored
@@ -30,15 +33,15 @@ network requests in only these cases:
 Everything is stored under `~/Library/Application Support/`, and you can delete
 it at any time.
 
-- **Camera frames are never stored.** Each frame is analyzed in memory and
-  discarded. Only derived numbers are kept:
+- **Camera video is never saved or uploaded.** Each frame is analyzed in memory and
+  discarded, except for the tiny eye crops OculOS keeps for calibration (below). Otherwise only derived data is kept:
   - **OculOS** (`OculOS/`) saves your calibration: eye-feature measurements, a
     few model parameters and small 10×6-pixel eye patches. It also saves the
     gaze recordings you start (gaze coordinates and an optional screenshot).
     To delete it, use OculOS → Calibrate → Clear Calibration, or delete the folder.
-  - **ManOS** (`ManOS/`) saves your pinch thresholds and settings. Nothing else.
+  - **ManOS** saves your pinch thresholds and settings in macOS preferences. Nothing else.
 - **Murmur** (`Murmur/Recordings/`) saves your dictations and notes: text, and
-  audio for notes. Delete them in Library, or delete the folder.
+  audio for notes (dictation audio only if you turn that on). Delete them in Library, or delete the folder.
 - **Meetings** (`Humanity/Meetings/`) saves each meeting's mic and call audio,
   the transcript and its summary.
 - **Voice profiles** (`Humanity/VoiceProfiles/`) save a numeric voiceprint for
@@ -47,6 +50,31 @@ it at any time.
 
 Gaze data and voiceprints can count as biometric data under laws like the GDPR.
 Tell people when you record a meeting, and follow your local consent laws.
+
+## Biometric data and retention
+
+Some data the apps create on your Mac may count as biometric data under laws
+such as Illinois BIPA, Texas CUBI and Colorado's biometric law. The developer
+never receives any of it. Retention schedule:
+
+| Data | Purpose | Kept until |
+|---|---|---|
+| Voice profiles (voiceprints) | Recognize people you named in later meetings | You delete them; automatically after 12 months unused, and at most 3 years |
+| OculOS calibration (eye measurements, 10×6-pixel eye crops) | Estimating where you look | You clear or redo calibration |
+| Meeting audio and transcripts | Your record of the call | You delete them (optionally automatically after 30, 90 or 365 days) |
+
+Before saving someone's voiceprint, the app asks you to confirm they agreed.
+Settings → Data → **Delete All Humanity Data** erases everything the apps stored
+(Settings → Murmur → **Delete All Murmur Data** erases just recordings, meetings
+and voice profiles). Humanity never uses this data to infer health,
+emotions or other sensitive traits.
+
+## Children
+
+Humanity is not directed to children under 13, and its developer collects no
+personal information from users of any age: everything the apps record stays on
+your Mac. Don't create voice profiles of children, and don't record children
+without their parent or guardian's permission.
 
 ## Permissions
 

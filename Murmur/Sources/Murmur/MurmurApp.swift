@@ -33,7 +33,8 @@ struct MurmurApp: App {
             Divider()
             AppMenuItems()
         } label: {
-            Image(systemName: module.isListening ? "waveform.circle.fill" : "waveform")
+            Image(systemName: module.isRecordingMeeting ? "record.circle.fill"
+                  : module.isListening ? "waveform.circle.fill" : "waveform")
         }
     }
 }

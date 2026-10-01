@@ -5,18 +5,20 @@
 #   SIGN_ID=...  codesigning identity (default: ad-hoc)
 set -eu
 APP_NAME="$1"
-VERSION="${2:-dev}"
+VERSION="${2:-}"  # empty: keep Info.plist version
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 APP_DIR="$ROOT/$APP_NAME"
 OUT="$ROOT/dist"
 
-VERSION="$VERSION" "$APP_DIR/scripts/build-app.sh" release
+# Packages are for sharing: never pin the signature to the bundle id (any app
+# claiming the id would inherit permission grants). Only local dev builds pin.
+PIN_DR="${PIN_DR:-0}" VERSION="$VERSION" "$APP_DIR/scripts/build-app.sh" release
 
 mkdir -p "$OUT"
 STAGE="$(mktemp -d)"
 cp -R "$APP_DIR/build/$APP_NAME.app" "$STAGE/"
 ln -s /Applications "$STAGE/Applications"
-DMG="$OUT/$APP_NAME-$VERSION.dmg"
+DMG="$OUT/$APP_NAME-${VERSION:-dev}.dmg"
 rm -f "$DMG"
 hdiutil create -quiet -volname "$APP_NAME" -srcfolder "$STAGE" -format UDZO -ov "$DMG"
 rm -rf "$STAGE"

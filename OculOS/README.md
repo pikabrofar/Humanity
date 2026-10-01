@@ -3,10 +3,10 @@
 Part of [Humanity](../README.md). Webcam eye tracking for macOS, built on Apple's Vision framework. No extra
 hardware, no cloud, no third-party dependencies.
 
-- **Research-grade calibration**: 9-point grid, smooth-pursuit target, head-motion
+- **Multi-stage calibration**: 9-point grid, smooth-pursuit target, head-motion
   phase, and held-out validation that reports accuracy and precision in degrees
 - **Optional gaze CNN** (MobileGaze via Core ML, 1.6 ms/frame) combined with the geometric model
-- **Robust to human error**: fixation detection per point, retries for missed
+- **Tolerates common calibration mistakes**: fixation detection per point, retries for missed
   points, per-user pursuit lag, and Huber-weighted fitting
 - **Live gaze cursor** (ring, dot, or spotlight) drawn over every app
 - **Recordings** with heatmaps, I-DT fixation scanpaths, and PNG/CSV export
@@ -132,9 +132,13 @@ make cnn-model   # downloads PyTorch + weights (~500 MB), writes build/GazeCNN.m
 ```
 
 Then open **Settings → Gaze CNN → Load Model…** and recalibrate. MobileGaze's
-code and weights are MIT, but they were trained on Gaze360, whose dataset terms
-are research-only. So no model is bundled in this repo or in releases, and you
-convert one locally. Any Core ML model with an image input and a 2-value output
+code is MIT, but its weights were trained on
+[Gaze360](https://github.com/erkil1452/gaze360/blob/master/LICENSE.md), whose
+terms allow non-commercial research use only (including models trained on it)
+and forbid redistribution. The script asks you to confirm that before it
+downloads anything. No model is bundled in this repo or in releases; never
+share or host one you convert. Gaze360: Kellnhofer et al., "Gaze360: Physically
+Unconstrained Gaze Estimation in the Wild", ICCV 2019. Any Core ML model with an image input and a 2-value output
 works.
 
 **Handling human error.** People don't fixate like machines:

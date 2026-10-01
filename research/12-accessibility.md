@@ -1,7 +1,7 @@
 # Accessibility-First Design for OculOS and ManOS
 
 ## Summary
-The people who need OculOS and ManOS most have ALS/MND, spinal cord injury, RSI, tremor or cerebral palsy. Their abilities vary and they tire quickly. AAC vendors (Tobii Dynavox, Eyegaze), research on dwell and switch input, and Apple's docs agree on four things: conservative defaults that each user can tune, selections that are visible and safe to get wrong, quick pause and recalibration, and working with the macOS assistive stack rather than replacing it. Webcam tracking is less accurate than infrared AAC hardware, so it needs bigger targets and longer dwell.
+Background research on accessible input design. Humanity is not a medical or assistive device and is not intended to diagnose, treat or compensate for any condition. People with limited hand or arm movement may find hands-free input useful, but abilities vary and people tire quickly. AAC vendors (Tobii Dynavox, Eyegaze), research on dwell and switch input, and Apple's docs agree on four things: conservative defaults that each user can tune, selections that are visible and safe to get wrong, quick pause and recalibration, and working with the macOS assistive stack rather than replacing it. Webcam tracking is less accurate than infrared AAC hardware, so it needs bigger targets and longer dwell.
 
 ## Key findings
 - **Dwell timing:** typical thresholds are 500–1000 ms. Novices need about 1000 ms or more, and experts can go to about 300 ms. Longer dwell raises selection success and cuts corrections, but slows input. Tobii offers 8 dwell levels plus per-button dwell.

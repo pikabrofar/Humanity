@@ -16,7 +16,7 @@ struct SetupView: View {
             VStack(alignment: .leading, spacing: 16) {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Quick Setup").font(.largeTitle.weight(.semibold))
-                    Text("Three steps, about a minute. Everything runs on this Mac; video never leaves it.")
+                    Text("Three steps, about a minute. Camera video is processed on this Mac and never leaves it.")
                         .foregroundStyle(.secondary)
                 }
 

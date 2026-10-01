@@ -49,6 +49,7 @@ struct HumanityApp: App {
                 suite.hands.settings().tabItem { Label("ManOS", systemImage: "hand.raised") }
                 suite.voice.settings().tabItem { Label("Murmur", systemImage: "waveform") }
                 AIProvidersView().tabItem { Label("AI Providers", systemImage: "sparkles") }
+                DataSettings(suite: suite).tabItem { Label("Data", systemImage: "trash") }
             }
         }
     }
@@ -354,7 +355,9 @@ struct ControlsList: View {
         ("OculOS", "eye", [
             ("Calibrate", "Menu bar → Calibrate · Esc cancels"),
             ("⌥⌘R", "Start or stop a gaze recording"),
-            ("Click where you look", "Improves accuracy over time"),
+            ("⌃⌥⌘G", "Click where you look"),
+            ("⌃⌥⌘E", "Turn dwell clicking on or off · Esc cancels a dwell"),
+            ("Click where you look", "Helps refine calibration"),
         ]),
         ("ManOS", "hand.raised", [
             ("⌃⌥⌘H", "Turn hand control on or off (kill switch)"),
@@ -420,7 +423,7 @@ struct TutorialView: View {
              body: "A gaze cursor that follows where you look, plus heatmaps of what you looked at.",
              tips: ["Calibrate first: follow dots for about 45 seconds.",
                     "The cursor holds still while you read and jumps when your eyes move.",
-                    "Clicking where you look teaches it to be more accurate."]),
+                    "Clicking where you look helps refine the calibration."]),
         Page(symbol: "hand.raised", tint: .purple, title: "ManOS · Hands",
              body: "Move the pointer with your palm and pinch to click. Like a trackpad in the air.",
              tips: ["Pinch thumb + index to click, hold to drag.",
@@ -545,7 +548,8 @@ private struct MenuBarIcon: View {
     @Environment(\.openWindow) private var openWindow
 
     var body: some View {
-        Image(systemName: suite.voice.isListening ? "waveform.circle.fill"
+        Image(systemName: suite.voice.isRecordingMeeting ? "record.circle.fill"
+              : suite.voice.isListening ? "waveform.circle.fill"
               : suite.hands.isControlling ? "hand.point.up.left.fill"
               : suite.gaze.isRecording ? "record.circle.fill" : "figure.arms.open")
             .task {
@@ -576,5 +580,34 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows: Bool) -> Bool {
         if !hasVisibleWindows { MainActor.assumeIsolated { Suite.current?.showMainWindow() } }
         return true
+    }
+}
+
+/// One place to erase everything Humanity stored on this Mac.
+private struct DataSettings: View {
+    let suite: Suite
+    @State private var confirming = false
+
+    var body: some View {
+        Form {
+            Text("Humanity keeps everything on this Mac: calibration, hand settings, dictations, notes, meetings and voice profiles. Your license stays activated.")
+                .foregroundStyle(.secondary)
+            Button("Delete All Humanity Data…", role: .destructive) { confirming = true }
+        }
+        .padding(20)
+        .frame(width: 440)
+        .confirmationDialog("Delete all Humanity data?", isPresented: $confirming) {
+            Button("Delete Everything and Quit", role: .destructive) {
+                Task {
+                    await suite.voice.deleteAllData()
+                    let support = URL.applicationSupportDirectory
+                    try? FileManager.default.removeItem(at: support.appendingPathComponent("OculOS"))
+                    if let id = Bundle.main.bundleIdentifier { UserDefaults.standard.removePersistentDomain(forName: id) }
+                    NSApp.terminate(nil)
+                }
+            }
+        } message: {
+            Text("This erases calibration, settings, recordings, meetings and voice profiles. It can't be undone.")
+        }
     }
 }

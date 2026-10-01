@@ -280,6 +280,17 @@ func moves(_ events: [GestureEvent]) -> Int {
         #expect(r.state == .idle)
     }
 
+    @Test func stalledFramesReleaseHeldButton() {
+        var r = recognizer()
+        _ = run(&r, from: 0, frames: 12, pose: { hand(t: $0) })
+        _ = run(&r, from: 0.4, frames: 3, pose: { hand(pinch: 0.1, t: $0) })
+        #expect(r.isButtonDown)
+        #expect(!r.isStalled(lastFrame: 10, now: 10.3))
+        #expect(r.isStalled(lastFrame: 10, now: 10.6))
+        #expect(r.releaseAll().contains { if case .up = $0 { true } else { false } })
+        #expect(!r.isStalled(lastFrame: 10, now: 20)) // nothing held: nothing to release
+    }
+
     @Test func middlePinchRightClicksOrScrolls() {
         var r = recognizer()
         _ = run(&r, from: 0, frames: 12, pose: { hand(t: $0) })

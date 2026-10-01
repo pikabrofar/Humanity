@@ -1,5 +1,6 @@
 import AppKit
 import Carbon.HIToolbox
+import Combine
 import AIKit
 import MeetingKit
 import MurmurKit
@@ -40,8 +41,12 @@ final class AppModel {
         if let loadedMeetings { return loadedMeetings }
         let meetings = MeetingsModel()
         loadedMeetings = meetings
+        meetingRecordingWatch = meetings.recorder.$isRecording.sink { [weak self] in self?.isRecordingMeeting = $0 }
         return meetings
     }
+    @ObservationIgnored private var meetingRecordingWatch: AnyCancellable?
+    /// Mirrors the meeting recorder, so menu bar icons can show that a call is being recorded.
+    private(set) var isRecordingMeeting = false
     enum Phase: Equatable {
         case idle
         /// Choosing an engine; the mic isn't open yet.
@@ -75,6 +80,14 @@ final class AppModel {
     var keepHistory = Defaults.bool(.keepHistory, default: true) {
         didSet { Defaults.set(keepHistory, .keepHistory) }
     }
+    /// Dictations keep only their text unless this is on. Notes always keep audio.
+    var keepDictationAudio = Defaults.bool(.keepDictationAudio, default: false) {
+        didSet { Defaults.set(keepDictationAudio, .keepDictationAudio) }
+    }
+    /// Library items older than this many days are deleted at launch; 0 keeps them forever.
+    var retentionDays = Defaults.int(.retentionDays) {
+        didSet { Defaults.set(retentionDays, .retentionDays) }
+    }
     var restoreClipboard = Defaults.bool(.restoreClipboard, default: true) {
         didSet { Defaults.set(restoreClipboard, .restoreClipboard) }
     }
@@ -102,6 +115,7 @@ final class AppModel {
 
     init() {
         recordings = store.loadAll()
+        for old in RecordingStore.expired(recordings, olderThanDays: retentionDays) { delete(old.id) }
         // ⌃⌥⌘D from any app: tap to toggle, hold to talk.
         hotKey = HotKey(keyCode: kVK_ANSI_D, modifiers: controlKey | optionKey | cmdKey,
                         onPress: { [weak self] in MainActor.assumeIsolated { self?.hotKeyPressed() } },
@@ -113,6 +127,8 @@ final class AppModel {
     }
 
     var isActive: Bool { phase != .idle }
+    /// False while dictating into a password field: the HUD then hides what was heard.
+    var showsPartial: Bool { session?.secure != true }
     var hotKeyMissing: Bool { hotKey == nil }
 
     func refreshPermissions() {
@@ -165,7 +181,7 @@ final class AppModel {
             transcriber.onPartial = { [weak self] in self?.partial = $0 }
             self.transcriber = transcriber
             do {
-                let saveAudio = (keepHistory && !secure) || kind == .note
+                let saveAudio = (keepHistory && keepDictationAudio && !secure) || kind == .note
                 if saveAudio { try store.prepare() }
                 try recorder.start(writingTo: saveAudio ? store.audioURL(for: id) : nil,
                                    onBuffer: { transcriber.append($0) },
@@ -256,7 +272,7 @@ final class AppModel {
                 if let cloud = (try? await Tasks.cleanup(raw)).flatMap({ TextCleanup.acceptRewrite($0, of: raw) }) { return cloud }
                 return useIntelligence ? await Intelligence.polish(raw) : nil
             } orElse: { nil }
-            cleaned = TextCleanup.respell(rewrite ?? TextCleanup.basic(raw), terms: terms)
+            cleaned = TextCleanup.respell(TextCleanup.keepLineBreaks(of: raw, in: rewrite ?? TextCleanup.basic(raw)), terms: terms)
         }
         let recording = Recording(id: session.id, createdAt: session.startedAt, duration: duration, kind: mode,
                                   transcript: raw, cleaned: cleaned,
@@ -403,6 +419,23 @@ final class AppModel {
         recordings.forEach { store.delete($0.id) }
         recordings = []
         selection = nil
+    }
+
+    /// Everything Murmur keeps: dictations, notes (with orphaned audio from a crash),
+    /// meetings and voice profiles. Stops a meeting or dictation in progress first.
+    func deleteAllData() async {
+        await loadedMeetings?.recorder.discard()
+        if phase != .idle {
+            recorder.stop()
+            transcriber?.cancel()
+            discardSession()
+        }
+        try? store.deleteEverything()
+        recordings = []
+        selection = nil
+        try? FileManager.default.removeItem(at: MeetingRecording.defaultDirectory)
+        try? VoiceProfileStore.deleteAll()
+        loadedMeetings?.reset()
     }
 
     private func update(_ id: UUID, _ change: (inout Recording) -> Void) {

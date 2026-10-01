@@ -23,6 +23,8 @@ public final class MurmurModule {
     public var isListening: Bool { model.isActive }
     public var hasMicrophone: Bool { model.microphone == .granted }
     public var canPaste: Bool { model.canPaste }
+    /// True while a meeting is being recorded; show it in the menu bar (observable).
+    public var isRecordingMeeting: Bool { model.isRecordingMeeting }
 
     public func toggleDictation() { model.toggle(.dictation) }
     public func toggleNote() { model.toggle(.note) }
@@ -31,6 +33,10 @@ public final class MurmurModule {
     /// `reply(toApplicationShouldTerminate: true)` when this returns): stops a meeting
     /// or note in progress and finalizes its audio, which is otherwise unreadable.
     public func prepareToQuit() async { await model.prepareToQuit() }
+
+    /// Deletes everything Murmur stored on this Mac: dictations, notes (including audio
+    /// orphaned by a crash), meetings and voice profiles. Stops any recording first.
+    public func deleteAllData() async { await model.deleteAllData() }
 
     public func window() -> some View { RootView().environment(model) }
 
@@ -60,6 +66,9 @@ struct MenuItems: View {
     @Environment(AppModel.self) private var model
 
     var body: some View {
+        if model.isRecordingMeeting {
+            Button("● Recording a Meeting…") { model.section = .meetings }
+        }
         Button(model.isActive ? "Stop" : "Start Dictation") { model.toggle(.dictation) }
             .keyboardShortcut("d", modifiers: [.control, .option, .command])
         Button("Record a Note") { model.toggle(.note) }
@@ -82,6 +91,7 @@ struct RootView: View {
                     status(model.microphone == .granted ? "Microphone on" : "Needs microphone", model.microphone == .granted ? .green : .red)
                     status(model.canPaste ? "Pastes into apps" : "Copies only", model.canPaste ? .green : .orange)
                     status(model.isActive ? "Listening" : "Ready, ⌃⌥⌘D", model.isActive ? .red : .secondary)
+                    if model.isRecordingMeeting { status("Recording a meeting", .red) }
                 }
                 .font(.caption)
                 .foregroundStyle(.secondary)
@@ -104,6 +114,7 @@ struct RootView: View {
 struct SettingsView: View {
     @Environment(AppModel.self) private var model
     @State private var confirmDelete = false
+    @State private var confirmDeleteEverything = false
 
     var body: some View {
         @Bindable var model = model
@@ -124,7 +135,15 @@ struct SettingsView: View {
             }
             Section("History") {
                 Toggle("Keep dictations in the Library", isOn: $model.keepHistory)
-                Text("Notes are always kept. Everything is stored only in Application Support on this Mac.")
+                Toggle("Also keep dictation audio", isOn: $model.keepDictationAudio)
+                    .disabled(!model.keepHistory)
+                Picker("Delete recordings older than", selection: $model.retentionDays) {
+                    Text("Never").tag(0)
+                    Text("30 days").tag(30)
+                    Text("90 days").tag(90)
+                    Text("1 year").tag(365)
+                }
+                Text("Dictations keep only their text unless you keep audio; notes keep their audio. Old recordings are deleted when Murmur opens. Everything is stored only in Application Support on this Mac.")
                     .font(.caption).foregroundStyle(.secondary)
                 HStack {
                     Button("Show in Finder") {
@@ -135,6 +154,11 @@ struct SettingsView: View {
                         .disabled(model.recordings.isEmpty)
                 }
             }
+            Section("All Data") {
+                Button("Delete All Murmur Data…", role: .destructive) { confirmDeleteEverything = true }
+                Text("Removes every dictation, note, meeting and voice profile from this Mac.")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
         }
         .formStyle(.grouped)
         .frame(width: 460)
@@ -143,6 +167,11 @@ struct SettingsView: View {
             Button("Delete All", role: .destructive) { model.deleteAll() }
         } message: {
             Text("Audio, transcripts and summaries are removed from this Mac. This can't be undone.")
+        }
+        .confirmationDialog("Delete all Murmur data?", isPresented: $confirmDeleteEverything) {
+            Button("Delete Everything", role: .destructive) { Task { await model.deleteAllData() } }
+        } message: {
+            Text("Dictations, notes, meetings (audio, transcripts, summaries) and voice profiles are removed from this Mac. A recording in progress is stopped and discarded. This can't be undone.")
         }
     }
 }

@@ -3,13 +3,16 @@ import MeetingKit
 import SwiftUI
 
 /// Speaker-labeled transcript. Clicking a remote speaker's name renames every turn of
-/// that voice and saves it as a profile, so the next meeting recognizes them.
+/// that voice. Saving the voice as a profile, so the next meeting recognizes them, is a
+/// separate opt-in that needs the user's attestation that the person agreed.
 public struct MeetingDetailView: View {
     @Binding var meeting: Meeting
     @ObservedObject var profiles: VoiceProfileStore
 
     @State private var renaming: TranscriptTurn? // the turn whose name was clicked
     @State private var newName = ""
+    @State private var remember = false
+    @State private var agreed = false
     @State private var error: String?
 
     public init(meeting: Binding<Meeting>, profiles: VoiceProfileStore) {
@@ -67,11 +70,13 @@ public struct MeetingDetailView: View {
                 } else {
                     Button(turn.speakerName) {
                         newName = meeting.speakers[turn.speakerID]?.profileID == nil ? "" : turn.speakerName
+                        remember = false
+                        agreed = false
                         renaming = turn
                     }
                     .buttonStyle(.link)
                     .bold()
-                    .help("Rename this speaker and remember their voice")
+                    .help("Rename this speaker, and optionally remember their voice")
                     .popover(isPresented: Binding(get: { renaming?.id == turn.id },
                                                   set: { if !$0 { renaming = nil } })) {
                         renameForm
@@ -85,31 +90,45 @@ public struct MeetingDetailView: View {
     }
 
     private var renameForm: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        let name = newName.trimmingCharacters(in: .whitespaces)
+        let person = name.isEmpty ? "This person" : name
+        let canRemember = renaming.map { meeting.diarization.centroids[$0.speakerID] != nil } ?? false
+        return VStack(alignment: .leading, spacing: 8) {
             Text("Who is this?").font(.headline)
-            TextField("Name", text: $newName).onSubmit(commitRename).frame(width: 200)
+            TextField("Name", text: $newName).onSubmit(commitRename).frame(width: 260)
             if !profiles.profiles.isEmpty {
                 Menu("Known voices") {
                     ForEach(profiles.profiles) { profile in
-                        Button(profile.name) { newName = profile.name; commitRename() }
+                        Button(profile.name) { newName = profile.name }
                     }
                 }
                 .fixedSize()
             }
+            if canRemember {
+                Toggle("Remember this voice for future meetings", isOn: $remember)
+                if remember {
+                    Text("This saves a voiceprint of \(person): biometric data, not audio. It stays on this Mac, is deleted after 12 months unused (3 years at most), and \(person) can ask you to delete it at any time. Some places, such as Illinois, require their written consent.")
+                        .font(.caption).foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Toggle("\(person) agreed to have their voiceprint saved on this Mac.", isOn: $agreed)
+                }
+            }
             HStack {
                 Spacer()
                 Button("Cancel") { renaming = nil }
-                Button("Save", action: commitRename).keyboardShortcut(.defaultAction)
-                    .disabled(newName.trimmingCharacters(in: .whitespaces).isEmpty)
+                Button(remember ? "Save Name & Voice" : "Save Name", action: commitRename).keyboardShortcut(.defaultAction)
+                    .disabled(name.isEmpty || (remember && !agreed))
             }
         }
         .padding(12)
+        .frame(width: 300)
     }
 
     private func commitRename() {
-        guard let cluster = renaming?.speakerID else { return }
+        guard let cluster = renaming?.speakerID, !newName.trimmingCharacters(in: .whitespaces).isEmpty,
+              !remember || agreed else { return }
         do {
-            try meeting.name(speaker: cluster, as: newName, in: profiles)
+            try meeting.name(speaker: cluster, as: newName, rememberWithConsentAt: remember ? Date() : nil, in: profiles)
             try meeting.save()
             error = nil
         } catch {

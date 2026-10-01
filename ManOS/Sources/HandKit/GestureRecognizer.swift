@@ -59,6 +59,14 @@ public struct GestureRecognizer: Sendable {
     /// Pointer gain while fingers are closing toward a pinch.
     static let closingDamping = 0.25
     static let maxHold = 15.0
+    /// No frames at all for this long with a button down (camera unplugged,
+    /// taken over or stalled): the host should `releaseAll()`.
+    public static let stallTimeout = 0.5
+
+    /// Whether a held button should be released because frames stopped arriving.
+    public func isStalled(lastFrame: TimeInterval, now: TimeInterval) -> Bool {
+        isButtonDown && now - lastFrame > Self.stallTimeout
+    }
     /// Palm widths of movement before a held pinch becomes a drag or scroll.
     static let slop = 0.12
     static let doubleClickRadius = 6.0

@@ -29,14 +29,22 @@ final class MeetingsModel {
     private(set) var summarizing: Set<UUID> = []
     var selection: UUID?
     var error: String?
+    /// A meeting waiting for the user to OK sending its transcript to this provider.
+    var cloudPrompt: (id: UUID, provider: String)?
+    /// Meetings whose transcript the user agreed to send to the cloud, this session.
+    @ObservationIgnored private var cloudApproved: Set<UUID> = []
 
     init() { reload() }
 
     func reload() {
         let folders = (try? FileManager.default.contentsOfDirectory(
             at: MeetingRecording.defaultDirectory, includingPropertiesForKeys: nil)) ?? []
-        meetings = folders.compactMap { try? Meeting.load(from: $0) }
-            .sorted { $0.recording.startedAt > $1.recording.startedAt }
+        meetings = folders.compactMap { folder -> Meeting? in
+            guard var meeting = try? Meeting.load(from: folder) else { return nil }
+            if meeting.dropExpiredVoiceprints() { try? meeting.save() }
+            return meeting
+        }
+        .sorted { $0.recording.startedAt > $1.recording.startedAt }
         unprocessed = MeetingRecording.unprocessed()
         for meeting in meetings {
             if let data = try? Data(contentsOf: summaryURL(meeting)),
@@ -77,17 +85,35 @@ final class MeetingsModel {
             })
     }
 
+    /// After "Delete All Murmur Data": forget everything that was on disk.
+    func reset() {
+        try? profiles.removeAll()
+        meetings = []
+        unprocessed = []
+        summaries = [:]
+        selection = nil
+        cloudPrompt = nil
+        cloudApproved = []
+    }
+
     /// The provider chosen in AI Providers, else Apple Intelligence, else key sentences.
-    func summarize(_ id: UUID) async {
+    /// A transcript holds other people's words, so the first cloud send of each meeting
+    /// asks first (`cloudPrompt`); `onDeviceOnly` is the user's "no".
+    func summarize(_ id: UUID, onDeviceOnly: Bool = false, approved: Bool = false) async {
         guard let meeting = meetings.first(where: { $0.id == id }), !summarizing.contains(id) else { return }
         let text = meeting.transcript.plainText
         guard !text.isEmpty else { return }
+        if approved { cloudApproved.insert(id) }
+        if !onDeviceOnly, !cloudApproved.contains(id), let provider = Tasks.providerName(for: .summaries) {
+            cloudPrompt = (id, provider)
+            return
+        }
         summarizing.insert(id)
         defer { summarizing.remove(id) }
 
         var summary: MeetingSummary
         do {
-            if let cloud = try await Tasks.summarize(transcript: text) {
+            if !onDeviceOnly, let cloud = try await Tasks.summarize(transcript: text) {
                 summary = MeetingSummary(text: cloud.text, actionItems: cloud.actionItems,
                                          speakers: cloud.speakers.map { "\($0.name): \($0.points)" })
             } else {
@@ -187,6 +213,15 @@ struct MeetingsView: View {
                     Button("Done") { showProfiles = false }.keyboardShortcut(.defaultAction).padding(12)
                 }
                 .frame(width: 440, height: 420)
+            }
+            .alert("Send this call's transcript to \(meetings.cloudPrompt?.provider ?? "")?",
+                   isPresented: Binding(get: { meetings.cloudPrompt != nil }, set: { if !$0 { meetings.cloudPrompt = nil } }),
+                   presenting: meetings.cloudPrompt) { prompt in
+                Button("Send") { Task { await meetings.summarize(prompt.id, approved: true) } }
+                Button("Summarize on This Mac") { Task { await meetings.summarize(prompt.id, onDeviceOnly: true) } }
+                Button("Cancel", role: .cancel) {}
+            } message: { _ in
+                Text("Others on the call may not expect this.")
             }
             .alert("Meetings", isPresented: Binding(get: { meetings.error != nil }, set: { if !$0 { meetings.error = nil } })) {
                 Button("OK") { meetings.error = nil }

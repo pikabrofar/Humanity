@@ -8,6 +8,10 @@ public enum License {
 
     /// Where people buy a key.
     public static let buyURL = URL(string: "https://gumroad.com/l/hamkad")!
+    public static let termsURL = URL(string: "https://github.com/pikabrofar/Humanity/blob/main/TERMS.md")!
+    public static let privacyURL = URL(string: "https://github.com/pikabrofar/Humanity/blob/main/PRIVACY.md")!
+    /// Bump when TERMS.md changes materially; people agree again on next launch.
+    public static let termsVersion = "2026-10-01"
     static let productID = "rUEF1fvaBmPG_LIv3lXMMQ=="
     static let verifyURL = URL(string: "https://api.gumroad.com/v2/licenses/verify")!
 
@@ -19,6 +23,9 @@ public enum License {
     struct Stored: Codable, Equatable {
         var key: String
         var verifiedAt: Date
+        /// Which Terms of Sale the person agreed to, and when (kept as a record of assent).
+        var termsVersion: String?
+        var agreedAt: Date?
     }
 
     /// Shared by every Humanity app (not per app), so activating one activates all.
@@ -38,8 +45,14 @@ public enum License {
 
     /// True when the app may run: no license needed, or a key checked recently enough.
     public static var isUnlocked: Bool {
-        !required || load().map { Date().timeIntervalSince($0.verifiedAt) < offlineGrace } ?? false
+        guard required else { return true }
+        guard let stored = load(), stored.termsVersion == termsVersion else { return false }
+        let age = Date().timeIntervalSince(stored.verifiedAt)
+        return age > -86_400 && age < offlineGrace // a future date isn't a valid check
     }
+
+    /// The saved key, to prefill the window when only new Terms need agreeing to.
+    public static var savedKey: String? { load()?.key }
 
     /// The first Gumroad-style key in some text, such as the clipboard.
     public static func findKey(in text: String) -> String? {
@@ -47,7 +60,7 @@ public enum License {
             .map { text[$0].uppercased() }
     }
 
-    public enum Failure: LocalizedError {
+    public enum Failure: LocalizedError, Equatable {
         case rejected(String)
         case network(String)
         public var errorDescription: String? {
@@ -74,8 +87,11 @@ public enum License {
         } catch {
             throw Failure.network("Couldn't reach Gumroad. Check your internet connection and try again.")
         }
-        if let problem = problem(in: data) { throw Failure.rejected(problem) }
-        save(Stored(key: key, verifiedAt: Date()))
+        if let failure = failure(in: data) { throw failure }
+        let previous = load()
+        save(Stored(key: key, verifiedAt: Date(),
+                    termsVersion: activating ? termsVersion : previous?.termsVersion,
+                    agreedAt: activating ? Date() : previous?.agreedAt))
     }
 
     /// application/x-www-form-urlencoded, escaping everything but unreserved characters
@@ -86,22 +102,27 @@ public enum License {
             .joined(separator: "&").utf8)
     }
 
-    /// Nil when Gumroad's reply says the key is valid; otherwise why not.
-    static func problem(in data: Data) -> String? {
+    /// Nil when Gumroad's reply says the key is valid. Only a clear "no" from Gumroad
+    /// is `.rejected`; anything unreadable (a captive portal, an outage page) is
+    /// treated like being offline, so it never removes a paying customer's key.
+    static func failure(in data: Data) -> Failure? {
         struct Reply: Decodable {
-            struct Purchase: Decodable { var refunded: Bool?; var chargebacked: Bool?; var disputed: Bool? }
+            struct Purchase: Decodable {
+                var refunded: Bool?; var chargebacked: Bool?; var disputed: Bool?; var dispute_won: Bool?
+            }
             var success: Bool
             var message: String?
             var purchase: Purchase?
         }
         guard let reply = try? JSONDecoder().decode(Reply.self, from: data) else {
-            return "Gumroad sent an unexpected reply. Try again in a moment."
+            return .network("Gumroad sent an unexpected reply. Check your connection and try again.")
         }
         guard reply.success, let purchase = reply.purchase else {
-            return "That license key isn't valid. Copy it from your Gumroad receipt and try again."
+            return .rejected("That license key isn't valid. Copy it from your Gumroad receipt and try again.")
         }
-        if purchase.refunded == true || purchase.chargebacked == true || purchase.disputed == true {
-            return "This license was refunded or disputed, so it no longer unlocks Humanity."
+        if purchase.refunded == true || purchase.chargebacked == true
+            || (purchase.disputed == true && purchase.dispute_won != true) {
+            return .rejected("This license was refunded or disputed, so it no longer unlocks Humanity.")
         }
         return nil
     }

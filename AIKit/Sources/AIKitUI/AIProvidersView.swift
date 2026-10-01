@@ -29,6 +29,8 @@ public struct AIProvidersView: View {
                       + "or note is sent to that provider under its terms; audio is never sent. "
                       + "Keys are stored in your Keychain.", systemImage: "lock.shield")
                     .font(.caption).foregroundStyle(.secondary)
+                Text("You're the provider's customer under its terms; AI output can be wrong.")
+                    .font(.caption).foregroundStyle(.secondary)
             }
             Section("Providers") {
                 ForEach(Provider.all) { provider in
@@ -74,7 +76,10 @@ private struct TaskRow: View {
             Text("On-device (private)").tag("")
             ForEach(providers) { Text($0.name).tag($0.id) }
         }
-        if case .provider = engine {
+        if case .provider(let id, _) = engine {
+            if let provider = Provider.named(id) {
+                Text(provider.dataUse).font(.caption).foregroundStyle(.secondary).padding(.leading, 12)
+            }
             LabeledContent("Model") {
                 HStack(spacing: 4) {
                     // Free text so any model works, even one the list filters out.
@@ -123,6 +128,7 @@ private struct ProviderRow: View {
 
     var body: some View {
         DisclosureGroup {
+            Text(provider.dataUse).font(.caption).foregroundStyle(.secondary)
             if provider.needsKey {
                 HStack {
                     SecureField("Paste API key", text: $draft).textFieldStyle(.roundedBorder).labelsHidden()
