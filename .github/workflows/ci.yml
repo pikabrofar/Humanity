@@ -18,11 +18,10 @@ jobs:
         working-directory: VisionGaze
     steps:
       - uses: actions/checkout@v4
+      # No .build cache: its module cache embeds absolute paths and the compiler
+      # version, so a restored cache breaks after a repo rename or Xcode update,
+      # and a clean build takes under a minute anyway.
       - run: swift --version
-      - uses: actions/cache@v4
-        with:
-          path: VisionGaze/.build
-          key: spm-${{ runner.os }}-${{ hashFiles('VisionGaze/Package.swift', 'VisionGaze/Package.resolved') }}
       - name: Build
         run: swift build
       - name: Test
