@@ -3,7 +3,8 @@
 Part of [Humanity](../README.md). Dictate into any Mac app: press a shortcut,
 speak, and clean text appears at your cursor. Murmur also records longer voice
 notes and writes summaries and action items for them. Everything runs on your
-Mac. There's no account, no cloud and no analytics.
+Mac. There's no account and no analytics, and cloud AI is used only if you add
+your own key in AI Providers.
 
 ## Using it
 
@@ -30,7 +31,7 @@ make test   # unit tests (Swift Testing)
 
 Ad-hoc signing changes on every build, so macOS forgets permission grants each
 time you rebuild. To keep them, sign with a stable identity:
-`SIGN_ID="Humanity Dev" make app`.
+`SIGN_ID="Humanity Self-Signed" make app`.
 
 On first launch, **Quick Setup** asks for the microphone, Speech Recognition and
 (optionally) Accessibility, then gives you a box to try dictation in.

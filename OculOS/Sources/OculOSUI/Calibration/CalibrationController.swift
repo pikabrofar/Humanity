@@ -94,7 +94,7 @@ final class CalibrationController {
     var progressTotal: Int { phase == .validating ? validationTargets.count : targets.count }
 
     func begin() {
-        guard phase == .intro || phase == .results || isFailed else { return }
+        guard phase == .intro || phase == .results || isFailed, engine.canCalibrate else { return }
         task?.cancel()
         task = Task { await run() }
     }
@@ -141,10 +141,11 @@ final class CalibrationController {
                                                     appearanceRidge: heldOut.appearanceRidge)
                 return (final, check)
             }.value
+            guard !Task.isCancelled else { return } // Esc while fitting: keep the old calibration
             let stored = StoredCalibration(
                 model: model,
                 samples: training + validation,
-                validation: check,
+                validation: check.points.isEmpty ? nil : check,
                 displayID: screen.displayID,
                 displayName: screen.localizedName,
                 screenSize: screen.frame.size
@@ -175,6 +176,11 @@ final class CalibrationController {
                 } else {
                     missed.append(target)
                 }
+            }
+            // No frames at all (camera stopped, face gone): retrying the grid won't help.
+            if pass == 0, samples.isEmpty, points == targets {
+                phase = .failed("No face data was captured. Check that the camera sees your face, then try again.")
+                return nil
             }
             if missed.isEmpty { break }
         }

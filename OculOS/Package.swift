@@ -15,7 +15,7 @@ let package = Package(
         .executableTarget(name: "OculOS", dependencies: ["OculOSUI"]),
         .testTarget(
             name: "GazeKitTests",
-            dependencies: ["GazeKit"]
+            dependencies: ["GazeKit", "OculOSUI"]
         ),
     ]
 )

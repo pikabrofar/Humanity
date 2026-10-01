@@ -18,7 +18,7 @@ struct StoredCalibration: Codable {
     var usedNetwork: Bool { samples.contains { $0.features.networkGaze != nil } }
     var screenSize: CGSize
 
-    /// RMS error in screen points.
+    /// RMS error in screen points (`rmsError` is in screen widths).
     var errorPoints: Double { model.report.rmsError * Double(screenSize.width) }
 
     /// RMS error in degrees of visual angle at the calibration distance.
@@ -43,6 +43,24 @@ struct StoredCalibration: Codable {
         case ..<4: return "Fair"
         default: return "Poor"
         }
+    }
+}
+
+extension StoredCalibration {
+    private enum CodingKeys: String, CodingKey {
+        case model, samples, clickSamples, validation, displayID, displayName, screenSize
+    }
+
+    /// Field by field, so files saved before a field existed still load.
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        model = try c.decode(GazeCalibration.self, forKey: .model)
+        samples = try c.decodeIfPresent([CalibrationSample].self, forKey: .samples) ?? []
+        clickSamples = try c.decodeIfPresent([CalibrationSample].self, forKey: .clickSamples) ?? []
+        validation = try c.decodeIfPresent(ValidationResult.self, forKey: .validation)
+        displayID = try c.decode(CGDirectDisplayID.self, forKey: .displayID)
+        displayName = try c.decodeIfPresent(String.self, forKey: .displayName) ?? ""
+        screenSize = try c.decode(CGSize.self, forKey: .screenSize)
     }
 }
 

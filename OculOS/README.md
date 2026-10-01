@@ -18,7 +18,7 @@ Everything runs on-device. Video frames are processed in memory and never saved.
 
 - macOS 14 Sonoma or later
 - A built-in or external webcam
-- Xcode 15+ **or** just the Command Line Tools (`xcode-select --install`)
+- Xcode 16+ **or** just the Command Line Tools (`xcode-select --install`)
 
 ## Build & run
 

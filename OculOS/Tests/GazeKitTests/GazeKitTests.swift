@@ -1,4 +1,5 @@
 import CoreGraphics
+import Foundation
 import Testing
 @testable import GazeKit
 
@@ -343,6 +344,33 @@ import Testing
         let fixations = FixationDetector(maxDispersion: 30, minDuration: 0.1).detect(samples)
         #expect(fixations.count == 2)
         #expect(fixations.first?.center == CGPoint(x: 100, y: 100))
+    }
+
+    @Test func blinkBaselineAdaptsToNarrowerEyes() {
+        let extractor = FaceFeatureExtractor()
+        var t = 0.0
+        func blink(_ openness: Double, frames: Int) -> [Bool] {
+            (0..<frames).map { _ in t += 1.0 / 30; return extractor.isBlink(openness: openness, at: t) }
+        }
+        #expect(!blink(0.3, frames: 30).contains(true))
+        #expect(blink(0.05, frames: 4).allSatisfy { $0 })      // a real blink
+        // Squinting for 2 s: a blink at first, then the new normal.
+        let squint = blink(0.15, frames: 60)
+        #expect(squint.first == true && squint.last == false)
+        #expect(blink(0.03, frames: 3).allSatisfy { $0 })      // blinks still detected afterwards
+    }
+
+    @Test func olderReportStillLoads() throws {
+        var rng = SeededRandom(seed: 3)
+        let model = try GazeCalibration.fit(samples: CalibrationTests.calibrationSamples(.init(), rng: &rng),
+                                            geometry: CalibrationTests.geometry)
+        var json = try #require(JSONSerialization.jsonObject(with: JSONEncoder().encode(model)) as? [String: Any])
+        var report = json["report"] as? [String: Any] ?? [:]
+        report["meanDistanceMM"] = nil // added after the first release
+        json["report"] = report
+        let old = try JSONDecoder().decode(GazeCalibration.self, from: JSONSerialization.data(withJSONObject: json))
+        #expect(old.calibrationDistanceMM == 600)
+        #expect(old.report.rmsError == model.report.rmsError)
     }
 
     @Test func eyeFeaturesAreRotationInvariant() {

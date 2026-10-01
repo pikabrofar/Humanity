@@ -31,6 +31,7 @@ public final class FaceFeatureExtractor {
     private let poseRequest: VNDetectFaceRectanglesRequest
     private let refiner = PupilRefiner()
     private var opennessBaseline: Double?
+    private var blinkStart: TimeInterval?
 
     public init() {
         request = VNDetectFaceLandmarksRequest()
@@ -43,6 +44,8 @@ public final class FaceFeatureExtractor {
     public func analyze(pixelBuffer: CVPixelBuffer, timestamp: TimeInterval) -> FrameAnalysis {
         let size = CGSize(width: CVPixelBufferGetWidth(pixelBuffer), height: CVPixelBufferGetHeight(pixelBuffer))
         var result = FrameAnalysis(imageSize: size)
+        // A new face (or the same one after a while) needs a fresh openness baseline.
+        defer { if result.features == nil { opennessBaseline = nil; blinkStart = nil } }
 
         let handler = VNImageRequestHandler(cvPixelBuffer: pixelBuffer, orientation: .up, options: [:])
         guard (try? handler.perform([poseRequest])) != nil,
@@ -75,12 +78,7 @@ public final class FaceFeatureExtractor {
         let left = Self.eyeFeatures(contour: leftEye, pupil: leftPupil, angle: eyeLineAngle)
         let right = Self.eyeFeatures(contour: rightEye, pupil: rightPupil, angle: eyeLineAngle)
 
-        let openness = (left.openness + right.openness) / 2
-        let baseline = opennessBaseline ?? openness
-        let isBlinking = openness < baseline * blinkRatio
-        if !isBlinking {
-            opennessBaseline = baseline * 0.97 + openness * 0.03
-        }
+        let isBlinking = isBlink(openness: (left.openness + right.openness) / 2, at: timestamp)
 
         result.features = GazeFeatures(
             timestamp: timestamp,
@@ -105,6 +103,22 @@ public final class FaceFeatureExtractor {
             rightPupil: normalize(rightPupil)
         )
         return result
+    }
+
+    /// Blinks last 0.1–0.4 s. Narrower eyes for longer (squinting, looking down,
+    /// a new head pose) are the new normal, so the baseline adapts to them.
+    func isBlink(openness: Double, at timestamp: TimeInterval) -> Bool {
+        let baseline = opennessBaseline ?? openness
+        if openness < baseline * blinkRatio {
+            blinkStart = blinkStart ?? timestamp
+        } else {
+            blinkStart = nil
+        }
+        let isBlinking = blinkStart.map { timestamp - $0 <= 0.5 } ?? false
+        if !isBlinking {
+            opennessBaseline = baseline * 0.97 + openness * 0.03
+        }
+        return isBlinking
     }
 
     /// Expresses the pupil relative to the eye corners, in a frame rotated so the

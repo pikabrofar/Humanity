@@ -7,11 +7,15 @@ public enum KeychainStore {
     public static let service = "io.github.pikabrofar.humanity.ai"
 
     public static func save(_ key: String, for providerID: String) throws {
-        delete(providerID)  // add-after-delete is simpler than SecItemUpdate's two-dictionary dance
-        let status = SecItemAdd(query(providerID).merging([
-            kSecValueData as String: Data(key.utf8),
-            kSecAttrAccessible as String: kSecAttrAccessibleWhenUnlocked,
-        ]) { $1 } as CFDictionary, nil)
+        // Update in place: deleting first would lose the saved key if the add then failed.
+        let data = Data(key.utf8)
+        var status = SecItemUpdate(query(providerID) as CFDictionary, [kSecValueData as String: data] as CFDictionary)
+        if status == errSecItemNotFound {
+            status = SecItemAdd(query(providerID).merging([
+                kSecValueData as String: data,
+                kSecAttrAccessible as String: kSecAttrAccessibleWhenUnlocked,
+            ]) { $1 } as CFDictionary, nil)
+        }
         guard status == errSecSuccess else { throw AIError.keychain(status) }
     }
 

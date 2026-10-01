@@ -84,8 +84,15 @@ struct SettingsView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 if !AXIsProcessTrusted() {
-                    Label("Clicking needs Accessibility permission.", systemImage: "exclamationmark.triangle")
-                        .foregroundStyle(.orange)
+                    HStack {
+                        Label("Clicking needs Accessibility permission.", systemImage: "exclamationmark.triangle")
+                            .foregroundStyle(.orange)
+                        Spacer()
+                        Button("Grant…") {
+                            AXIsProcessTrustedWithOptions(["AXTrustedCheckOptionPrompt": true] as CFDictionary)
+                            NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")!)
+                        }
+                    }
                 }
             }
 

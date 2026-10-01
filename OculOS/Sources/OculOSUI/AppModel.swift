@@ -164,7 +164,8 @@ final class AppModel {
         guard dwellClick, calibration == nil else { return }
         dwell.duration = dwellTime
         dwell.radius = engine.fixationRadius
-        if dwell.update(gazePoint, at: CACurrentMediaTime()) { click() }
+        // Without Accessibility macOS drops the click; don't pretend it happened.
+        if dwell.update(gazePoint, at: CACurrentMediaTime()), AXIsProcessTrusted() { click() }
         if dwellProgress != dwell.progress { dwellProgress = dwell.progress }
     }
 
@@ -262,7 +263,8 @@ final class AppModel {
                 try? await Task.sleep(for: .milliseconds(350))
             }
             if captureScreenshot, isRecording {
-                activeRecording?.screenshot = try? await ScreenshotCapture.capture(displayID: screen.displayID)
+                activeRecording?.screenshot = try? await ScreenshotCapture.capture(displayID: screen.displayID,
+                                                                                  scale: screen.backingScaleFactor)
             }
             guard isRecording else { return }
             engine.gazeSink = { [weak self] sample in self?.activeRecording?.append(sample) }
@@ -332,7 +334,10 @@ final class AppModel {
 /// Composites the heatmap over the screenshot (or a dark backdrop) at full resolution.
 enum HeatmapExporter {
     static func render(_ recording: Recording, background: NSImage?) -> CGImage? {
-        let size = recording.screenSize
+        let bg = background?.cgImage(forProposedRect: nil, context: nil, hints: nil)
+        // Retina: the screenshot is in pixels; match it, or the main display's scale without one.
+        let scale = bg.map { CGFloat($0.width) / recording.screenSize.width } ?? NSScreen.main?.backingScaleFactor ?? 1
+        let size = CGSize(width: recording.screenSize.width * scale, height: recording.screenSize.height * scale)
         guard let heatmap = HeatmapRenderer.render(points: recording.samples.map(\.point), aspectRatio: recording.aspectRatio),
               let context = CGContext(
                 data: nil, width: Int(size.width), height: Int(size.height), bitsPerComponent: 8, bytesPerRow: 0,
@@ -340,7 +345,7 @@ enum HeatmapExporter {
               )
         else { return nil }
         let rect = CGRect(origin: .zero, size: size)
-        if let bg = background?.cgImage(forProposedRect: nil, context: nil, hints: nil) {
+        if let bg {
             context.draw(bg, in: rect)
         } else {
             context.setFillColor(CGColor(gray: 0.1, alpha: 1))

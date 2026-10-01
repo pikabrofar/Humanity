@@ -120,6 +120,21 @@ private struct RecordingDetail: View {
                 }
                 .controlSize(.regular)
 
+                if recording.transcript.isEmpty, hasAudio {
+                    // Saved without words: the transcript failed, came back empty, or Murmur quit first.
+                    Card(title: "Not transcribed", symbol: "exclamationmark.triangle") {
+                        if model.transcribing.contains(recording.id) {
+                            HStack(spacing: 8) {
+                                ProgressView().controlSize(.small)
+                                Text("Transcribing on this Mac…").foregroundStyle(.secondary)
+                            }
+                        } else {
+                            Text("The audio is saved, but no transcript came out of it.").foregroundStyle(.secondary)
+                            Button("Transcribe Again") { Task { await model.retryTranscription(recording.id) } }
+                        }
+                    }
+                }
+
                 Card(title: "Summary", symbol: "sparkles") {
                     if model.summarizing.contains(recording.id) {
                         HStack(spacing: 8) {

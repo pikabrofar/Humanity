@@ -12,17 +12,21 @@ public struct HandProfile: Codable, Sendable, Equatable {
     /// Default is "grab the page": hand up moves the content up.
     public var invertScroll = false
 
-    /// Flick the hand up/down to jump to the next/previous item (short videos,
-    /// pages, slides).
+    /// Hold two fingers up (V) and flick up/down to jump to the next/previous
+    /// item (short videos, pages, slides).
     public var flickEnabled = true
-    /// Vertical travel within 0.25 s that counts as a flick, in palm units.
-    public var flickDistance = 1.3
-    public var flickAction = FlickAction.scroll
-    /// Pixels scrolled per flick in `.scroll` mode.
+    /// Vertical fingertip travel within 0.3 s that counts as a flick, in palm units.
+    public var flickDistance = 1.0
+    public var flickAction = FlickAction.auto
+    /// Pixels scrolled per flick in `.scroll` mode (and `.auto`'s fallback).
     public var flickScrollAmount = 700.0
 
     public enum FlickAction: String, Codable, Sendable, CaseIterable {
-        /// A smooth scroll burst; works in any scrollable app or page.
+        /// Scroll the window under the pointer by about one screen: one item in
+        /// snapping feeds (TikTok, Reels, Shorts), one page elsewhere. Unlike
+        /// keys, it doesn't depend on which element has keyboard focus.
+        case auto
+        /// A fixed-size scroll burst (`flickScrollAmount`).
         case scroll
         /// ↓/↑ arrow keys: the most reliable "next video" in Shorts, TikTok, Reels, slides.
         case arrowKeys
@@ -42,7 +46,10 @@ public struct HandProfile: Codable, Sendable, Equatable {
         invertScroll = try c.decodeIfPresent(Bool.self, forKey: .invertScroll) ?? d.invertScroll
         flickEnabled = try c.decodeIfPresent(Bool.self, forKey: .flickEnabled) ?? d.flickEnabled
         flickDistance = try c.decodeIfPresent(Double.self, forKey: .flickDistance) ?? d.flickDistance
-        flickAction = try c.decodeIfPresent(FlickAction.self, forKey: .flickAction) ?? d.flickAction
+        // An action this version doesn't know (saved by a newer one) falls back instead of failing the whole profile.
+        flickAction = (try? c.decodeIfPresent(FlickAction.self, forKey: .flickAction)) ?? d.flickAction
+        // Untouched old defaults (scroll, 1.3) predate the V-pose flick: adopt the new ones.
+        if flickAction == .scroll, flickDistance == 1.3 { flickAction = d.flickAction; flickDistance = d.flickDistance }
         flickScrollAmount = try c.decodeIfPresent(Double.self, forKey: .flickScrollAmount) ?? d.flickScrollAmount
     }
 

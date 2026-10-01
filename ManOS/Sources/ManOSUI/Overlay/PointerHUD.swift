@@ -59,6 +59,7 @@ struct PointerHUD: View {
         if let flick = engine.lastFlick, CACurrentMediaTime() - flick.time < 0.5 {
             return flick.direction == .up ? "chevron.up.2" : "chevron.down.2"
         }
+        if engine.flickReady { return "chevron.up.chevron.down" }
         switch engine.gesture {
         case .dragging: return "hand.draw.fill"
         case .scrolling: return "arrow.up.and.down"

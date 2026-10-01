@@ -310,7 +310,7 @@ public struct GazeCalibration: Codable, Sendable {
             for (a, b) in zip(predictions, predictions.dropFirst()) {
                 squaredSteps.append(pow(degrees(from: a, to: b, distance: distance), 2))
             }
-            points.append(.init(target: target, predicted: median, error: median.distance(to: target)))
+            points.append(.init(target: target, predicted: median, error: widths(median, target)))
         }
         return ValidationResult(
             accuracyDegrees: accuracies.isEmpty ? .infinity : accuracies.reduce(0, +) / Double(accuracies.count),
@@ -326,6 +326,11 @@ public struct GazeCalibration: Codable, Sendable {
 
     static func errorMM(_ a: CGPoint, _ b: CGPoint, _ g: ScreenGeometry) -> Double {
         hypot(Double(a.x - b.x) * g.widthMM, Double(a.y - b.y) * g.heightMM)
+    }
+
+    /// Distance in screen widths, with y scaled to the same physical unit as x.
+    func widths(_ a: CGPoint, _ b: CGPoint) -> Double {
+        Self.errorMM(a, b, geometry) / geometry.widthMM
     }
 
     /// Linear initialization in angle space with a nominal layout (unless
@@ -469,13 +474,13 @@ public struct CalibrationReport: Codable, Sendable {
         public var target: CGPoint
         /// Mean prediction for the samples of this target.
         public var predicted: CGPoint
-        /// Mean distance of individual predictions to the target (normalized units).
+        /// Mean distance of individual predictions to the target, in screen widths.
         public var error: Double
         public var id: String { "\(target.x),\(target.y)" }
     }
 
     public var points: [Point]
-    /// Root-mean-square error over all samples, in normalized screen units.
+    /// Root-mean-square error over all samples, in screen widths.
     public var rmsError: Double
     /// Mean head distance over the samples, in mm.
     public var meanDistanceMM: Double = 600
@@ -483,6 +488,16 @@ public struct CalibrationReport: Codable, Sendable {
     init(points: [Point], rmsError: Double) {
         self.points = points
         self.rmsError = rmsError
+    }
+
+    private enum CodingKeys: String, CodingKey { case points, rmsError, meanDistanceMM }
+
+    /// Field by field, so reports saved before a field existed still load.
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        points = try c.decodeIfPresent([Point].self, forKey: .points) ?? []
+        rmsError = try c.decodeIfPresent(Double.self, forKey: .rmsError) ?? 0
+        meanDistanceMM = try c.decodeIfPresent(Double.self, forKey: .meanDistanceMM) ?? 600
     }
 
     init(model: GazeCalibration, samples: [CalibrationSample]) {
@@ -494,10 +509,10 @@ public struct CalibrationReport: Codable, Sendable {
             return Point(
                 target: target,
                 predicted: predictions.centroid,
-                error: predictions.map { $0.distance(to: target) }.reduce(0, +) / Double(predictions.count)
+                error: predictions.map { model.widths($0, target) }.reduce(0, +) / Double(predictions.count)
             )
         }.sorted { ($0.target.y, $0.target.x) < ($1.target.y, $1.target.x) }
-        let squared = samples.map { pow(model.predict($0.features).distance(to: $0.target), 2) }
+        let squared = samples.map { pow(model.widths(model.predict($0.features), $0.target), 2) }
         rmsError = (squared.reduce(0, +) / Double(max(squared.count, 1))).squareRoot()
         meanDistanceMM = samples.map { model.headPosition($0.features).z }.reduce(0, +) / Double(max(samples.count, 1))
     }

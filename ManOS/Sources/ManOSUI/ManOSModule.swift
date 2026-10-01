@@ -135,16 +135,17 @@ struct SettingsView: View {
             }
             Section("Flick") {
                 Toggle(isOn: $engine.profile.flickEnabled) {
-                    Text("Flick up or down to go to the next or previous item")
-                    Text("Short videos (Shorts, TikTok, Reels), feeds, pages and slides. Flick up = next.")
+                    Text("Hold up two fingers (V) and flick up or down for the next or previous item")
+                    Text("Short videos (Shorts, TikTok, Reels), feeds, pages and slides. Flick up = next. The pointer holds still while the V is up.")
                 }
                 Picker("Sends", selection: $engine.profile.flickAction) {
-                    Text("Scroll").tag(HandProfile.FlickAction.scroll)
+                    Text("One screen at the pointer").tag(HandProfile.FlickAction.auto)
+                    Text("Fixed scroll").tag(HandProfile.FlickAction.scroll)
                     Text("Arrow keys ↓ ↑").tag(HandProfile.FlickAction.arrowKeys)
                 }
                 .disabled(!engine.profile.flickEnabled)
                 LabeledContent("Needs") {
-                    Slider(value: $engine.profile.flickDistance, in: 0.8...2.2) {
+                    Slider(value: $engine.profile.flickDistance, in: 0.6...2.0) {
                         Text("Needs")
                     } minimumValueLabel: { Text("Small").font(.caption2) } maximumValueLabel: { Text("Big").font(.caption2) }
                 }

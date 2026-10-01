@@ -25,7 +25,7 @@ public enum GestureEvent: Sendable, Equatable {
 /// to drag; thumb–middle pinch to right-click, hold and move to scroll; fist to
 /// clutch (reposition the hand without moving the cursor); curl middle, ring and
 /// little fingers to anchor the pointer, then pinch thumb + index to click there; hold an open palm
-/// still for 1 s to pause or resume; flick up/down for next/previous.
+/// still for 1.5 s to pause or resume; hold two fingers up (V) and flick up/down for next/previous.
 ///
 /// Guards against accidental input ("Midas touch"):
 /// - nothing happens until a hand has been steady in view for 250 ms;
@@ -62,10 +62,15 @@ public struct GestureRecognizer: Sendable {
     /// Palm widths of movement before a held pinch becomes a drag or scroll.
     static let slop = 0.12
     static let doubleClickRadius = 6.0
-    /// A flick must happen within this window.
+    /// A flick must happen within this window. It is also how long the V pose
+    /// stays armed after it was last seen, which rides through frames that
+    /// motion blur makes Vision misread or drop.
     static let flickWindow = 0.3
+    /// Peak fingertip speed a flick must reach, palm widths/s. Real flicks peak
+    /// well above 7; a steady drag covering `flickDistance` in 0.3 s is ~3.5.
+    static let flickSpeed = 5.0
     /// Repeated flicks in the same direction (skimming several videos).
-    static let flickRepeatDelay = 0.45
+    static let flickRepeatDelay = 0.4
     /// The hand's return after a flick is also fast; ignore the opposite
     /// direction for a while so it doesn't undo the flick.
     static let flickReverseDelay = 0.9
@@ -88,9 +93,13 @@ public struct GestureRecognizer: Sendable {
     private var palmLatched = false
     /// When the thumb and index started closing in on a pinch.
     private var closingSince: TimeInterval?
-    /// Recent palm positions (palm units), for flick detection.
-    private var recentAnchors: [(TimeInterval, CGPoint)] = []
+    /// Recent fingertip positions (palm units) while flicks are armed.
+    private var flickSamples: [(TimeInterval, CGPoint)] = []
     private var lastFlick: (time: TimeInterval, direction: FlickDirection)?
+    /// Last three raw fingertip points; their median drops single-frame landmark glitches.
+    private var flickRecent: [CGPoint] = []
+    private var vSignFrames = 0
+    private var vSignLast = -TimeInterval.infinity
     private var freezeUntil: TimeInterval = 0
     /// Set once the hand is in the anchor grip with fingers apart, so a fist that
     /// closes with thumb on index doesn't click.
@@ -99,6 +108,8 @@ public struct GestureRecognizer: Sendable {
 
     /// 0 = fingers apart, 1 = at the click threshold. Drives the on-screen pinch ring.
     public private(set) var pinchProgress = 0.0
+    /// Two fingers are up: the pointer holds still and a vertical flick pages.
+    public private(set) var isFlickReady = false
 
     public init(profile: HandProfile = HandProfile(), mapper: PointerMapper) {
         self.profile = profile
@@ -114,7 +125,6 @@ public struct GestureRecognizer: Sendable {
         history.removeAll()
     }
 
-    /// Ends any press or scroll and disengages. Use for kill switches and shutdown.
     /// Resume after a pause (e.g. from the hotkey), without a palm gesture.
     public mutating func resume() {
         isPaused = false
@@ -126,9 +136,11 @@ public struct GestureRecognizer: Sendable {
     /// instead of moving the cursor by the shift.
     public mutating func rebase() { rebasing = true }
 
+    /// Ends any press or scroll and disengages. Use for kill switches and shutdown.
     public mutating func releaseAll() -> [GestureEvent] {
         let events = releaseEvents()
         state = .idle
+        isFlickReady = false
         return events
     }
 
@@ -159,7 +171,7 @@ public struct GestureRecognizer: Sendable {
             (lastAnchor, pressAnchor, scrollLast) = (anchor, anchor, anchor)
         }
         // Unfiltered fingertips: the filter would blunt exactly the fast motion a flick is.
-        let tips = pose.fingertipCenter ?? raw
+        let tips = pose.fingertipCenter
         let flickPoint = CGPoint(x: tips.x / referenceScale, y: tips.y / referenceScale)
         let speed = lastAnchor.map { anchor.distance(to: $0) } ?? 0
         lastAnchor = anchor
@@ -177,6 +189,19 @@ public struct GestureRecognizer: Sendable {
         }
         mapper.damping = closingSince != nil && state == .hovering ? Self.closingDamping : 1
 
+        // Flicks need the V pose (pointing never makes it), held for two frames.
+        if pose.isVSign, dIndex > profile.pinchExit, dMiddle > profile.pinchExit {
+            if t - vSignLast > Self.flickWindow { vSignFrames = 0 }
+            vSignFrames += 1
+            vSignLast = t
+        }
+        isFlickReady = profile.flickEnabled && !isPaused && state == .hovering
+            && vSignFrames >= 2 && t - vSignLast <= Self.flickWindow
+        if !isFlickReady {
+            flickSamples.removeAll()
+            flickRecent.removeAll()
+        }
+
         var events: [GestureEvent] = []
         if state == .hovering || isPaused {
             events += checkPauseToggle(pose, stillness: speed, at: t)
@@ -192,7 +217,14 @@ public struct GestureRecognizer: Sendable {
             if t - stateSince >= Self.engageDwell { state = .hovering }
 
         case .hovering:
-            if pose.isFist || pose.isAnchorGrip {
+            if isFlickReady {
+                // The pointer holds still in the V pose, so a flick can't move it.
+                mapper.track(anchor, at: t)
+                if let direction = detectFlick(flickPoint, at: t) {
+                    freezeUntil = t + Self.flickFreeze // the hand settles or drops the V
+                    events.append(.flick(direction))
+                }
+            } else if pose.isFist || pose.isAnchorGrip {
                 state = .clutched
                 anchorArmed = false
             } else if indexFrames >= 2 {
@@ -208,16 +240,6 @@ public struct GestureRecognizer: Sendable {
                 state = .rightPending
                 stateSince = t
                 pressAnchor = anchor
-            } else if let direction = detectFlick(point: flickPoint, dIndex: dIndex, dMiddle: dMiddle, at: t) {
-                // The fast motion already nudged the cursor; put it back.
-                if let start = recentAnchors.first {
-                    mapper.cursor = backdatedCursor(at: start.0)
-                }
-                mapper.track(anchor, at: t)
-                recentAnchors.removeAll()
-                freezeUntil = t + Self.flickFreeze
-                events.append(.flick(direction))
-                events.append(.move(mapper.cursor))
             } else if t < freezeUntil {
                 mapper.track(anchor, at: t)
             } else {
@@ -296,21 +318,36 @@ public struct GestureRecognizer: Sendable {
         lastUp.map { t - $0.0 <= doubleClickInterval && point.distance(to: $0.1) <= Self.doubleClickRadius } == true ? clicks + 1 : 1
     }
 
-    /// A fast, mostly vertical fingertip movement while not pinching.
-    private mutating func detectFlick(point anchor: CGPoint, dIndex: Double, dMiddle: Double, at t: TimeInterval) -> FlickDirection? {
-        recentAnchors.append((t, anchor))
-        recentAnchors.removeAll { t - $0.0 > Self.flickWindow }
-        guard profile.flickEnabled, dIndex > profile.pinchExit, dMiddle > profile.pinchExit,
-              let start = recentAnchors.first, t - start.0 >= 0.05
-        else { return nil }
-        let dy = Double(anchor.y - start.1.y), dx = Double(anchor.x - start.1.x)
-        guard abs(dy) >= profile.flickDistance, abs(dy) > 2 * abs(dx) else { return nil }
+    /// A fast, mostly vertical fingertip stroke: at least `flickDistance` of
+    /// travel within `flickWindow`, reaching `flickSpeed`. Positions are a
+    /// median of three frames, so one frame of misplaced landmarks can't fire
+    /// it. Frames where the hand was lost (motion blur) just leave a gap; the
+    /// stroke is measured across it.
+    private mutating func detectFlick(_ raw: CGPoint, at t: TimeInterval) -> FlickDirection? {
+        flickRecent = Array((flickRecent + [raw]).suffix(3))
+        guard flickRecent.count == 3 else { return nil }
+        let p = CGPoint(x: flickRecent.map(\.x).sorted()[1], y: flickRecent.map(\.y).sorted()[1])
+        flickSamples.append((t, p))
+        flickSamples.removeAll { t - $0.0 > Self.flickWindow }
+        // Measure from the window's far end, so the start of the stroke is never cut off.
+        let ys = flickSamples.map(\.1.y)
+        guard let lo = ys.indices.min(by: { ys[$0] < ys[$1] }), let hi = ys.indices.max(by: { ys[$0] < ys[$1] }) else { return nil }
+        let start = p.y - ys[lo] >= ys[hi] - p.y ? lo : hi
+        let dy = Double(p.y - ys[start]), dx = Double(p.x - flickSamples[start].1.x)
+        let stroke = flickSamples[start...]
+        let peak = zip(stroke, stroke.dropFirst()).map { a, b in abs(Double(b.1.y - a.1.y)) / max(b.0 - a.0, 1e-3) }.max() ?? 0
+        guard abs(dy) >= profile.flickDistance, abs(dy) > 1.5 * abs(dx), peak >= Self.flickSpeed else { return nil }
         let direction: FlickDirection = dy > 0 ? .up : .down
         if let last = lastFlick {
-            let wait = last.direction == direction ? Self.flickRepeatDelay : Self.flickReverseDelay
-            guard t - last.time >= wait else { return nil }
+            if last.direction != direction, t - last.time < Self.flickReverseDelay {
+                // The hand coming back: discard it, so it can't fire once the delay ends.
+                flickSamples = [(t, p)]
+                return nil
+            }
+            if t - last.time < Self.flickRepeatDelay { return nil }
         }
         lastFlick = (t, direction)
+        flickSamples = [(t, p)]
         return direction
     }
 

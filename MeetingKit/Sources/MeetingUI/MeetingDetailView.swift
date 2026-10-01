@@ -53,7 +53,8 @@ public struct MeetingDetailView: View {
 
     /// Only your side was transcribed; say why rather than leave the call silently missing.
     private var callAudioNote: String? {
-        if let reason = meeting.recording.callAudioError { return reason }
+        let reasons = [meeting.recording.micError, meeting.recording.callAudioError].compactMap { $0 }
+        if !reasons.isEmpty { return reasons.joined(separator: "\n") }
         let recorded = FileManager.default.fileExists(atPath: meeting.recording.systemURL.path)
         return recorded ? nil : "Call audio wasn't captured: no sound arrived from the call, so only your side is transcribed."
     }

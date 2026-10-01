@@ -7,7 +7,7 @@ import Testing
 /// the thumb–middle distance, in palm units.
 func hand(at anchor: CGPoint = CGPoint(x: 0.9, y: 0.5), scale: Double = 0.1,
           pinch: Double = 1.2, middle: Double = 1.2, fist: Bool = false, open: Bool = false,
-          grip: Bool = false, tipsUp: Double = 0, t: TimeInterval) -> HandPose {
+          grip: Bool = false, vee: Bool = false, tipsUp: Double = 0, t: TimeInterval) -> HandPose {
     let s = CGFloat(scale)
     func at(_ dx: CGFloat, _ dy: CGFloat) -> CGPoint { CGPoint(x: anchor.x + dx * s, y: anchor.y + dy * s) }
     // Palm triangle with unit-ish sides around the anchor.
@@ -19,7 +19,7 @@ func hand(at anchor: CGPoint = CGPoint(x: 0.9, y: 0.5), scale: Double = 0.1,
     ]
     for (pip, tip, x) in fingers {
         j[pip] = at(x, 0.7)
-        let curled = fist || (grip && tip != .indexTip)
+        let curled = fist || (grip && tip != .indexTip) || (vee && (tip == .ringTip || tip == .littleTip))
         j[tip] = curled ? at(x * 0.5, 0.0) : at(x * (open ? 1.6 : 1), 1.3 + CGFloat(tipsUp))
     }
     // Thumb tip placed at the requested distance from the index / middle tips.
@@ -37,12 +37,25 @@ func recognizer() -> GestureRecognizer {
     GestureRecognizer(mapper: PointerMapper(bounds: screen, cursor: CGPoint(x: 720, y: 450)))
 }
 
-/// Feeds `frames` at 30 fps starting at `start`, returns all events.
-func run(_ r: inout GestureRecognizer, from start: Double, frames: Int, pose: (Double) -> HandPose?) -> [GestureEvent] {
+/// Feeds `frames` at `fps` (default 30) starting at `start`, returns all events.
+func run(_ r: inout GestureRecognizer, from start: Double, frames: Int, fps: Double = 30, pose: (Double) -> HandPose?) -> [GestureEvent] {
     (0..<frames).flatMap { i -> [GestureEvent] in
-        let t = start + Double(i) / 30
+        let t = start + Double(i) / fps
         return r.update(pose(t), at: t)
     }
+}
+
+/// 0 → 1 over `duration` from `start`, smoothly: the position profile of a ballistic stroke.
+func ease(_ t: Double, _ start: Double, _ duration: Double) -> Double {
+    PointerMapper.smoothstep(start, start + duration, t)
+}
+
+func flicks(_ events: [GestureEvent]) -> [FlickDirection] {
+    events.compactMap { if case .flick(let d) = $0 { d } else { nil } }
+}
+
+func moves(_ events: [GestureEvent]) -> Int {
+    events.filter { if case .move = $0 { true } else { false } }.count
 }
 
 @Suite struct GestureTests {
@@ -52,6 +65,8 @@ func run(_ r: inout GestureRecognizer, from start: Double, frames: Int, pose: (D
         #expect(!h.isFist && !h.isOpenPalm)
         #expect(hand(fist: true, t: 0).isFist)
         #expect(hand(open: true, t: 0).isOpenPalm)
+        #expect(hand(vee: true, t: 0).isVSign && !hand(vee: true, t: 0).isFist && !hand(vee: true, t: 0).isAnchorGrip)
+        #expect(!hand(t: 0).isVSign && !hand(open: true, t: 0).isVSign && !hand(grip: true, t: 0).isVSign && !hand(fist: true, t: 0).isVSign)
     }
 
     @Test func nothingBeforeEngageDwell() {
@@ -128,21 +143,66 @@ func run(_ r: inout GestureRecognizer, from start: Double, frames: Int, pose: (D
         #expect(drifted.distance(to: whereClosingBegan) < 120)
     }
 
-    @Test func flickUpEmitsNextAndRestoresCursor() {
+    @Test(arguments: [30.0, 60.0]) func vSignFlicksPageAndIgnoreTheReturnStroke(fps: Double) {
+        var r = recognizer()
+        _ = run(&r, from: 0, frames: 12, pose: { hand(vee: true, t: $0) })
+        #expect(r.isFlickReady)
+        let before = r.mapper.cursor
+        // Wrist flick up (fingertips +1.4 palm widths, palm +0.3, in 130 ms), the hand
+        // relaxing back down just as fast (300 ms), a second flick up to skim on, then
+        // a rest and a deliberate flick down, mostly from the forearm.
+        let up = { (t: Double) in ease(t, 0.4, 0.13) - ease(t, 0.6, 0.3) + ease(t, 1.0, 0.13) - ease(t, 1.2, 0.3) }
+        let down = { (t: Double) in ease(t, 2.2, 0.13) }
+        let events = run(&r, from: 0.4, frames: Int(2.2 * fps), fps: fps, pose: { t in
+            hand(at: CGPoint(x: 0.9, y: 0.5 + 0.03 * up(t) - 0.14 * down(t)), vee: true, tipsUp: 1.4 * up(t) - 0.3 * down(t), t: t)
+        })
+        #expect(flicks(events) == [.up, .up, .down])
+        // The pointer never moved: no jump during or after the flicks.
+        #expect(moves(events) == 0)
+        #expect(r.mapper.cursor == before)
+    }
+
+    @Test(arguments: [30.0, 60.0]) func flickSurvivesTheHandDroppingOutMidStroke(fps: Double) {
+        var r = recognizer()
+        _ = run(&r, from: 0, frames: 12, pose: { hand(vee: true, t: $0) })
+        let before = r.mapper.cursor
+        // Motion blur: Vision loses the hand for 100 ms in the middle of the stroke.
+        let events = run(&r, from: 0.4, frames: Int(0.4 * fps), fps: fps, pose: { t in
+            (0.45..<0.55).contains(t) ? nil : hand(vee: true, tipsUp: 1.8 * ease(t, 0.4, 0.15), t: t)
+        })
+        #expect(flicks(events) == [.up])
+        #expect(r.state == .hovering)
+        #expect(r.mapper.cursor == before)
+    }
+
+    @Test(arguments: [30.0, 60.0]) func slowOrSteadyDragInVSignIsNotAFlick(fps: Double) {
+        var r = recognizer()
+        _ = run(&r, from: 0, frames: 12, pose: { hand(vee: true, t: $0) })
+        // 1.5 palm widths/s for 1 s, then a steady 3.6/s for 0.6 s: the last one covers
+        // the flick distance within the window, but never reaches flick speed.
+        let events = run(&r, from: 0.4, frames: Int(1.6 * fps), fps: fps, pose: { t in
+            hand(at: CGPoint(x: 0.9, y: 0.5 + 0.15 * min(t - 0.4, 1) + 0.36 * max(t - 1.4, 0)), vee: true, t: t)
+        })
+        #expect(flicks(events).isEmpty)
+    }
+
+    @Test func singleBadFrameIsNotAFlick() {
+        var r = recognizer()
+        _ = run(&r, from: 0, frames: 12, pose: { hand(vee: true, t: $0) })
+        let events = run(&r, from: 0.4, frames: 10, pose: { t in hand(vee: true, tipsUp: abs(t - 0.5) < 0.01 ? 2 : 0, t: t) })
+        #expect(flicks(events).isEmpty)
+    }
+
+    @Test func pointingNeverFlicks() {
         var r = recognizer()
         _ = run(&r, from: 0, frames: 12, pose: { hand(t: $0) })
-        let before = r.mapper.cursor
-        // A quick wrist flick: 0.2 image units (2 palm widths at scale 0.1) in ~130 ms.
-        let events = run(&r, from: 0.4, frames: 5, pose: { t in
-            hand(at: CGPoint(x: 0.9, y: 0.5 + min(t - 0.4, 0.13) / 0.13 * 0.2), t: t)
-        })
-        #expect(events.contains(GestureEvent.flick(.up)))
-        #expect(r.mapper.cursor.distance(to: before) < 40)
-        // The hand returning down right after doesn't flick back.
-        let back = run(&r, from: 0.6, frames: 6, pose: { t in
-            hand(at: CGPoint(x: 0.9, y: 0.7 - min(t - 0.6, 0.13) / 0.13 * 0.2), t: t)
-        })
-        #expect(!back.contains(GestureEvent.flick(.down)))
+        // A fast vertical reach with the whole hand, then a fingertip swing, while pointing.
+        let events = run(&r, from: 0.4, frames: 12, pose: { t in
+            hand(at: CGPoint(x: 0.9, y: 0.5 + 0.2 * ease(t, 0.4, 0.13)), t: t)
+        }) + run(&r, from: 0.8, frames: 12, pose: { t in hand(at: CGPoint(x: 0.9, y: 0.7), tipsUp: 1.6 * ease(t, 0.8, 0.13), t: t) })
+        #expect(flicks(events).isEmpty)
+        #expect(moves(events) > 0)
+        #expect(!r.isFlickReady)
     }
 
     @Test func slowVerticalMovementIsNotAFlick() {
@@ -156,11 +216,12 @@ func run(_ r: inout GestureRecognizer, from start: Double, frames: Int, pose: (D
     @Test func flickDisabledByProfile() {
         var r = recognizer()
         r.profile.flickEnabled = false
-        _ = run(&r, from: 0, frames: 12, pose: { hand(t: $0) })
+        _ = run(&r, from: 0, frames: 12, pose: { hand(vee: true, t: $0) })
         let events = run(&r, from: 0.4, frames: 5, pose: { t in
-            hand(at: CGPoint(x: 0.9, y: 0.5 + min(t - 0.4, 0.13) / 0.13 * 0.2), t: t)
+            hand(at: CGPoint(x: 0.9, y: 0.5 + ease(t, 0.4, 0.13) * 0.2), vee: true, t: t)
         })
-        #expect(!events.contains { if case .flick = $0 { true } else { false } })
+        #expect(flicks(events).isEmpty)
+        #expect(moves(events) > 0) // the V is just pointing then
     }
 
     @Test func oldProfilesKeepTheirThresholds() throws {
@@ -195,9 +256,9 @@ func run(_ r: inout GestureRecognizer, from start: Double, frames: Int, pose: (D
 
     @Test func wristFlickDetectedFromFingertips() {
         var r = recognizer()
-        _ = run(&r, from: 0, frames: 12, pose: { hand(t: $0) })
+        _ = run(&r, from: 0, frames: 12, pose: { hand(vee: true, t: $0) })
         // Palm stays put; only the fingers swing up (a wrist flick).
-        let events = run(&r, from: 0.4, frames: 6, pose: { t in hand(tipsUp: min(t - 0.4, 0.13) / 0.13 * 1.6, t: t) })
+        let events = run(&r, from: 0.4, frames: 6, pose: { t in hand(vee: true, tipsUp: ease(t, 0.4, 0.13) * 1.6, t: t) })
         #expect(events.contains(GestureEvent.flick(.up)))
     }
 
@@ -316,6 +377,18 @@ func run(_ r: inout GestureRecognizer, from start: Double, frames: Int, pose: (D
         // A consistent change still wins.
         let later = (20..<32).map { frame($0, right: .left, left: .left) }
         #expect(later.last == [.left, .left])
+    }
+
+    @Test func chiralitySurvivesAFrameWithNoHands() {
+        var vote = ChiralityVote()
+        func frame(_ i: Int, right: HandPose.Chirality, left: HandPose.Chirality) -> [HandPose.Chirality] {
+            var a = hand(t: Double(i) / 30), b = hand(at: CGPoint(x: 0.3, y: 0.5), t: Double(i) / 30)
+            (a.chirality, b.chirality) = (right, left)
+            return vote.apply([a, b]).map(\.chirality)
+        }
+        for i in 0..<10 { _ = frame(i, right: .right, left: .left) }
+        #expect(vote.apply([]).isEmpty) // both hands blurred out for a frame
+        #expect(frame(11, right: .left, left: .right) == [.right, .left]) // a swapped frame right after
     }
 
     @Test func fatigueCountsContinuousUse() {

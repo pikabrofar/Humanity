@@ -82,7 +82,9 @@ final class SuitePermissions {
     var missingRequired: [Kind] { Kind.allCases.filter { !$0.isOptional && states[$0] != .granted } }
 
     func refresh() {
-        for kind in Kind.allCases { states[kind] = Self.state(of: kind) }
+        // Assign only on change: every write would re-render observers each second.
+        let new = Dictionary(uniqueKeysWithValues: Kind.allCases.map { ($0, Self.state(of: $0)) })
+        if new != states { states = new }
     }
 
     func request(_ kind: Kind) {

@@ -118,18 +118,25 @@ public struct SpeechFileTranscriber: FileTranscribing {
         request.addsPunctuation = true
         request.append(buffer)
         request.endAudio()
-        return await withCheckedContinuation { continuation in
+        return try await withCheckedThrowingContinuation { continuation in
             var resumed = false
             recognizer.recognitionTask(with: request) { result, error in
                 guard !resumed, result?.isFinal == true || error != nil else { return }
                 resumed = true
                 // A window with no speech ends in a "no speech detected" error; that's just empty.
+                // Anything else is a real failure and must not pass for silence.
+                if let error, !Self.isNoSpeech(error) { return continuation.resume(throwing: error) }
                 let segments = result?.bestTranscription.segments ?? []
                 continuation.resume(returning: segments.map {
                     TimedWord(text: $0.substring, start: $0.timestamp, end: $0.timestamp + $0.duration)
                 })
             }
         }
+    }
+
+    static func isNoSpeech(_ error: Error) -> Bool {
+        let error = error as NSError
+        return error.domain == "kAFAssistantErrorDomain" && error.code == 1110
     }
 
     /// Middle of the quietest `block`-sized stretch at or after `after` (by RMS of channel 0).

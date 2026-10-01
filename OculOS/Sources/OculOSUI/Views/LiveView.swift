@@ -10,6 +10,9 @@ struct LiveView: View {
             VStack(alignment: .leading, spacing: 16) {
                 if !engine.isCalibrated {
                     CalibrationBanner()
+                } else if engine.calibratedDisplayMissing {
+                    Label("Calibrated display not connected", systemImage: "display.trianglebadge.exclamationmark")
+                        .foregroundStyle(.orange)
                 }
 
                 HStack(alignment: .top, spacing: 16) {

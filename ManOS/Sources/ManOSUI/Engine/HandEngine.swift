@@ -25,6 +25,8 @@ final class HandEngine {
     private(set) var isPaused = false
     private(set) var pinchProgress = 0.0
     private(set) var cursor = CGPoint.zero
+    /// Two fingers up: the next vertical flick pages (the pointer holds still).
+    private(set) var flickReady = false
     /// Most recent flick, for brief on-screen feedback.
     private(set) var lastFlick: (direction: FlickDirection, time: CFTimeInterval)?
     /// True briefly after the physical mouse moved.
@@ -80,6 +82,8 @@ final class HandEngine {
                 hands = []
                 activeHand = nil
             }
+            // Camera granted in System Settings after a denial: try again.
+            if isActive, cameraState == .denied { Task { await start() } }
         }
     }
 
@@ -168,6 +172,8 @@ final class HandEngine {
         recognizer.mapper.displays = Self.displayFrames
 
         let hand = pickHand(hands)
+        // Switched to a different hand: start fresh so the pointer doesn't jump the gap.
+        if let hand, let last = activeHand, hand.anchor.distance(to: last.anchor) > 2 * hand.scale { recognizer.rebase() }
         activeHand = hand
         if let hand { poseSink?(hand) }
         let used = fatigue.update(active: isEnabled && hand != nil && !isPaused, at: now) >= FatigueTimer.breakAfter
@@ -199,12 +205,13 @@ final class HandEngine {
         gesture = recognizer.state
         isPaused = recognizer.isPaused
         pinchProgress = recognizer.pinchProgress
+        flickReady = recognizer.isFlickReady
         cursor = recognizer.mapper.cursor
 
         guard isEnabled, !yieldingToMouse, Permissions.canControl else { return }
         for event in events {
             if case .flick(let direction) = event {
-                injector.flick(direction, profile: profile)
+                injector.flick(direction, at: cursor, profile: profile)
                 lastFlick = (direction, now)
             } else {
                 injector.post(event)

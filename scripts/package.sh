@@ -10,7 +10,7 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 APP_DIR="$ROOT/$APP_NAME"
 OUT="$ROOT/dist"
 
-"$APP_DIR/scripts/build-app.sh" release
+VERSION="$VERSION" "$APP_DIR/scripts/build-app.sh" release
 
 mkdir -p "$OUT"
 STAGE="$(mktemp -d)"

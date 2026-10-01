@@ -5,7 +5,8 @@ import SwiftUI
 
 @main
 struct MurmurApp: App {
-    @State private var module = MurmurModule()
+    @NSApplicationDelegateAdaptor private var delegate: AppDelegate
+    private var module: MurmurModule { delegate.module }
 
     init() {
         // Allows `swift run` without an app bundle to show a regular window.
@@ -32,6 +33,20 @@ struct MurmurApp: App {
         } label: {
             Image(systemName: module.isListening ? "waveform.circle.fill" : "waveform")
         }
+    }
+}
+
+@MainActor
+final class AppDelegate: NSObject, NSApplicationDelegate {
+    let module = MurmurModule()
+
+    /// Quitting mid-meeting or mid-note finalizes the audio first; otherwise it's unreadable.
+    func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        Task { @MainActor in
+            await module.prepareToQuit()
+            sender.reply(toApplicationShouldTerminate: true)
+        }
+        return .terminateLater
     }
 }
 

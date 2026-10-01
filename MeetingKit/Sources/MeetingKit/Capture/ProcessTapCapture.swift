@@ -43,6 +43,8 @@ final class ProcessTapCapture {
             guard let format = AVAudioFormat(streamDescription: &stream) else { throw CaptureError("Unsupported tap format.") }
 
             // The output device clocks the aggregate; drift compensation keeps the tap in step.
+            // ponytail: switching output devices mid-call keeps the old clock; the call track can
+            // go silent then, which MeetingRecorder reports at stop instead of rebuilding the tap.
             guard let outputUID = CoreAudioHelpers.defaultOutputDeviceUID() else { throw CaptureError("No audio output device.") }
             let aggregate: [String: Any] = [
                 kAudioAggregateDeviceNameKey: "MeetingKit Tap",
@@ -57,10 +59,19 @@ final class ProcessTapCapture {
             ]
             try check(AudioHardwareCreateAggregateDevice(aggregate as CFDictionary, &aggregateID), "create the aggregate device")
 
+            // When the output device also has inputs (AirPods, a USB headset or interface), the
+            // aggregate's input list carries those streams first and the tap's last. Wrapping
+            // the whole list would record the headset mic, or nothing, as the call.
+            let tapBuffers = format.isInterleaved ? 1 : Int(format.channelCount)
             try check(AudioDeviceCreateIOProcIDWithBlock(&procID, aggregateID, queue) { _, input, inputTime, _, _ in
+                let all = UnsafeMutableAudioBufferListPointer(UnsafeMutablePointer(mutating: input))
+                guard all.count >= tapBuffers else { return }
+                let list = AudioBufferList.allocate(maximumBuffers: tapBuffers)
+                defer { free(list.unsafeMutablePointer) }
+                for i in 0..<tapBuffers { list[i] = all[all.count - tapBuffers + i] }
                 // No-copy view of Core Audio's buffer; only valid during this call, which is
                 // fine because the writer encodes it before returning.
-                guard let buffer = AVAudioPCMBuffer(pcmFormat: format, bufferListNoCopy: input, deallocator: nil) else { return }
+                guard let buffer = AVAudioPCMBuffer(pcmFormat: format, bufferListNoCopy: list.unsafePointer, deallocator: nil) else { return }
                 let time = inputTime.pointee
                 let host = time.mFlags.contains(.hostTimeValid) ? AVAudioTime.seconds(forHostTime: time.mHostTime) : nil
                 self.buffers += 1

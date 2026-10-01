@@ -31,7 +31,7 @@ struct CalibrationPage: View {
                                 }
                                 .buttonStyle(.borderedProminent)
                                 .controlSize(.large)
-                                .disabled(model.engine.cameraState != .running)
+                                .disabled(!model.engine.canCalibrate)
                             }
                             .padding(.top, 4)
                         }

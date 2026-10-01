@@ -59,20 +59,25 @@ final class Suite {
     @ObservationIgnored let hands: ManOSModule
     @ObservationIgnored let voice = MurmurModule()
     @ObservationIgnored let permissions = SuitePermissions()
-    var module: Module = .home
+    var module: Module = .home { didSet { sync() } }
 
     /// SwiftUI only exposes `openWindow` inside views; the always-rendered menu
     /// bar icon hands it over so app-level events (Dock click, relaunch) can use it.
     @ObservationIgnored var openWindow: ((String) -> Void)?
     @ObservationIgnored static weak var current: Suite?
-    @ObservationIgnored private var wasControlling = false
 
     var seenTutorial = UserDefaults.standard.bool(forKey: "Humanity.seenTutorial") {
         didSet { UserDefaults.standard.set(seenTutorial, forKey: "Humanity.seenTutorial") }
     }
 
+    /// The OculOS switch. (ManOS's switch is its own control state.)
+    var gazeOn = UserDefaults.standard.bool(forKey: "Humanity.gazeOn") {
+        didSet { UserDefaults.standard.set(gazeOn, forKey: "Humanity.gazeOn"); sync() }
+    }
+    /// The main window is visible; its module page needs the camera even when switched off.
+    var windowOpen = false { didSet { sync() } }
+
     init() {
-        // Created first, so OculOS configures the shared camera at the 1080p it needs.
         gaze = OculOSModule(camera: camera)
         hands = ManOSModule(camera: camera)
         // Both on: look to aim, pinch to click (research/19, Gaze + Pinch).
@@ -82,27 +87,24 @@ final class Suite {
         Self.current = self
 
         // Lightweight by default: modules stay off until switched on, and the
-        // camera is fully off (light off, no CPU) whenever no module needs it.
-        gaze.isActive = UserDefaults.standard.bool(forKey: "Humanity.gazeOn")
-        hands.isActive = UserDefaults.standard.bool(forKey: "Humanity.handsOn")
+        // camera is fully off (light off, no CPU) whenever nothing needs it. Hand
+        // control never resumes by itself: grabbing the pointer at login is unsafe.
         watchModules()
     }
 
-    /// Keeps the camera and the saved on/off state in sync with the modules,
-    /// whichever way they were switched (panel, hotkey, module page).
-    private func watchModules() {
-        let defaults = UserDefaults.standard
-        defaults.set(gaze.isActive, forKey: "Humanity.gazeOn")
-        defaults.set(hands.isActive, forKey: "Humanity.handsOn")
-        // Control switched off (e.g. ⌃⌥⌘H) also stops hand tracking, unless the
-        // ManOS page is open and showing the camera.
-        if wasControlling, !hands.isControlling, hands.isActive, module != .hands {
-            hands.isActive = false
-        }
-        wasControlling = hands.isControlling
+    /// Tracking runs when a module is switched on or its page is showing.
+    private func sync() {
+        let page = windowOpen ? module : nil
+        gaze.isActive = gazeOn || page == .gaze
+        hands.isActive = hands.isControlling || page == .hands
         camera.setPaused(!gaze.isActive && !hands.isActive)
+    }
+
+    /// Follows ManOS's control switch, however it was flipped (panel, ⌃⌥⌘H, its page).
+    private func watchModules() {
+        sync()
         withObservationTracking {
-            _ = (gaze.isActive, hands.isActive, hands.isControlling)
+            _ = hands.isControlling
         } onChange: { [weak self] in
             Task { @MainActor in self?.watchModules() }
         }
@@ -157,12 +159,6 @@ struct SuiteView: View {
         NavigationSplitView {
             List(selection: $suite.selection) {
                 Label("Home", systemImage: "house").tag("home")
-                if !permissions.missingRequired.isEmpty {
-                    // The tag must be the outermost modifier, or List can't select the row.
-                    Label("Permissions", systemImage: "lock.shield")
-                        .badge(permissions.missingRequired.count)
-                        .tag("permissions")
-                }
                 Section("OculOS") {
                     ForEach(OculOSModule.sections, id: \.id) { s in
                         Label(s.title, systemImage: s.symbol).tag("gaze." + s.id)
@@ -180,7 +176,10 @@ struct SuiteView: View {
                 }
                 Section("More") {
                     Label("AI Providers", systemImage: "sparkles").tag("ai")
-                    Label("Permissions", systemImage: "lock.shield").tag("permissions")
+                    // The tag must be the outermost modifier, or List can't select the row.
+                    Label("Permissions", systemImage: "lock.shield")
+                        .badge(permissions.missingRequired.count)
+                        .tag("permissions")
                 }
             }
             .navigationSplitViewColumnWidth(min: 160, ideal: 170)
@@ -194,6 +193,8 @@ struct SuiteView: View {
             case .voice: suite.voice.detail(for: suite.voice.selectedSection ?? "home")
             }
         }
+        .onAppear { suite.windowOpen = true }
+        .onDisappear { suite.windowOpen = false }
     }
 }
 
@@ -262,22 +263,20 @@ struct ModuleTiles: View {
     var body: some View {
         let gaze = suite.gaze, hands = suite.hands, voice = suite.voice
         HStack(alignment: .top, spacing: 8) {
-            Tile(symbol: "eye", name: "OculOS", tint: .blue, isOn: gaze.isActive,
-                 status: !gaze.isActive ? "Off" : !gaze.isCalibrated ? "Calibrate" : gaze.isTracking ? "Tracking" : "Searching",
+            Tile(symbol: "eye", name: "OculOS", tint: .blue, isOn: suite.gazeOn,
+                 status: !suite.gazeOn ? "Off" : !gaze.isCalibrated ? "Calibrate" : gaze.isTracking ? "Tracking" : "Searching",
                  help: "Eye tracking") {
-                gaze.isActive.toggle()
-                gaze.showCursor = gaze.isActive && gaze.isCalibrated
-                if gaze.isActive, !gaze.isCalibrated { suite.show("gaze.setup") }
+                suite.gazeOn.toggle()
+                gaze.showCursor = suite.gazeOn && gaze.isCalibrated
+                if suite.gazeOn, !gaze.isCalibrated { suite.show("gaze.setup") }
             } open: { suite.show("gaze." + (gaze.isCalibrated ? "live" : "setup")) }
 
-            let handsOn = hands.isActive && hands.isControlling
+            let handsOn = hands.isControlling
             Tile(symbol: "hand.raised", name: "ManOS", tint: .purple, isOn: handsOn,
                  status: !handsOn ? (hands.canControl ? "Off" : "No access") : hands.isPaused ? "Paused" : hands.handInView ? "Active" : "No hand",
                  help: "Hand control · ⌃⌥⌘H") {
-                if handsOn { hands.isActive = false; return }
-                guard hands.canControl else { suite.show("permissions"); return }
-                hands.isActive = true
-                if !hands.isControlling { hands.toggleControl() }
+                guard handsOn || hands.canControl else { suite.show("permissions"); return }
+                hands.toggleControl()
             } open: { suite.show("hands.live") }
 
             Tile(symbol: voice.isListening ? "stop.fill" : "waveform", name: "Murmur", tint: .orange, isOn: voice.isListening,
@@ -354,7 +353,7 @@ struct ControlsList: View {
             ("Thumb + middle pinch", "Right-click · hold and move to scroll"),
             ("Fist", "Hold the pointer while repositioning"),
             ("Curl 3 fingers + pinch", "Anchored click: the pointer can't drift"),
-            ("Flick up / down", "Next / previous video, page or slide"),
+            ("V sign, flick up / down", "Next / previous video, page or slide"),
             ("Spread hand, still 1.5 s", "Pause · ⌃⌥⌘H also resumes"),
         ]),
         ("Murmur", "waveform", [
@@ -404,7 +403,7 @@ struct TutorialView: View {
 
     private let pages: [Page] = [
         Page(symbol: "figure.arms.open", tint: .pink, title: "Welcome to Humanity",
-             body: "Control your Mac with your eyes, hands and voice. Everything runs on this Mac; nothing is uploaded.",
+             body: "Control your Mac with your eyes, hands and voice. Camera and audio stay on this Mac.",
              tips: ["Humanity lives in the menu bar. Click its icon for every control.",
                     "Turn modules on or off there to save power."]),
         Page(symbol: "eye", tint: .blue, title: "OculOS · Eyes",
@@ -416,7 +415,7 @@ struct TutorialView: View {
              body: "Move the pointer with your palm and pinch to click. Like a trackpad in the air.",
              tips: ["Pinch thumb + index to click, hold to drag.",
                     "Pinch thumb + middle to right-click or scroll.",
-                    "Flick up for the next short video or page, down for the previous.",
+                    "Make a V sign and flick it up for the next short video or page, down for the previous.",
                     "For pinpoint clicks, curl your middle, ring and little fingers (the pointer locks), then pinch.",
                     "Make a fist to reposition. ⌃⌥⌘H turns it off instantly.",
                     "Rest your elbow on the desk; small movements are enough."]),
@@ -490,6 +489,8 @@ struct TutorialView: View {
             }
         }
         .padding(22)
+        // Closing the window counts as skipping, so it doesn't return every launch.
+        .onDisappear { suite.seenTutorial = true }
         .frame(width: 440, height: 470)
         .animation(.snappy, value: page)
     }
@@ -552,6 +553,15 @@ private struct MenuBarIcon: View {
 }
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
+    /// Finish an in-progress meeting or note first, so quitting doesn't lose it.
+    func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        Task { @MainActor in
+            await Suite.current?.voice.prepareToQuit()
+            sender.reply(toApplicationShouldTerminate: true)
+        }
+        return .terminateLater
+    }
+
     /// Clicking the Dock icon or opening Humanity again while it runs.
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows: Bool) -> Bool {
         if !hasVisibleWindows { MainActor.assumeIsolated { Suite.current?.showMainWindow() } }

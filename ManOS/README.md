@@ -14,7 +14,7 @@ leaves your Mac.
 | Pinch thumb + middle | Right-click. Hold and move to scroll. |
 | Make a fist | Hold the pointer still while you reposition your hand (clutch) |
 | Curl middle, ring and little fingers, then pinch thumb + index | **Anchored click:** the pointer locks in place, so the click lands exactly there |
-| Flick your hand up / down | Next / previous item: Shorts, TikTok, Reels, feeds, pages, slides. Sends a scroll burst or ↓/↑ keys (Settings → Flick) |
+| Hold up two fingers (V) and flick up / down | Next / previous item: Shorts, TikTok, Reels, feeds, pages, slides. The pointer holds still while the V is up. Scrolls the window under the pointer by one screen, or sends ↓/↑ keys (Settings → Flick) |
 | Spread your hand and hold still for 1.5 s | Pause or resume (⌃⌥⌘H also resumes) |
 | **⌃⌥⌘H** | Turn hand control on or off from anywhere (kill switch) |
 

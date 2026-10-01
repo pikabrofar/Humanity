@@ -15,6 +15,49 @@ public final class CameraCapture: NSObject, @unchecked Sendable {
     private let queue = DispatchQueue(label: "GazeKit.CameraCapture", qos: .userInteractive)
     private let output = AVCaptureVideoDataOutput()
     private var input: AVCaptureDeviceInput?
+    /// Arguments of the last `configure`, reused when a camera is plugged in or unplugged.
+    private var config: (deviceID: String?, preset: AVCaptureSession.Preset, frameRate: Double?)?
+    private var observers: [NSObjectProtocol] = []
+
+    /// Why frames stopped (runtime error, interruption, unplugged); nil while frames arrive.
+    public var problem: String? { handlersLock.withLock { _problem } }
+    private var _problem: String?
+    private func report(_ problem: String) { handlersLock.withLock { _problem = problem } }
+
+    public override init() {
+        super.init()
+        let center = NotificationCenter.default
+        let on = { (name: Notification.Name, block: @escaping (Notification) -> Void) in
+            self.observers.append(center.addObserver(forName: name, object: nil, queue: .main, using: block))
+        }
+        on(AVCaptureSession.runtimeErrorNotification) { [weak self] note in
+            guard let self, note.object as? AVCaptureSession === self.session else { return }
+            // The session has stopped; a consumer's Retry (`start`) restarts it.
+            self.report((note.userInfo?[AVCaptureSessionErrorKey] as? Error)?.localizedDescription ?? "Camera error")
+        }
+        on(AVCaptureSession.wasInterruptedNotification) { [weak self] note in
+            guard let self, note.object as? AVCaptureSession === self.session else { return }
+            self.report("Camera interrupted")
+        }
+        on(AVCaptureDevice.wasDisconnectedNotification) { [weak self] note in
+            guard let self, note.object as? AVCaptureDevice == self.input?.device else { return }
+            self.report("Camera disconnected")
+            self.reconfigure() // falls back to the system default camera
+        }
+        on(AVCaptureDevice.wasConnectedNotification) { [weak self] note in
+            guard let self, let device = note.object as? AVCaptureDevice, let config = self.config else { return }
+            // Back to the chosen camera, or any camera when the current one is gone.
+            if device.uniqueID == config.deviceID || self.input?.device.isConnected != true { self.reconfigure() }
+        }
+    }
+
+    deinit { observers.forEach { NotificationCenter.default.removeObserver($0) } }
+
+    private func reconfigure() {
+        guard let config else { return }
+        try? configure(deviceID: config.deviceID, preset: config.preset, frameRate: config.frameRate)
+        apply()
+    }
 
     public static var videoDevices: [AVCaptureDevice] {
         AVCaptureDevice.DiscoverySession(
@@ -43,7 +86,8 @@ public final class CameraCapture: NSObject, @unchecked Sendable {
             AVCaptureDevice.centerStageControlMode = .app
             AVCaptureDevice.isCenterStageEnabled = false
         }
-        let device = deviceID.flatMap(AVCaptureDevice.init(uniqueID:))
+        config = (deviceID, preset, frameRate)
+        let device = deviceID.flatMap(AVCaptureDevice.init(uniqueID:)).flatMap { $0.isConnected ? $0 : nil }
             ?? AVCaptureDevice.default(for: .video)
         guard let device else { throw CameraError.noCamera }
         let newInput = try AVCaptureDeviceInput(device: device)
@@ -152,7 +196,7 @@ extension CameraCapture: AVCaptureVideoDataOutputSampleBufferDelegate {
         // to what was on screen, e.g. a moving calibration target.
         let pts = CMSampleBufferGetPresentationTimeStamp(sampleBuffer)
         let host = session.synchronizationClock.map { CMSyncConvertTime(pts, from: $0, to: CMClockGetHostTimeClock()) } ?? pts
-        for handler in handlersLock.withLock({ Array(handlers.values) }) {
+        for handler in handlersLock.withLock({ _problem = nil; return Array(handlers.values) }) {
             handler(pixelBuffer, host.seconds)
         }
     }

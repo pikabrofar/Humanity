@@ -1,6 +1,7 @@
 import AppKit
 import Carbon.HIToolbox
 import AIKit
+import MeetingKit
 import MurmurKit
 import Observation
 import OSLog
@@ -34,7 +35,13 @@ private let latency = Logger(subsystem: "Murmur", category: "latency")
 @MainActor @Observable
 final class AppModel {
     /// Created on first use: loading the diarization models costs memory.
-    @ObservationIgnored private(set) lazy var meetings = MeetingsModel()
+    @ObservationIgnored private var loadedMeetings: MeetingsModel?
+    var meetings: MeetingsModel {
+        if let loadedMeetings { return loadedMeetings }
+        let meetings = MeetingsModel()
+        loadedMeetings = meetings
+        return meetings
+    }
     enum Phase: Equatable {
         case idle
         /// Choosing an engine; the mic isn't open yet.
@@ -54,6 +61,7 @@ final class AppModel {
     private(set) var notice: String?
     private(set) var recordings: [Recording] = []
     private(set) var summarizing: Set<UUID> = []
+    private(set) var transcribing: Set<UUID> = []
     private(set) var microphone = Permissions.microphone
     private(set) var speech = Permissions.speech
     private(set) var canPaste = Permissions.canPaste
@@ -82,7 +90,8 @@ final class AppModel {
     @ObservationIgnored private let recorder = AudioRecorder()
     @ObservationIgnored private var transcriber: LiveTranscriber?
     @ObservationIgnored private var transcriberReady: Task<Void, Error>?
-    @ObservationIgnored private var session: (id: UUID, startedAt: Date, targetApp: String?)?
+    /// `secure`: a password field (or other secure input) was focused when it started.
+    @ObservationIgnored private var session: (id: UUID, startedAt: Date, targetApp: String?, secure: Bool)?
     @ObservationIgnored private var stopRequested = false
     @ObservationIgnored private var trigger = TalkTrigger()
     @ObservationIgnored private var hotKey: HotKey?
@@ -141,7 +150,8 @@ final class AppModel {
         stopRequested = false
         engineReady = false
         phase = .preparing
-        session = (id, Date(), NSWorkspace.shared.frontmostApplication?.localizedName)
+        let secure = kind == .dictation && IsSecureEventInputEnabled()
+        session = (id, Date(), NSWorkspace.shared.frontmostApplication?.localizedName, secure)
         updateHUD()
         // Esc cancels, but only while recording: a global Esc would break every other app.
         cancelKey = HotKey(keyCode: kVK_Escape, modifiers: 0,
@@ -155,7 +165,7 @@ final class AppModel {
             transcriber.onPartial = { [weak self] in self?.partial = $0 }
             self.transcriber = transcriber
             do {
-                let saveAudio = keepHistory || kind == .note
+                let saveAudio = (keepHistory && !secure) || kind == .note
                 if saveAudio { try store.prepare() }
                 try recorder.start(writingTo: saveAudio ? store.audioURL(for: id) : nil,
                                    onBuffer: { transcriber.append($0) },
@@ -188,7 +198,7 @@ final class AppModel {
         phase = .finishing
         cancelKey = nil
         let released = ContinuousClock.now
-        let duration = recorder.stop()
+        let (duration, audioError) = recorder.stop()
         level = 0
         NSSound(named: "Pop")?.play()
         let transcriber = transcriber, ready = transcriberReady
@@ -204,7 +214,7 @@ final class AppModel {
                 return self.partial
             }
             guard session?.id == id, let raw else { return }
-            await complete(raw: raw, duration: duration, released: released)
+            await complete(raw: raw, duration: duration, released: released, audioError: audioError)
         }
     }
 
@@ -223,17 +233,21 @@ final class AppModel {
         flash("Microphone changed. Kept what you said so far.", duration: .seconds(3))
     }
 
-    private func complete(raw heard: String, duration: TimeInterval, released: ContinuousClock.Instant) async {
+    private func complete(raw heard: String, duration: TimeInterval, released: ContinuousClock.Instant,
+                          audioError: Error?) async {
         guard let session else { return }
         let terms = TextCleanup.terms(from: vocabulary)
         let raw = TextCleanup.respell(heard, terms: terms)
         guard !raw.isEmpty else {
-            discardSession()
-            flash("Didn't catch that. Try again a little closer to the mic.")
+            flash(discardSession(keepNote: true) ? "No words found. The audio is in the Library to transcribe again."
+                                                 : "Didn't catch that. Try again a little closer to the mic.")
             return
         }
+        // Dictating into a password field: the text goes only there. No cleanup (cloud or
+        // on-device), no history, no audio left on disk.
+        let secure = mode == .dictation && (session.secure || IsSecureEventInputEnabled())
         var cleaned: String?
-        if cleanup {
+        if cleanup, !secure {
             // A cloud model the user connected (AIKit), else Apple Intelligence, else rules.
             // The rewrite check guards against a model answering the text instead of editing it.
             // Dictation waits at most 2 s for a model so the text still lands promptly.
@@ -247,7 +261,7 @@ final class AppModel {
         let recording = Recording(id: session.id, createdAt: session.startedAt, duration: duration, kind: mode,
                                   transcript: raw, cleaned: cleaned,
                                   targetApp: mode == .dictation ? session.targetApp : nil)
-        var message: String?
+        var message = audioError.map { "The audio wasn't saved: \($0.localizedDescription)" }
         if mode == .dictation {
             if await TextInserter.insert(recording.text, restoreClipboard: restoreClipboard) {
                 // Console.app, subsystem "Murmur": the number to keep under 500 ms.
@@ -260,7 +274,9 @@ final class AppModel {
         self.session = nil
         transcriber = nil
         transcriberReady = nil
-        if mode == .note || keepHistory {
+        if secure {
+            store.delete(recording.id)
+        } else if mode == .note || keepHistory {
             try? store.save(recording)
             recordings.insert(recording, at: 0)
         }
@@ -276,8 +292,23 @@ final class AppModel {
         }
     }
 
-    private func discardSession() {
-        if let session { store.delete(session.id) }
+    /// Ends the session and deletes its audio, except `keepNote`: a note whose transcript
+    /// failed or came back empty keeps its audio, listed in the Library for a retry.
+    /// - Returns: true when a note was kept.
+    @discardableResult
+    private func discardSession(keepNote: Bool = false) -> Bool {
+        var kept = false
+        if let session {
+            if keepNote, mode == .note, store.hasAudio(session.id) {
+                let recording = Recording(id: session.id, createdAt: session.startedAt,
+                                          duration: Date().timeIntervalSince(session.startedAt), kind: .note, transcript: "")
+                try? store.save(recording) // if this fails the audio still stays on disk
+                recordings.insert(recording, at: 0)
+                kept = true
+            } else {
+                store.delete(session.id)
+            }
+        }
         session = nil
         transcriber = nil
         transcriberReady = nil
@@ -285,13 +316,24 @@ final class AppModel {
         level = 0
         phase = .idle
         updateHUD()
+        return kept
     }
 
     private func fail(_ error: Error) {
         recorder.stop()
         transcriber?.cancel()
-        discardSession()
-        flash(error.localizedDescription, duration: .seconds(4))
+        let kept = discardSession(keepNote: true)
+        flash(error.localizedDescription + (kept ? " The audio is in the Library to transcribe again." : ""), duration: .seconds(4))
+    }
+
+    /// Before the app quits: finalize a meeting's audio (it's listed to process on the next
+    /// launch) and keep a note's audio for a transcription retry. A dictation is dropped.
+    func prepareToQuit() async {
+        await loadedMeetings?.recorder.stop()
+        guard phase != .idle else { return }
+        recorder.stop()
+        transcriber?.cancel()
+        discardSession(keepNote: true)
     }
 
     // MARK: Hotkey
@@ -329,6 +371,25 @@ final class AppModel {
         update(id) {
             $0.summary = summary.text
             $0.actionItems = summary.actionItems
+        }
+    }
+
+    /// For a note saved without a transcript: transcribe its audio file on this Mac.
+    func retryTranscription(_ id: UUID) async {
+        guard !transcribing.contains(id) else { return }
+        transcribing.insert(id)
+        defer { transcribing.remove(id) }
+        do {
+            let words = try await SpeechFileTranscriber().transcribe(store.audioURL(for: id))
+            let raw = TextCleanup.respell(words.map(\.text).reduce("", Transcript.join), terms: TextCleanup.terms(from: vocabulary))
+            guard !raw.isEmpty else { return flash("Still no words found in this recording.") }
+            update(id) {
+                $0.transcript = raw
+                $0.cleaned = cleanup ? TextCleanup.basic(raw) : nil
+            }
+            await summarize(id)
+        } catch {
+            flash("Couldn't transcribe: \(error.localizedDescription)", duration: .seconds(4))
         }
     }
 

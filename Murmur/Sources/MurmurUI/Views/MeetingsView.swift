@@ -22,6 +22,8 @@ final class MeetingsModel {
     @ObservationIgnored let recorder = MeetingRecorder()
     @ObservationIgnored let profiles = VoiceProfileStore()
     private(set) var meetings: [Meeting] = []
+    /// Recorded but not processed (processing failed, or the app quit first).
+    private(set) var unprocessed: [MeetingRecording] = []
     private(set) var summaries: [UUID: MeetingSummary] = [:]
     private(set) var processing: Set<UUID> = []
     private(set) var summarizing: Set<UUID> = []
@@ -35,6 +37,7 @@ final class MeetingsModel {
             at: MeetingRecording.defaultDirectory, includingPropertiesForKeys: nil)) ?? []
         meetings = folders.compactMap { try? Meeting.load(from: $0) }
             .sorted { $0.recording.startedAt > $1.recording.startedAt }
+        unprocessed = MeetingRecording.unprocessed()
         for meeting in meetings {
             if let data = try? Data(contentsOf: summaryURL(meeting)),
                let summary = try? JSONDecoder().decode(MeetingSummary.self, from: data) {
@@ -45,8 +48,10 @@ final class MeetingsModel {
 
     /// Diarize, transcribe and match voices after the call ends (offline, on this Mac).
     func process(_ recording: MeetingRecording) async {
+        guard !processing.contains(recording.id) else { return }
         processing.insert(recording.id)
         defer { processing.remove(recording.id) }
+        unprocessed.removeAll { $0.id == recording.id }
         do {
             let meeting = try await MeetingProcessor().process(recording, profiles: profiles)
             try meeting.save()
@@ -54,7 +59,9 @@ final class MeetingsModel {
             selection = meeting.id
             await summarize(meeting.id)
         } catch {
-            self.error = "Couldn't process the meeting: \(error.localizedDescription)"
+            // The audio and recording.json stay on disk; keep it listed for another try.
+            unprocessed.insert(recording, at: 0)
+            self.error = "Couldn't process the meeting: \(error.localizedDescription) It's kept under Recent; choose Process Again."
         }
     }
 
@@ -95,9 +102,11 @@ final class MeetingsModel {
     }
 
     func delete(_ id: UUID) {
-        guard let meeting = meetings.first(where: { $0.id == id }) else { return }
-        try? FileManager.default.removeItem(at: meeting.recording.folder)
+        guard let folder = meetings.first(where: { $0.id == id })?.recording.folder
+                ?? unprocessed.first(where: { $0.id == id })?.folder else { return }
+        try? FileManager.default.removeItem(at: folder)
         meetings.removeAll { $0.id == id }
+        unprocessed.removeAll { $0.id == id }
         summaries[id] = nil
         if selection == id { selection = nil }
     }
@@ -127,7 +136,7 @@ struct MeetingsView: View {
                     .padding(.vertical, 4)
                 }
                 Section("Recent") {
-                    if meetings.meetings.isEmpty && meetings.processing.isEmpty {
+                    if meetings.meetings.isEmpty && meetings.unprocessed.isEmpty && meetings.processing.isEmpty {
                         Text("Recorded calls appear here, with who said what.")
                             .foregroundStyle(.secondary)
                     }
@@ -135,6 +144,21 @@ struct MeetingsView: View {
                         HStack(spacing: 8) {
                             ProgressView().controlSize(.small)
                             Text("Separating speakers and transcribing on this Mac…").foregroundStyle(.secondary)
+                        }
+                    }
+                    ForEach(meetings.unprocessed, id: \.id) { recording in
+                        HStack(spacing: 10) {
+                            Image(systemName: "exclamationmark.triangle").foregroundStyle(.orange).frame(width: 20)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(recording.title).lineLimit(1)
+                                Text("\(recording.startedAt.formatted(date: .abbreviated, time: .shortened)) · Not processed")
+                                    .font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                            }
+                            Spacer()
+                            Button("Process Again") { Task { await meetings.process(recording) } }
+                        }
+                        .contextMenu {
+                            Button("Delete", role: .destructive) { meetings.delete(recording.id) }
                         }
                     }
                     ForEach(meetings.meetings) { meeting in

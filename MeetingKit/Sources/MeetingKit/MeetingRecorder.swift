@@ -9,14 +9,28 @@ public struct MeetingRecording: Codable, Hashable, Sendable {
     public var duration: TimeInterval
     /// Folder holding mic.m4a, system.m4a and, once processed, meeting.json.
     public var folder: URL
-    /// "Call audio wasn't captured: …" when system.m4a stayed empty; nil when it recorded.
+    /// "Call audio wasn't captured: …" when system.m4a stayed empty or went silent; nil when it recorded.
     public var callAudioError: String?
+    /// Set when the microphone track lost audio or stopped.
+    public var micError: String?
 
     public var micURL: URL { folder.appendingPathComponent("mic.m4a") }
     public var systemURL: URL { folder.appendingPathComponent("system.m4a") }
 
     public static var defaultDirectory: URL {
         URL.applicationSupportDirectory.appendingPathComponent("Humanity/Meetings", isDirectory: true)
+    }
+
+    /// Saved when recording stops, so a failed processing run (or a quit) never orphans the audio.
+    public func save() throws { try JSONFile.write(self, to: folder.appendingPathComponent("recording.json")) }
+
+    /// Recordings that never became a `Meeting`: processing failed or the app quit first. Newest first.
+    public static func unprocessed(in directory: URL = defaultDirectory) -> [MeetingRecording] {
+        let folders = (try? FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil)) ?? []
+        return folders
+            .filter { !FileManager.default.fileExists(atPath: $0.appendingPathComponent("meeting.json").path) }
+            .compactMap { try? JSONFile.read(MeetingRecording.self, from: $0.appendingPathComponent("recording.json")) }
+            .sorted { $0.startedAt > $1.startedAt }
     }
 }
 
@@ -34,6 +48,8 @@ public final class MeetingRecorder: ObservableObject {
     @Published public private(set) var captureMethod: String?
     /// Why the last recording has no call audio, so it never goes missing silently.
     @Published public private(set) var callAudioError: String?
+    /// Why the last recording's microphone track is incomplete.
+    @Published public private(set) var micError: String?
 
     private let directory: URL
     private let mic = MicrophoneCapture()
@@ -54,6 +70,8 @@ public final class MeetingRecorder: ObservableObject {
         starting = true
         defer { starting = false }
         callAudioError = nil
+        micError = nil
+        mic.failure = nil
         guard await AVCaptureDevice.requestAccess(for: .audio) else {
             throw CaptureError("Allow Microphone access in System Settings › Privacy & Security.")
         }
@@ -65,8 +83,8 @@ public final class MeetingRecorder: ObservableObject {
 
         // One host-clock origin for both tracks; each writer pads to it.
         let origin = AVAudioTime.seconds(forHostTime: mach_absolute_time())
-        let writers = (mic: TrackWriter(url: recording.micURL, meetingStart: origin),
-                       system: TrackWriter(url: recording.systemURL, meetingStart: origin))
+        let writers = (mic: TrackWriter(url: recording.micURL, meetingStart: origin, channels: 1),
+                       system: TrackWriter(url: recording.systemURL, meetingStart: origin, channels: 2))
         let micSink = sink(writers.mic, level: \.micLevel)
         let systemSink = sink(writers.system, level: \.systemLevel)
 
@@ -88,22 +106,35 @@ public final class MeetingRecorder: ObservableObject {
     /// Stops both tracks and returns the finished recording, ready for `MeetingProcessor`.
     @discardableResult
     public func stop() async -> MeetingRecording? {
+        // Cleared before the first await, so a second Stop (or a quit) can't finish it twice.
         guard isRecording, var recording = current else { return nil }
+        current = nil
         mic.stop()
         if #available(macOS 14.4, *) { (tap as? ProcessTapCapture)?.stop() }
         await screen?.stop()
         writers?.mic.finish()
         writers?.system.finish()
-        if let system = writers?.system.status, system.frames == 0 {
-            let reason = system.error?.localizedDescription ?? "no sound arrived through \(captureMethod ?? "the capture")."
-            callAudioError = Self.notCaptured(reason)
-            recording.callAudioError = callAudioError
-        }
         recording.duration = Date().timeIntervalSince(recording.startedAt)
+        if let mic = writers?.mic.status, let system = writers?.system.status {
+            if system.frames == 0 {
+                let reason = system.error?.localizedDescription ?? "no sound arrived through \(captureMethod ?? "the capture")."
+                callAudioError = Self.notCaptured(reason)
+            } else {
+                callAudioError = system.error.map { "Some call audio was lost: \($0.localizedDescription)" }
+                    ?? Self.silenceWarning(callLastSound: system.lastSound, micLastSound: mic.lastSound, duration: recording.duration)
+            }
+            if mic.frames == 0 {
+                micError = "Your microphone wasn't recorded: \((self.mic.failure ?? mic.error)?.localizedDescription ?? "no sound arrived.")"
+            } else if let error = self.mic.failure ?? mic.error {
+                micError = "Some of your microphone audio was lost: \(error.localizedDescription)"
+            }
+        }
+        recording.callAudioError = callAudioError
+        recording.micError = micError
+        try? recording.save() // best effort: the audio is on disk either way
         tap = nil
         screen = nil
         writers = nil
-        current = nil
         isRecording = false
         startedAt = nil
         micLevel = 0
@@ -134,6 +165,15 @@ public final class MeetingRecorder: ObservableObject {
         }
         self.screen = screen
         return "ScreenCaptureKit"
+    }
+
+    /// The call went quiet for the last `minimum` seconds while you kept talking: the tap most
+    /// likely stopped delivering (e.g. the output device changed), not the call.
+    nonisolated static func silenceWarning(callLastSound: Double?, micLastSound: Double?, duration: Double,
+                                           minimum: Double = 60) -> String? {
+        let callEnd = callLastSound ?? 0
+        guard duration - callEnd >= minimum, let micEnd = micLastSound, micEnd - callEnd >= minimum / 2 else { return nil }
+        return "Call audio was silent from \(MeetingTranscript.timestamp(callEnd)). If the call kept going, its audio stopped being captured, for example after switching speakers or headphones."
     }
 
     private static func notCaptured(_ reason: String) -> String { "Call audio wasn't captured: \(reason)" }

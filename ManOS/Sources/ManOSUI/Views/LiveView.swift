@@ -140,6 +140,7 @@ private struct GestureCard: View {
 
     private func title(_ e: HandEngine) -> String {
         if e.isPaused { return "Paused" }
+        if e.flickReady { return "Flick ready" }
         return switch e.gesture {
         case .idle: "No hand"
         case .engaging: "Getting ready…"
@@ -155,6 +156,7 @@ private struct GestureCard: View {
 
     private func symbol(_ e: HandEngine) -> String {
         if e.isPaused { return "pause.circle" }
+        if e.flickReady { return "chevron.up.chevron.down" }
         return switch e.gesture {
         case .idle: "hand.raised.slash"
         case .engaging: "hand.raised"
@@ -221,7 +223,7 @@ private struct GestureGuide: View {
                     row("hand.point.up.left.and.text", "Curl 3 fingers, pinch thumb + index", "Click without moving the pointer")
                 }
                 GridRow {
-                    row("chevron.up.2", "Flick up / down", "Next / previous video, page or slide")
+                    row("chevron.up.2", "Two fingers up (V), flick up / down", "Next / previous video, page or slide")
                     row("pause.circle", "Spread hand, hold still 1.5 s", "Pause or resume")
                 }
                 GridRow {

@@ -102,7 +102,9 @@ private struct SidebarStatus: View {
         VStack(alignment: .leading, spacing: 6) {
             row(engine.faceDetected ? "Tracking face" : "No face",
                 engine.faceDetected ? .green : .orange)
-            if let calibration = engine.calibration {
+            if engine.calibratedDisplayMissing {
+                row("Calibrated display not connected", .orange)
+            } else if let calibration = engine.calibration {
                 row("Calibrated · \(calibration.quality)", .green)
             } else {
                 row("Not calibrated", .secondary)
@@ -140,5 +142,6 @@ struct MenuItems: View {
             .keyboardShortcut("r", modifiers: [.command, .option])
             .disabled(!model.engine.isCalibrated)
         Button("Calibrate…", action: model.startCalibration)
+            .disabled(!model.engine.canCalibrate)
     }
 }

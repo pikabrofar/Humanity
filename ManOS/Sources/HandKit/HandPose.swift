@@ -64,28 +64,33 @@ public struct HandPose: Sendable, Equatable {
         [(.indexTip, .indexPIP), (.middleTip, .middlePIP), (.ringTip, .ringPIP), (.littleTip, .littlePIP)]
     }
 
+    /// Fingertip curled into the palm.
+    func isCurled(_ tip: Joint) -> Bool { joints[tip].map { $0.distance(to: anchor) < 0.9 * scale } ?? false }
+
     /// At least three fingertips curled into the palm.
     public var isFist: Bool {
-        let tips: [Joint] = [.indexTip, .middleTip, .ringTip, .littleTip]
-        return tips.filter { joints[$0].map { $0.distance(to: anchor) < 0.9 * scale } ?? false }.count >= 3
+        [Joint.indexTip, .middleTip, .ringTip, .littleTip].filter(isCurled).count >= 3
     }
 
-    /// Mean of the index, middle and ring fingertips. A wrist flick moves these
+    /// Midpoint of the index and middle fingertips. A wrist flick moves these
     /// far more than the palm center (the wrist barely moves).
-    public var fingertipCenter: CGPoint? {
-        let tips = [Joint.indexTip, .middleTip, .ringTip].compactMap { joints[$0] }
-        guard tips.count >= 2 else { return nil }
-        return CGPoint(x: tips.map(\.x).reduce(0, +) / CGFloat(tips.count),
-                       y: tips.map(\.y).reduce(0, +) / CGFloat(tips.count))
+    public var fingertipCenter: CGPoint {
+        let i = p(.indexTip), m = p(.middleTip)
+        return CGPoint(x: (i.x + m.x) / 2, y: (i.y + m.y) / 2)
     }
 
     /// Middle, ring and little fingers curled while the index stays out: the
     /// pointer is anchored, and thumb + index remain free to pinch-click.
     public var isAnchorGrip: Bool {
-        let curled = [Joint.middleTip, .ringTip, .littleTip]
-            .filter { joints[$0].map { $0.distance(to: anchor) < 0.9 * scale } ?? false }.count
-        guard curled == 3, let index = joints[.indexTip] else { return false }
+        guard [Joint.middleTip, .ringTip, .littleTip].allSatisfy(isCurled), let index = joints[.indexTip] else { return false }
         return index.distance(to: anchor) > 1.0 * scale
+    }
+
+    /// Index and middle fingers up, ring and little curled (a "V"): arms flicks.
+    /// Unlike any pointing, pinching or clutch pose, so pointing never flicks.
+    public var isVSign: Bool {
+        isExtended(tip: .indexTip, pip: .indexPIP) && isExtended(tip: .middleTip, pip: .middlePIP)
+            && isCurled(.ringTip) && isCurled(.littleTip)
     }
 
     /// All fingers extended *and spread*, thumb out. A relaxed pointing hand is

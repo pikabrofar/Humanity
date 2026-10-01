@@ -1,12 +1,13 @@
 import Accelerate
 import AVFoundation
+import MeetingKit
 
 /// Captures the microphone with AVAudioEngine, writes AAC to disk, and hands
 /// every buffer to the transcriber.
 @MainActor
 final class AudioRecorder {
     private var engine = AVAudioEngine()
-    private var file: AVAudioFile?
+    private var writer: TrackWriter?
     private var startedAt: Date?
     private var configObserver: NSObjectProtocol?
 
@@ -22,26 +23,19 @@ final class AudioRecorder {
         let format = input.outputFormat(forBus: 0)
         guard format.sampleRate > 0, format.channelCount > 0 else { throw MessageError("No microphone is available.") }
 
-        // Matching the input's rate and channels makes the file's processing
-        // format equal the tap's buffers, so no conversion is needed to write.
-        file = try url.map {
-            try AVAudioFile(forWriting: $0, settings: [
-                AVFormatIDKey: kAudioFormatMPEG4AAC,
-                AVSampleRateKey: format.sampleRate,
-                AVNumberOfChannelsKey: format.channelCount,
-                AVEncoderAudioQualityKey: AVAudioQuality.high.rawValue,
-            ])
-        }
+        // Converts to 48 kHz mono AAC: the encoder rejects some device formats (96 kHz,
+        // more than two channels), which used to lose the audio without a word.
+        writer = url.map { TrackWriter(url: $0, channels: 1) }
         // nil = the node's own format. Passing a format that no longer matches
         // the hardware (e.g. AirPods just connected) raises an uncatchable exception.
         input.installTap(onBus: 0, bufferSize: 1024, format: nil,
-                         block: Self.tap(file: file, onBuffer: onBuffer, onLevel: onLevel))
+                         block: Self.tap(writer: writer, onBuffer: onBuffer, onLevel: onLevel))
         engine.prepare()
         do {
             try engine.start()
         } catch {
             input.removeTap(onBus: 0)
-            file = nil
+            writer = nil
             throw MessageError("Couldn't start the microphone. Check System Settings › Sound › Input.")
         }
         // A device change stops the engine; buffers silently stop arriving unless we notice.
@@ -55,31 +49,27 @@ final class AudioRecorder {
         startedAt = Date()
     }
 
-    /// - Returns: the recording's length in seconds.
+    /// - Returns: the recording's length in seconds, and why audio wasn't saved, if it wasn't.
     @discardableResult
-    func stop() -> TimeInterval {
+    func stop() -> (duration: TimeInterval, audioError: Error?) {
         if let configObserver { NotificationCenter.default.removeObserver(configObserver) }
         configObserver = nil
         engine.inputNode.removeTap(onBus: 0)
         engine.stop()
-        // Closing finalizes the m4a; otherwise it happens whenever the file deallocates.
-        if #available(macOS 15, *) { file?.close() }
-        file = nil
+        writer?.finish() // finalizes the m4a
+        let audioError = writer?.status.error
+        writer = nil
         defer { startedAt = nil }
-        return startedAt.map { Date().timeIntervalSince($0) } ?? 0
+        return (startedAt.map { Date().timeIntervalSince($0) } ?? 0, audioError)
     }
 
     /// Built outside the main actor because the tap runs on a realtime audio
     /// thread; a main-actor closure there would trip Swift's isolation checks.
-    nonisolated private static func tap(file: AVAudioFile?,
+    nonisolated private static func tap(writer: TrackWriter?,
                                         onBuffer: @escaping @Sendable (AVAudioPCMBuffer) -> Void,
                                         onLevel: @escaping @Sendable (Float) -> Void) -> AVAudioNodeTapBlock {
         { buffer, _ in
-            // A mismatched buffer would make the AAC writer fail; skip it rather than risk it.
-            if let file, buffer.format.sampleRate == file.processingFormat.sampleRate,
-               buffer.format.channelCount == file.processingFormat.channelCount {
-                try? file.write(from: buffer)
-            }
+            writer?.write(buffer, at: nil)
             onBuffer(buffer)
             onLevel(level(of: buffer))
         }

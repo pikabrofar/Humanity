@@ -68,16 +68,24 @@ public struct Meeting: Codable, Hashable, Sendable, Identifiable {
 
     public var fileURL: URL { recording.folder.appendingPathComponent("meeting.json") }
 
-    public func save() throws {
-        let encoder = JSONEncoder()
-        encoder.dateEncodingStrategy = .iso8601
-        try encoder.encode(self).write(to: fileURL, options: .atomic)
-    }
+    public func save() throws { try JSONFile.write(self, to: fileURL) }
 
     public static func load(from folder: URL) throws -> Meeting {
+        try JSONFile.read(Meeting.self, from: folder.appendingPathComponent("meeting.json"))
+    }
+}
+
+enum JSONFile {
+    static func write(_ value: some Encodable, to url: URL) throws {
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .iso8601
+        try encoder.encode(value).write(to: url, options: .atomic)
+    }
+
+    static func read<T: Decodable>(_ type: T.Type, from url: URL) throws -> T {
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
-        return try decoder.decode(Meeting.self, from: Data(contentsOf: folder.appendingPathComponent("meeting.json")))
+        return try decoder.decode(type, from: Data(contentsOf: url))
     }
 }
 
@@ -94,15 +102,28 @@ public struct MeetingProcessor: Sendable {
     }
 
     public func process(_ recording: MeetingRecording, profiles: VoiceProfileStore) async throws -> Meeting {
+        var recording = recording
         let fm = FileManager.default
-        let hasSystem = fm.fileExists(atPath: recording.systemURL.path)
         // Sequential on purpose: the speech engine and Core ML both want the Neural Engine.
-        let systemWords = hasSystem ? try await transcriber.transcribe(recording.systemURL) : []
-        // Nobody spoke on the call (or it was too short): nothing to diarize, and the
-        // diarizer can reject clips that short. The transcript is then just "You".
-        let diarization = systemWords.isEmpty ? Diarization(segments: [], centroids: [:])
-                                              : try await diarizer.diarize(recording.systemURL)
+        var systemWords: [TimedWord] = []
+        var diarization = Diarization(segments: [], centroids: [:])
+        var systemFailure: Error?
+        if fm.fileExists(atPath: recording.systemURL.path) {
+            do {
+                systemWords = try await transcriber.transcribe(recording.systemURL)
+                // Nobody spoke on the call (or it was too short): nothing to diarize, and the
+                // diarizer can reject clips that short. The transcript is then just "You".
+                // Without diarization, call words still show, as "Remote".
+                if !systemWords.isEmpty { diarization = try await diarizer.diarize(recording.systemURL) }
+            } catch {
+                // A failing call track mustn't cost you your own words; keep them and say why.
+                systemFailure = error
+                recording.callAudioError = "Call audio couldn't be processed: \(error.localizedDescription)"
+            }
+        }
         let micWords = fm.fileExists(atPath: recording.micURL.path) ? try await transcriber.transcribe(recording.micURL) : []
+        // Nothing to show: fail, so the recording stays listed for another try.
+        if let systemFailure, micWords.isEmpty, systemWords.isEmpty { throw systemFailure }
 
         let matches = await profiles.assign(clusters: diarization.centroids)
         let meeting = Meeting(recording: recording, diarization: diarization, micWords: micWords, systemWords: systemWords,

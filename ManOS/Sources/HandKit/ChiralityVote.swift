@@ -11,7 +11,9 @@ public struct ChiralityVote: Sendable {
     public init() {}
 
     public mutating func apply(_ hands: [HandPose]) -> [HandPose] {
-        var old = tracks
+        // No hand this frame: keep every track, so a brief dropout (motion blur) keeps its votes.
+        guard let now = hands.first?.timestamp else { return [] }
+        var old = tracks.filter { now - $0.seen < 0.5 }
         tracks = []
         let voted = hands.map { hand in
             // The nearest track within a few palm widths is the same hand.
@@ -28,9 +30,7 @@ public struct ChiralityVote: Sendable {
             hand.chirality = track.label
             return hand
         }
-        // Unmatched tracks survive brief dropouts.
-        let now = hands.first?.timestamp ?? .infinity
-        tracks += old.filter { now - $0.seen < 0.5 }
+        tracks += old // unmatched tracks survive brief dropouts
         return voted
     }
 }

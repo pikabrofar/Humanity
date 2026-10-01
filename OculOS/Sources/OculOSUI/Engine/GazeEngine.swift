@@ -26,8 +26,23 @@ final class GazeEngine {
 
     var calibration: StoredCalibration? {
         didSet {
-            CalibrationStore.save(calibration)
+            // Learned clicks (same explicit samples) arrive often: batch their saves.
+            let learned = calibration != nil && oldValue?.samples.count == calibration?.samples.count
+            scheduleSave(after: learned ? 5 : 0)
             if calibration == nil { gaze = nil }
+        }
+    }
+    @ObservationIgnored private var saveTask: Task<Void, Never>?
+
+    /// Encodes and writes off the main actor; saves run in order and a newer one cancels a pending one.
+    private func scheduleSave(after seconds: Double) {
+        let previous = saveTask, calibration = calibration
+        previous?.cancel()
+        saveTask = Task.detached(priority: .utility) {
+            await previous?.value
+            try? await Task.sleep(for: .seconds(seconds))
+            guard !Task.isCancelled else { return }
+            CalibrationStore.save(calibration)
         }
     }
 
@@ -69,15 +84,24 @@ final class GazeEngine {
     @ObservationIgnored private var isRefitting = false
     @ObservationIgnored private var offscreenFrames = 0
     @ObservationIgnored private var lastFaceTime: CFTimeInterval = 0
+    @ObservationIgnored private var lastFrameTime: CFTimeInterval = 0
+    @ObservationIgnored private var watchdog: Task<Void, Never>?
     @ObservationIgnored private var fpsWindowStart: CFTimeInterval = 0
     @ObservationIgnored private var fpsFrames = 0
 
     var faceDetected: Bool { landmarks != nil }
     var isCalibrated: Bool { calibration != nil }
+    /// Calibration needs live frames with a face in them.
+    var canCalibrate: Bool { isActive && faceDetected }
 
     /// The display the current calibration maps onto.
     var targetScreen: NSScreen {
         calibration.flatMap { NSScreen.withDisplayID($0.displayID) } ?? NSScreen.main ?? NSScreen.screens[0]
+    }
+
+    /// The calibration's display is unplugged: gaze would land on the wrong screen.
+    var calibratedDisplayMissing: Bool {
+        calibration.map { NSScreen.withDisplayID($0.displayID) == nil } ?? false
     }
 
     var captureSession: AVCaptureSessionBox { AVCaptureSessionBox(session: camera.session) }
@@ -91,6 +115,9 @@ final class GazeEngine {
         didSet {
             processor.isActive = isActive
             if !isActive { gaze = nil; landmarks = nil; features = nil }
+            lastFrameTime = CACurrentMediaTime() // the watchdog counts from now
+            // Camera granted in System Settings after a denial: try again.
+            if isActive, cameraState == .denied { Task { await start() } }
         }
     }
 
@@ -143,13 +170,13 @@ final class GazeEngine {
             cameraState = .denied
             return
         }
-        if ownsCamera || !camera.isConfigured {
-            do {
-                try camera.configure(deviceID: cameraID)
-            } catch {
-                cameraState = .failed(error.localizedDescription)
-                return
-            }
+        // Always configure, even a shared camera: gaze needs 1080p, and ManOS only
+        // configures a camera nobody has set up yet.
+        do {
+            try camera.configure(deviceID: cameraID)
+        } catch {
+            cameraState = .failed(error.localizedDescription)
+            return
         }
         if frameHandler == nil {
             frameHandler = camera.addFrameHandler { [processor, weak self] pixelBuffer, timestamp in
@@ -162,10 +189,23 @@ final class GazeEngine {
         }
         camera.start()
         cameraState = .running
+        lastFrameTime = CACurrentMediaTime()
+        // Frames stop when the camera is unplugged, taken by another app or fails.
+        watchdog = watchdog ?? Task { [weak self] in
+            while true {
+                try? await Task.sleep(for: .seconds(1))
+                guard let self else { return }
+                if isActive, cameraState == .running, CACurrentMediaTime() - lastFrameTime > 5 {
+                    cameraState = .failed(camera.problem ?? "Camera stopped")
+                }
+            }
+        }
     }
 
     private func handle(_ analysis: FrameAnalysis) {
         let now = CACurrentMediaTime()
+        lastFrameTime = now
+        if case .failed = cameraState { cameraState = .running } // frames are back
         countFrame(at: now)
         imageSize = analysis.imageSize
         landmarks = analysis.landmarks
@@ -186,8 +226,11 @@ final class GazeEngine {
         recentFeatures.append(features)
         if recentFeatures.count > 15 { recentFeatures.removeFirst() }
 
-        guard let model = calibration?.model else { return }
-        let size = targetScreen.frame.size
+        guard let calibration, let screen = NSScreen.withDisplayID(calibration.displayID) else {
+            if gaze != nil { gaze = nil }
+            return
+        }
+        let model = calibration.model, size = screen.frame.size
         var point = model.predict(features)
         // Looking away (at the keyboard, a phone, another screen): hide the
         // cursor after a few consistent frames instead of pinning it to an edge.
@@ -232,7 +275,7 @@ final class GazeEngine {
     /// calibration samples and the model is refit off the main thread. Clicks
     /// in varied head poses also sharpen the head-movement parameters.
     func learnFromClick(at target: CGPoint) {
-        guard var stored = calibration, let latest = recentFeatures.last else { return }
+        guard var stored = calibration, !calibratedDisplayMissing, let latest = recentFeatures.last else { return }
         let frames = recentFeatures.filter { latest.timestamp - $0.timestamp <= 0.25 }
         // A click far from the predicted gaze usually means the user wasn't looking.
         guard frames.count >= 3, let gaze, gaze.distance(to: target) < 0.25 else { return }

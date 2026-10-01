@@ -27,6 +27,11 @@ public final class MurmurModule {
     public func toggleDictation() { model.toggle(.dictation) }
     public func toggleNote() { model.toggle(.note) }
 
+    /// Call from `applicationShouldTerminate` (reply `.terminateLater`, then
+    /// `reply(toApplicationShouldTerminate: true)` when this returns): stops a meeting
+    /// or note in progress and finalizes its audio, which is otherwise unreadable.
+    public func prepareToQuit() async { await model.prepareToQuit() }
+
     public func window() -> some View { RootView().environment(model) }
 
     public func detail(for section: String) -> some View {

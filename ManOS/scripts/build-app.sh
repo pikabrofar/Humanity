@@ -3,7 +3,9 @@
 #
 # SIGN_ID: codesigning identity. The default "-" (ad-hoc) changes on every build,
 # so macOS forgets permission grants (camera, Accessibility) after rebuilding.
-# A self-signed "Humanity Dev" certificate keeps them: see the repo README.
+# A self-signed "Humanity Self-Signed" certificate keeps them: see the repo README.
+# PIN_DR=0: plain ad-hoc signature (releases without a certificate; see below).
+# VERSION: CFBundleShortVersionString to stamp into the bundle.
 set -eu
 
 APP_NAME="ManOS"
@@ -23,6 +25,7 @@ rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp "$BIN" "$APP/Contents/MacOS/$APP_NAME"
 cp Resources/Info.plist "$APP/Contents/Info.plist"
+[ -n "${VERSION:-}" ] && /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $VERSION" "$APP/Contents/Info.plist"
 
 if [ ! -f build/AppIcon.icns ]; then
     swift scripts/make-icon.swift build/AppIcon.iconset
@@ -31,13 +34,17 @@ fi
 cp build/AppIcon.icns "$APP/Contents/Resources/AppIcon.icns"
 
 BUNDLE_ID="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' Resources/Info.plist)"
-if [ "$SIGN_ID" = "-" ]; then
+# Hardened runtime: no injected libraries or debugger attach into a process that
+# holds camera, microphone and Accessibility grants.
+SIGN="codesign --force --options runtime --entitlements ../scripts/app.entitlements"
+if [ "$SIGN_ID" = "-" ] && [ "${PIN_DR:-1}" = 1 ]; then
     # An ad-hoc signature is identified by its hash, which changes every build, so
     # macOS silently stops honoring Accessibility / Screen Recording grants after a
     # rebuild. Pinning the designated requirement to the bundle id keeps the grant
-    # attached to this app. (Dev builds; releases should use a real certificate.)
-    codesign --force --sign - --requirements "=designated => identifier \"$BUNDLE_ID\"" "$APP"
+    # attached to this app. Local dev builds only: any app claiming this bundle id
+    # would match, so releases use a certificate or plain ad-hoc (PIN_DR=0).
+    $SIGN --sign - --requirements "=designated => identifier \"$BUNDLE_ID\"" "$APP"
 else
-    codesign --force --sign "$SIGN_ID" "$APP"
+    $SIGN --sign "$SIGN_ID" "$APP"
 fi
 echo "Built $APP"
