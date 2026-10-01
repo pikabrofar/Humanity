@@ -1,5 +1,5 @@
-// ponytail: Meter and RecordingIndicator copied from Murmur's Components.swift, which was
-// itself copied from OculOS; extract a shared package.
+// ponytail: Meter and RecordingIndicator copied from bocaS's Components.swift, which was
+// itself copied from ojoS; extract a shared package.
 import SwiftUI
 
 /// Labeled horizontal meter for a value in 0...1.

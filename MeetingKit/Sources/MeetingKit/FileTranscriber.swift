@@ -12,7 +12,7 @@ public struct TranscriptionError: LocalizedError {
     init(_ message: String) { errorDescription = message }
 }
 
-/// On-device transcription of a recorded track, mirroring Murmur's engine choice:
+/// On-device transcription of a recorded track, mirroring bocaS's engine choice:
 /// the macOS 26 SpeechAnalyzer when available (far more accurate), otherwise
 /// SFSpeechRecognizer forced to stay on-device. Nothing is sent to a server.
 public struct SpeechFileTranscriber: FileTranscribing {

@@ -11,6 +11,20 @@ extension FileManager {
 }
 
 public enum MeetingStorage {
+    /// ~/Library/Application Support/Sentidos. The suite was called Humanity: move the old
+    /// folder over once (meetings, voice profiles, leftovers) so nothing is lost. `tidy`
+    /// then keeps it 0700 and the voiceprints out of backups, as before.
+    public static let supportFolder: URL = {
+        let base = URL.applicationSupportDirectory
+        let url = base.appendingPathComponent("Sentidos", isDirectory: true)
+        let legacy = base.appendingPathComponent("Humanity", isDirectory: true)
+        let fm = FileManager.default
+        if !fm.fileExists(atPath: url.path), fm.fileExists(atPath: legacy.path) {
+            try? fm.moveItem(at: legacy, to: url)
+        }
+        return url
+    }()
+
     /// Once at launch: tightens existing folders, keeps voiceprints (biometric data) out of
     /// backups, removes FluidAudio's leftover temp audio, and keeps its debug lines out of logs.
     /// Meetings stay backed up: they are user data people expect to keep.

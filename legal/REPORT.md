@@ -257,3 +257,5 @@ EU withdrawal rights, sales tax on sales) shrink substantially, assuming
 donations stay genuinely optional and unconditional. Recording-consent,
 biometric, trademark and safety items are unchanged. Confirm with counsel that
 the donation setup isn't treated as a sale.
+
+2026-10-01: Product renamed. Humanity is now Handless, OculOS is ojoS, ManOS is manoS and Murmur is bocaS. Names in this folder and in research/ are historical.

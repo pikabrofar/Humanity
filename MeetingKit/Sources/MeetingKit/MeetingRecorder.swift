@@ -23,7 +23,7 @@ public struct MeetingRecording: Codable, Hashable, Sendable {
     public var systemURL: URL { folder.appendingPathComponent("system.m4a") }
 
     public static var defaultDirectory: URL {
-        URL.applicationSupportDirectory.appendingPathComponent("Humanity/Meetings", isDirectory: true)
+        MeetingStorage.supportFolder.appendingPathComponent("Meetings", isDirectory: true)
     }
 
     /// Saved when recording stops, so a failed processing run (or a quit) never orphans the audio.

@@ -1,6 +1,6 @@
 # Third-party notices
 
-Humanity is MIT licensed (see LICENSE). Compiled Humanity apps include or
+sentidoS is MIT licensed (see LICENSE). Compiled sentidoS apps include or
 download the following third-party components.
 
 ## FluidAudio
@@ -15,7 +15,7 @@ below). Includes:
   2.0); rustfst, Copyright (c) Alexandre Caulier and contributors, and flate2,
   Copyright (c) Alex Crichton and contributors (MIT OR Apache-2.0).
 
-FluidAudio sections apply to Humanity and Murmur only; OculOS and ManOS do not contain FluidAudio.
+FluidAudio sections apply to sentidoS and bocaS only; ojoS and manoS do not contain FluidAudio.
 
 ### FluidAudio Japanese text frontend (compiled in)
 - cutlet (Swift port), Copyright (c) 2020 Paul O'Leary McCann. MIT License.
@@ -51,7 +51,7 @@ NOTICE (reproduced as required by Apache License 2.0, section 4(d)):
     full list and their licenses.
 
 Rust components linked into NemoTextProcessing. Where a choice of license is
-offered, Humanity uses them under the Apache License 2.0 (text below):
+offered, sentidoS uses them under the Apache License 2.0 (text below):
 rustfst, flate2, miniz_oxide, adler2, crc32fast, anyhow, bimap, bitflags,
 typenum, itertools, either, minimal-lexical, num-traits, rand, rand_core,
 rand_chacha, ppv-lite86, getrandom, libc, cfg-if, serde, zerocopy, lazy_static,

@@ -4,7 +4,7 @@ import Security
 /// API keys live only in the user's Keychain, one generic password per
 /// provider, so they are encrypted at rest and never touch UserDefaults or disk.
 public enum KeychainStore {
-    public static let service = "io.github.pikabrofar.humanity.ai"
+    public static let service = "io.github.pikabrofar.sentidos.ai"
 
     public static func save(_ key: String, for providerID: String) throws {
         // Update in place: deleting first would lose the saved key if the add then failed.

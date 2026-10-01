@@ -1,6 +1,6 @@
 import AVFoundation
 
-/// The local microphone, captured with AVAudioEngine like Murmur's recorder.
+/// The local microphone, captured with AVAudioEngine like bocaS's recorder.
 @MainActor
 final class MicrophoneCapture {
     private var engine = AVAudioEngine()

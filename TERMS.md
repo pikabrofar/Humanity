@@ -1,11 +1,11 @@
-# Humanity Terms of Use
+# sentidoS Terms of Use
 
 > These terms are a draft pending review by a lawyer. Placeholders are in
 > [BRACKETS].
 
 ## 1. Free software
 
-Humanity, OculOS, ManOS and Murmur are free, open-source software under the
+sentidoS, ojoS, manoS and bocaS are free, open-source software under the
 [MIT License](LICENSE). You may use, copy, modify and share them as that
 license allows. Nothing here limits your rights under the MIT License or the
 third-party licenses in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
@@ -19,7 +19,7 @@ limitations, so they may not all apply to you.
 
 ## 3. Use it responsibly
 
-Humanity can control your mouse and keyboard, record audio and recognize voices.
+sentidoS can control your mouse and keyboard, record audio and recognize voices.
 You agree to:
 
 - **Get consent before recording.** Recording a call or conversation may require
@@ -30,7 +30,7 @@ You agree to:
   they agreed.
 - **Not use it to secretly record, track or identify people**, or for anything
   illegal.
-- **Keep a normal way to use your Mac.** Humanity isn't a medical or assistive
+- **Keep a normal way to use your Mac.** sentidoS isn't a medical or assistive
   device. Don't rely on it for anything urgent or safety-critical; tracking can
   misread you and click or type in the wrong place.
 

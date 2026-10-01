@@ -1,6 +1,6 @@
 # Security
 
-Humanity apps hold powerful permissions (camera, microphone and Accessibility),
+sentidoS apps hold powerful permissions (camera, microphone and Accessibility),
 so security reports are taken seriously.
 
 **Reporting:** please use GitHub's private vulnerability reporting

@@ -1,6 +1,6 @@
 # AIKit
 
-Bring-your-own-key LLM access for the Humanity apps: summarizing meeting and
+Bring-your-own-key LLM access for the sentidoS apps: summarizing meeting and
 call transcripts, cleaning up dictation, extracting action items, and anything
 else a module needs a model for.
 
@@ -22,7 +22,7 @@ make test   # Swift Testing; works without Xcode
 ```swift
 // Package.swift
 .package(path: "../AIKit"),
-.target(name: "MurmurUI", dependencies: [.product(name: "AIKit", package: "AIKit")])
+.target(name: "BocasUI", dependencies: [.product(name: "AIKit", package: "AIKit")])
 ```
 
 ```swift
@@ -86,7 +86,7 @@ provider's own `/models` endpoint, and any model ID can be typed in.
 
 - **Default is on-device.** Every task starts as `.onDevice`; nothing is sent anywhere until the user picks a provider.
 - **What is sent:** the text of the transcript or note (and the instructions) goes to the chosen provider, under that provider's terms. **Audio is never sent.** Ollama stays on this Mac.
-- **Keys** are stored only in the macOS Keychain (generic password, service `io.github.pikabrofar.humanity.ai`, account = provider ID), never in UserDefaults, files or logs. Provider error messages are scrubbed of the key before they reach the UI.
+- **Keys** are stored only in the macOS Keychain (generic password, service `io.github.pikabrofar.sentidos.ai`, account = provider ID), never in UserDefaults, files or logs. Provider error messages are scrubbed of the key before they reach the UI.
 - **No logging** of keys, prompts or replies. Requests use an ephemeral `URLSession`, so nothing is cached to disk.
 - **Testing a key** lists models; it sends no content and costs no tokens.
 - Settings (`AIKit.settings` in UserDefaults) hold only provider and model IDs.
