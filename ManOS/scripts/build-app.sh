@@ -30,5 +30,14 @@ if [ ! -f build/AppIcon.icns ]; then
 fi
 cp build/AppIcon.icns "$APP/Contents/Resources/AppIcon.icns"
 
-codesign --force --sign "$SIGN_ID" "$APP"
+BUNDLE_ID="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' Resources/Info.plist)"
+if [ "$SIGN_ID" = "-" ]; then
+    # An ad-hoc signature is identified by its hash, which changes every build, so
+    # macOS silently stops honoring Accessibility / Screen Recording grants after a
+    # rebuild. Pinning the designated requirement to the bundle id keeps the grant
+    # attached to this app. (Dev builds; releases should use a real certificate.)
+    codesign --force --sign - --requirements "=designated => identifier \"$BUNDLE_ID\"" "$APP"
+else
+    codesign --force --sign "$SIGN_ID" "$APP"
+fi
 echo "Built $APP"

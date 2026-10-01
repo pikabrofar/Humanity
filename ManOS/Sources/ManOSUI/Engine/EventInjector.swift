@@ -36,8 +36,32 @@ final class EventInjector {
             mouse(.rightMouseUp, at: p, button: .right)
         case .scroll(let dx, let dy, let phase):
             scroll(dx: dx, dy: dy, phase: phase)
+        case .flick:
+            break // needs the profile; see `flick(_:profile:)`
         case .paused:
             break
+        }
+    }
+
+    /// "Next" / "previous" item: a scroll burst or an arrow key.
+    func flick(_ direction: FlickDirection, profile: HandProfile) {
+        switch profile.flickAction {
+        case .arrowKeys:
+            let key: CGKeyCode = direction == .up ? 0x7D : 0x7E // ↓ next, ↑ previous
+            for down in [true, false] {
+                let event = CGEvent(keyboardEventSource: source, virtualKey: key, keyDown: down)
+                event?.setIntegerValueField(.eventSourceUserData, value: Self.tag)
+                event?.post(tap: .cghidEventTap)
+            }
+        case .scroll:
+            // Flick up = swipe up on a phone = content moves up (next item).
+            // Sent as a short phased burst so feeds treat it as one gesture.
+            var total = profile.flickScrollAmount * (direction == .up ? 1 : -1)
+            if profile.invertScroll { total = -total }
+            let steps = 6
+            scroll(dx: 0, dy: 0, phase: .began)
+            for _ in 0..<steps { scroll(dx: 0, dy: total / Double(steps), phase: .changed) }
+            scroll(dx: 0, dy: 0, phase: .ended)
         }
     }
 

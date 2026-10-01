@@ -25,6 +25,8 @@ final class HandEngine {
     private(set) var isPaused = false
     private(set) var pinchProgress = 0.0
     private(set) var cursor = CGPoint.zero
+    /// Most recent flick, for brief on-screen feedback.
+    private(set) var lastFlick: (direction: FlickDirection, time: CFTimeInterval)?
     /// True briefly after the physical mouse moved.
     private(set) var yieldingToMouse = false
 
@@ -162,7 +164,14 @@ final class HandEngine {
         cursor = recognizer.mapper.cursor
 
         guard isEnabled, !yieldingToMouse, Permissions.canControl else { return }
-        for event in events { injector.post(event) }
+        for event in events {
+            if case .flick(let direction) = event {
+                injector.flick(direction, profile: profile)
+                lastFlick = (direction, now)
+            } else {
+                injector.post(event)
+            }
+        }
     }
 
     /// Dominant hand if Vision can tell; otherwise the one closest to the last

@@ -3,6 +3,9 @@ import Foundation
 
 public enum ScrollPhase: Sendable, Equatable { case began, changed, ended }
 
+/// Direction the hand flicked. Up means "next", like swiping up on a phone.
+public enum FlickDirection: Sendable, Equatable { case up, down }
+
 /// What the recognizer asks the system to do. Points are global display
 /// coordinates (origin top-left).
 public enum GestureEvent: Sendable, Equatable {
@@ -12,6 +15,7 @@ public enum GestureEvent: Sendable, Equatable {
     case up(CGPoint, clicks: Int)
     case rightClick(CGPoint)
     case scroll(dx: Double, dy: Double, phase: ScrollPhase)
+    case flick(FlickDirection)
     case paused(Bool)
 }
 
@@ -20,7 +24,7 @@ public enum GestureEvent: Sendable, Equatable {
 /// Gestures: move the palm to point; thumb–index pinch to click, hold and move
 /// to drag; thumb–middle pinch to right-click, hold and move to scroll; fist to
 /// clutch (reposition the hand without moving the cursor); hold an open palm
-/// still for 1 s to pause or resume.
+/// still for 1 s to pause or resume; flick up/down for next/previous.
 ///
 /// Guards against accidental input ("Midas touch"):
 /// - nothing happens until a hand has been steady in view for 250 ms;
@@ -54,6 +58,15 @@ public struct GestureRecognizer: Sendable {
     /// Palm widths of movement before a held pinch becomes a drag or scroll.
     static let slop = 0.12
     static let doubleClickRadius = 6.0
+    /// A flick must happen within this window.
+    static let flickWindow = 0.25
+    /// Repeated flicks in the same direction (skimming several videos).
+    static let flickRepeatDelay = 0.45
+    /// The hand's return after a flick is also fast; ignore the opposite
+    /// direction for a while so it doesn't undo the flick.
+    static let flickReverseDelay = 0.9
+    /// Cursor stays put while the hand settles after a flick.
+    static let flickFreeze = 0.4
 
     private var stateSince: TimeInterval = 0
     private var lastSeen: TimeInterval?
@@ -71,6 +84,10 @@ public struct GestureRecognizer: Sendable {
     private var palmLatched = false
     /// When the thumb and index started closing in on a pinch.
     private var closingSince: TimeInterval?
+    /// Recent palm positions (palm units), for flick detection.
+    private var recentAnchors: [(TimeInterval, CGPoint)] = []
+    private var lastFlick: (time: TimeInterval, direction: FlickDirection)?
+    private var freezeUntil: TimeInterval = 0
 
     /// 0 = fingers apart, 1 = at the click threshold. Drives the on-screen pinch ring.
     public private(set) var pinchProgress = 0.0
@@ -163,11 +180,23 @@ public struct GestureRecognizer: Sendable {
                 state = .rightPending
                 stateSince = t
                 pressAnchor = anchor
+            } else if let direction = detectFlick(anchor: anchor, dIndex: dIndex, dMiddle: dMiddle, at: t) {
+                // The fast motion already nudged the cursor; put it back.
+                if let start = recentAnchors.first {
+                    mapper.cursor = backdatedCursor(at: start.0)
+                }
+                mapper.track(anchor, at: t)
+                recentAnchors.removeAll()
+                freezeUntil = t + Self.flickFreeze
+                events.append(.flick(direction))
+                events.append(.move(mapper.cursor))
+            } else if t < freezeUntil {
+                mapper.track(anchor, at: t)
             } else {
                 let before = mapper.cursor
                 let point = mapper.update(anchor, at: t)
                 history.append((t, point))
-                if history.count > 10 { history.removeFirst() }
+                if history.count > 20 { history.removeFirst() }
                 if point != before { events.append(.move(point)) }
             }
 
@@ -216,6 +245,24 @@ public struct GestureRecognizer: Sendable {
             if !pose.isFist { state = .hovering }
         }
         return events
+    }
+
+    /// A fast, mostly vertical palm movement while not pinching.
+    private mutating func detectFlick(anchor: CGPoint, dIndex: Double, dMiddle: Double, at t: TimeInterval) -> FlickDirection? {
+        recentAnchors.append((t, anchor))
+        recentAnchors.removeAll { t - $0.0 > Self.flickWindow }
+        guard profile.flickEnabled, dIndex > profile.pinchExit, dMiddle > profile.pinchExit,
+              let start = recentAnchors.first, t - start.0 >= 0.05
+        else { return nil }
+        let dy = Double(anchor.y - start.1.y), dx = Double(anchor.x - start.1.x)
+        guard abs(dy) >= profile.flickDistance, abs(dy) > 2.5 * abs(dx) else { return nil }
+        let direction: FlickDirection = dy > 0 ? .up : .down
+        if let last = lastFlick {
+            let wait = last.direction == direction ? Self.flickRepeatDelay : Self.flickReverseDelay
+            guard t - last.time >= wait else { return nil }
+        }
+        lastFlick = (t, direction)
+        return direction
     }
 
     private mutating func scrollEvent(to anchor: CGPoint) -> GestureEvent {

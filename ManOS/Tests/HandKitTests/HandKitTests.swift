@@ -127,6 +127,47 @@ func run(_ r: inout GestureRecognizer, from start: Double, frames: Int, pose: (D
         #expect(drifted.distance(to: whereClosingBegan) < 120)
     }
 
+    @Test func flickUpEmitsNextAndRestoresCursor() {
+        var r = recognizer()
+        _ = run(&r, from: 0, frames: 12, pose: { hand(t: $0) })
+        let before = r.mapper.cursor
+        // A quick wrist flick: 0.2 image units (2 palm widths at scale 0.1) in ~130 ms.
+        let events = run(&r, from: 0.4, frames: 5, pose: { t in
+            hand(at: CGPoint(x: 0.9, y: 0.5 + min(t - 0.4, 0.13) / 0.13 * 0.2), t: t)
+        })
+        #expect(events.contains(GestureEvent.flick(.up)))
+        #expect(r.mapper.cursor.distance(to: before) < 40)
+        // The hand returning down right after doesn't flick back.
+        let back = run(&r, from: 0.6, frames: 6, pose: { t in
+            hand(at: CGPoint(x: 0.9, y: 0.7 - min(t - 0.6, 0.13) / 0.13 * 0.2), t: t)
+        })
+        #expect(!back.contains(GestureEvent.flick(.down)))
+    }
+
+    @Test func slowVerticalMovementIsNotAFlick() {
+        var r = recognizer()
+        _ = run(&r, from: 0, frames: 12, pose: { hand(t: $0) })
+        let events = run(&r, from: 0.4, frames: 60, pose: { t in hand(at: CGPoint(x: 0.9, y: 0.5 + (t - 0.4) * 0.15), t: t) })
+        #expect(!events.contains { if case .flick = $0 { true } else { false } })
+        #expect(events.contains { if case .move = $0 { true } else { false } })
+    }
+
+    @Test func flickDisabledByProfile() {
+        var r = recognizer()
+        r.profile.flickEnabled = false
+        _ = run(&r, from: 0, frames: 12, pose: { hand(t: $0) })
+        let events = run(&r, from: 0.4, frames: 5, pose: { t in
+            hand(at: CGPoint(x: 0.9, y: 0.5 + min(t - 0.4, 0.13) / 0.13 * 0.2), t: t)
+        })
+        #expect(!events.contains { if case .flick = $0 { true } else { false } })
+    }
+
+    @Test func oldProfilesKeepTheirThresholds() throws {
+        let json = #"{"pinchEnter":0.22,"pinchExit":0.4,"sensitivity":1.5,"scrollSpeed":600,"invertScroll":false}"#
+        let p = try JSONDecoder().decode(HandProfile.self, from: Data(json.utf8))
+        #expect(p.pinchEnter == 0.22 && p.flickEnabled)
+    }
+
     @Test func lostHandReleasesButton() {
         var r = recognizer()
         _ = run(&r, from: 0, frames: 12, pose: { hand(t: $0) })

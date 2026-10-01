@@ -127,6 +127,28 @@ struct SettingsView: View {
                 Text("Quick Setup sets these for your hand. The Live page shows your pinch against them.")
                     .font(.caption).foregroundStyle(.secondary)
             }
+            Section("Flick") {
+                Toggle(isOn: $engine.profile.flickEnabled) {
+                    Text("Flick up or down to go to the next or previous item")
+                    Text("Short videos (Shorts, TikTok, Reels), feeds, pages and slides. Flick up = next.")
+                }
+                Picker("Sends", selection: $engine.profile.flickAction) {
+                    Text("Scroll").tag(HandProfile.FlickAction.scroll)
+                    Text("Arrow keys ↓ ↑").tag(HandProfile.FlickAction.arrowKeys)
+                }
+                .disabled(!engine.profile.flickEnabled)
+                LabeledContent("Needs") {
+                    Slider(value: $engine.profile.flickDistance, in: 0.8...2.2) {
+                        Text("Needs")
+                    } minimumValueLabel: { Text("Small").font(.caption2) } maximumValueLabel: { Text("Big").font(.caption2) }
+                }
+                .disabled(!engine.profile.flickEnabled)
+                if engine.profile.flickAction == .scroll {
+                    Slider(value: $engine.profile.flickScrollAmount, in: 200...2000) { Text("Scroll per flick") }
+                        .disabled(!engine.profile.flickEnabled)
+                }
+            }
+
             Section("Scrolling") {
                 Slider(value: $engine.profile.scrollSpeed, in: 200...2000) { Text("Speed") }
                 Toggle("Reverse direction", isOn: $engine.profile.invertScroll)

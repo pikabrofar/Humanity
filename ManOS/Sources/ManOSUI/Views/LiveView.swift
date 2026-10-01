@@ -202,8 +202,12 @@ private struct GestureGuide: View {
                     row("hand.raised.fingers.spread", "Make a fist", "Hold the pointer while you reposition")
                 }
                 GridRow {
+                    row("chevron.up.2", "Flick up / down", "Next / previous video, page or slide")
                     row("pause.circle", "Spread hand, hold still 1 s", "Pause or resume")
+                }
+                GridRow {
                     row("keyboard", "⌃⌥⌘H", "Turn hand control on or off")
+                    Color.clear.gridCellUnsizedAxes([.horizontal, .vertical])
                 }
             }
         }

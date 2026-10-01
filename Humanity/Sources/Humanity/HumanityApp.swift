@@ -322,6 +322,7 @@ struct ControlsList: View {
             ("Thumb + index pinch", "Click · hold and move to drag"),
             ("Thumb + middle pinch", "Right-click · hold and move to scroll"),
             ("Fist", "Hold the pointer while repositioning"),
+            ("Flick up / down", "Next / previous video, page or slide"),
             ("Spread hand, still 1 s", "Pause or resume"),
         ]),
         ("Murmur", "waveform", [
@@ -383,6 +384,7 @@ struct TutorialView: View {
              body: "Move the pointer with your palm and pinch to click. Like a trackpad in the air.",
              tips: ["Pinch thumb + index to click, hold to drag.",
                     "Pinch thumb + middle to right-click or scroll.",
+                    "Flick up for the next short video or page, down for the previous.",
                     "Make a fist to reposition. ⌃⌥⌘H turns it off instantly.",
                     "Rest your elbow on the desk; small movements are enough."]),
         Page(symbol: "waveform", tint: .orange, title: "Murmur · Voice",

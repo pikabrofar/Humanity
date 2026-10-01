@@ -170,6 +170,18 @@ private struct PermissionRow: View {
                 }
                 Text(kind.reason).font(.caption).foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
+                if state != .granted, kind == .accessibility || kind == .screenRecording {
+                    // These two are toggled in a list of apps, where old standalone
+                    // builds (ManOS, OculOS, Murmur…) can also appear.
+                    HStack(spacing: 4) {
+                        Text("In the list, turn on **Humanity**. Not listed? Click **+** and choose it.")
+                        Button("Show in Finder") {
+                            NSWorkspace.shared.activateFileViewerSelecting([Bundle.main.bundleURL])
+                        }
+                        .buttonStyle(.link)
+                    }
+                    .font(.caption)
+                }
             }
             Spacer(minLength: 8)
             if state == .granted {

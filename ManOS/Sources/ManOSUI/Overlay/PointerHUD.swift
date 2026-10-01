@@ -1,4 +1,5 @@
 import HandKit
+import QuartzCore
 import SwiftUI
 
 /// Small ring at the cursor showing what the hand is about to do: it closes as
@@ -46,6 +47,9 @@ struct PointerHUD: View {
 
     private var symbol: String? {
         if engine.isPaused { return "pause.fill" }
+        if let flick = engine.lastFlick, CACurrentMediaTime() - flick.time < 0.5 {
+            return flick.direction == .up ? "chevron.up.2" : "chevron.down.2"
+        }
         switch engine.gesture {
         case .dragging: return "hand.draw.fill"
         case .scrolling: return "arrow.up.and.down"
