@@ -29,6 +29,8 @@ final class HandEngine {
     private(set) var lastFlick: (direction: FlickDirection, time: CFTimeInterval)?
     /// True briefly after the physical mouse moved.
     private(set) var yieldingToMouse = false
+    /// Long continuous use: suggest resting the arm.
+    private(set) var needsBreak = false
 
     /// Whether hand input actually controls the Mac.
     var isEnabled = false {
@@ -48,6 +50,10 @@ final class HandEngine {
         didSet { Defaults.set(dominantHand == .left, .leftHanded) }
     }
 
+    /// Where the pointer should be instead of following the hand (Humanity sets
+    /// this to the gaze point: look to aim, pinch to click). Nil = hand aims.
+    @ObservationIgnored var pointerSource: (() -> CGPoint?)?
+
     /// Receives the active hand every frame (used by hand calibration).
     @ObservationIgnored var poseSink: ((HandPose) -> Void)?
 
@@ -61,6 +67,9 @@ final class HandEngine {
     @ObservationIgnored private var mouseYieldUntil: CFTimeInterval = 0
     @ObservationIgnored private var fpsWindowStart: CFTimeInterval = 0
     @ObservationIgnored private var fpsFrames = 0
+    @ObservationIgnored private var chirality = ChiralityVote()
+    @ObservationIgnored private var fatigue = FatigueTimer()
+    @ObservationIgnored private var lastCropped = false
 
     /// Whether frames are processed. Off = no CPU spent on hands, control released.
     var isActive = true {
@@ -152,13 +161,17 @@ final class HandEngine {
         let now = CACurrentMediaTime()
         countFrame(at: now)
         imageSize = result.imageSize
-        hands = result.hands
+        hands = chirality.apply(result.hands)
+        if result.cropped != lastCropped { recognizer.rebase() }
+        lastCropped = result.cropped
         recognizer.mapper.bounds = Self.displayBounds
         recognizer.mapper.displays = Self.displayFrames
 
-        let hand = pickHand(result.hands)
+        let hand = pickHand(hands)
         activeHand = hand
         if let hand { poseSink?(hand) }
+        let used = fatigue.update(active: isEnabled && hand != nil && !isPaused, at: now) >= FatigueTimer.breakAfter
+        if used != needsBreak { needsBreak = used }
 
         // The physical mouse wins: if the cursor moved without us, pause hand
         // input for a moment and continue from wherever the mouse left it.
@@ -181,6 +194,7 @@ final class HandEngine {
         }
         if !isEnabled { syncCursorToMouse() }
 
+        if isEnabled, !recognizer.isButtonDown, let aim = pointerSource?() { recognizer.setCursor(aim) }
         let events = recognizer.update(hand, at: result.timestamp)
         gesture = recognizer.state
         isPaused = recognizer.isPaused
@@ -239,6 +253,8 @@ private final class HandProcessor: @unchecked Sendable {
         var imageSize: CGSize
         var hands: [HandPose]
         var timestamp: TimeInterval
+        /// Whether Vision ran on a crop rather than the full frame.
+        var cropped: Bool
     }
 
     private let request: VNDetectHumanHandPoseRequest = {
@@ -247,15 +263,41 @@ private final class HandProcessor: @unchecked Sendable {
         return r
     }()
 
+    /// Detect, then track: crop Vision to the last hand. Only small (far) hands
+    /// are cropped: on a synthetic 720p frame on Apple silicon a crop cost
+    /// ~1–2.5 ms *more* than the full frame (≈5–8 ms), but it found hands too
+    /// small for the full frame. Camera queue only.
+    private var crop = HandPose.fullFrame
+    private var croppedFrames = 0
+    /// Look at the whole frame this often, so a second hand gets found.
+    private static let refreshFrames = 60
+
     func process(_ pixelBuffer: CVPixelBuffer, _ timestamp: TimeInterval) -> Result {
         let size = CGSize(width: CVPixelBufferGetWidth(pixelBuffer), height: CVPixelBufferGetHeight(pixelBuffer))
         let handler = VNImageRequestHandler(cvPixelBuffer: pixelBuffer, orientation: .up, options: [:])
-        try? handler.perform([request])
         let aspect = size.width / max(size.height, 1)
-        let hands = (request.results ?? []).compactMap {
-            HandPose(observation: $0, imageAspect: aspect, timestamp: timestamp)
+        func detect(_ roi: CGRect) -> [HandPose] {
+            request.regionOfInterest = roi
+            try? handler.perform([request])
+            return (request.results ?? []).compactMap {
+                HandPose(observation: $0, imageAspect: aspect, timestamp: timestamp, regionOfInterest: roi)
+            }
         }
-        return Result(imageSize: size, hands: hands, timestamp: timestamp)
+        let full = HandPose.fullFrame, tracking = crop != full
+        let refresh = croppedFrames >= Self.refreshFrames
+        var roi = refresh ? full : crop
+        var hands = detect(roi)
+        // A miss tries the other source in the same frame: the crop lost the
+        // hand, or the full frame can't see a far one.
+        if hands.isEmpty, tracking {
+            roi = roi == full ? crop : full
+            hands = detect(roi)
+        }
+        let cropped = roi != full
+        croppedFrames = cropped && !refresh ? croppedFrames + 1 : 0
+        // Hysteresis: start cropping below 15% of the frame, stop above 30%.
+        crop = HandPose.regionOfInterest(around: hands, imageAspect: aspect, maxArea: tracking ? 0.3 : 0.15) ?? full
+        return Result(imageSize: size, hands: hands, timestamp: timestamp, cropped: cropped)
     }
 }
 

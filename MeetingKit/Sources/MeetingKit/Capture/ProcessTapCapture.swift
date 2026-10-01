@@ -20,8 +20,9 @@ final class ProcessTapCapture {
     private var procID: AudioDeviceIOProcID?
     // Not the realtime thread: AAC encoding in the callback is too slow for that.
     private let queue = DispatchQueue(label: "MeetingKit.processTap", qos: .userInitiated)
+    private var buffers = 0 // only touched on `queue`
 
-    func start(_ source: AudioSource, onBuffer: @escaping BufferHandler) throws {
+    func start(_ source: AudioSource, onBuffer: @escaping BufferHandler) async throws {
         let description: CATapDescription
         switch source {
         case .app(let app):
@@ -62,9 +63,22 @@ final class ProcessTapCapture {
                 guard let buffer = AVAudioPCMBuffer(pcmFormat: format, bufferListNoCopy: input, deallocator: nil) else { return }
                 let time = inputTime.pointee
                 let host = time.mFlags.contains(.hostTimeValid) ? AVAudioTime.seconds(forHostTime: time.mHostTime) : nil
+                self.buffers += 1
                 onBuffer(buffer, host)
             }, "install the audio callback")
+            guard procID != nil else { throw CaptureError("Couldn't install the audio callback.") }
             try check(AudioDeviceStart(aggregateID, procID), "start the audio tap")
+            // Every call above can succeed and still deliver nothing: on first use macOS shows
+            // the audio-capture prompt mid-setup and the IO callback is never called. The
+            // output device clocks the aggregate, so even silence arrives within milliseconds.
+            var waited = 0
+            while queue.sync(execute: { buffers == 0 }) {
+                guard waited < 60 else {
+                    throw CaptureError("The audio tap delivered no sound. If macOS just asked to allow system audio recording, allow it and record again.")
+                }
+                waited += 1
+                try await Task.sleep(nanoseconds: 50_000_000)
+            }
         } catch {
             stop()
             throw error

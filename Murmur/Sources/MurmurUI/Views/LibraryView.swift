@@ -208,6 +208,7 @@ final class AudioPlayback {
         if player == nil { player = try? AVAudioPlayer(contentsOf: url) }
         guard let player, player.play() else { return }
         isPlaying = true
+        timer?.invalidate()
         // AVAudioPlayer's delegate would need an NSObject; polling is simpler for a progress bar.
         timer = Timer.scheduledTimer(withTimeInterval: 0.2, repeats: true) { [weak self] _ in
             MainActor.assumeIsolated { self?.tick() }

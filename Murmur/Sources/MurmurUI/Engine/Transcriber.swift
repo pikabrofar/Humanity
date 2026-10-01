@@ -16,7 +16,8 @@ protocol LiveTranscriber: AnyObject {
     func cancel()
 }
 
-struct TranscriptionError: LocalizedError {
+/// An error whose message is ready to show in the HUD.
+struct MessageError: LocalizedError {
     let errorDescription: String?
     init(_ message: String) { errorDescription = message }
 }
@@ -24,12 +25,13 @@ struct TranscriptionError: LocalizedError {
 enum Transcribers {
     /// Prefers the macOS 26 SpeechAnalyzer (much more accurate, always local);
     /// otherwise the older recognizer, forced to stay on-device.
-    @MainActor static func make() async -> LiveTranscriber {
+    /// - Parameter vocabulary: names and jargon the recognizer should expect.
+    @MainActor static func make(vocabulary: [String]) async -> LiveTranscriber {
         if #available(macOS 26, *), SpeechTranscriber.isAvailable,
            let locale = await SpeechTranscriber.supportedLocale(equivalentTo: .current) {
-            return AnalyzerTranscriber(locale: locale)
+            return AnalyzerTranscriber(locale: locale, vocabulary: vocabulary)
         }
-        return LegacyTranscriber()
+        return LegacyTranscriber(vocabulary: vocabulary)
     }
 
     static var engineName: String {
@@ -46,6 +48,7 @@ final class AnalyzerTranscriber: LiveTranscriber {
     var onPartial: ((String) -> Void)?
 
     private let locale: Locale
+    private let vocabulary: [String]
     // Fed from the audio thread. AsyncStream's continuation is thread-safe and
     // each buffer is handed off, never touched again by the sender.
     nonisolated(unsafe) private let raw = AsyncStream.makeStream(of: AVAudioPCMBuffer.self)
@@ -55,19 +58,24 @@ final class AnalyzerTranscriber: LiveTranscriber {
     private var finalized = ""
     private var volatile = ""
 
-    init(locale: Locale) {
+    init(locale: Locale, vocabulary: [String]) {
         self.locale = locale
+        self.vocabulary = vocabulary
     }
 
     func start() async throws {
         let transcriber = SpeechTranscriber(locale: locale, preset: .progressiveTranscription)
         // The first use of a language downloads Apple's speech model, shared
         // system-wide. Only the model is downloaded; audio never leaves the Mac.
-        if let install = try await AssetInventory.assetInstallationRequest(supporting: [transcriber]) {
-            try await install.downloadAndInstall()
+        do {
+            if let install = try await AssetInventory.assetInstallationRequest(supporting: [transcriber]) {
+                try await install.downloadAndInstall()
+            }
+        } catch {
+            throw MessageError("Couldn't download Apple's speech model for \(locale.identifier). Connect to the internet once and try again.")
         }
         guard let format = await SpeechAnalyzer.bestAvailableAudioFormat(compatibleWith: [transcriber]) else {
-            throw TranscriptionError("No audio format is compatible with the speech model.")
+            throw MessageError("No audio format is compatible with the speech model.")
         }
 
         let (inputs, feed) = AsyncStream.makeStream(of: AnalyzerInput.self)
@@ -95,8 +103,14 @@ final class AnalyzerTranscriber: LiveTranscriber {
                 }
             } catch {}
         }
-        let analyzer = SpeechAnalyzer(modules: [transcriber])
+        // Lingering keeps the model loaded between dictations, so the next one starts warm.
+        let analyzer = SpeechAnalyzer(modules: [transcriber], options: .init(priority: .userInitiated, modelRetention: .lingering))
         self.analyzer = analyzer
+        if !vocabulary.isEmpty {
+            let context = AnalysisContext()
+            context.contextualStrings[.general] = vocabulary
+            try? await analyzer.setContext(context)
+        }
         try await analyzer.start(inputSequence: inputs)
     }
 
@@ -168,18 +182,22 @@ final class LegacyTranscriber: LiveTranscriber {
     private var done = false
     private var waiter: CheckedContinuation<Void, Never>?
 
+    init(vocabulary: [String]) {
+        request.contextualStrings = vocabulary
+    }
+
     func start() async throws {
         guard Permissions.speech == .granted else {
-            throw TranscriptionError("Allow Speech Recognition in Quick Setup.")
+            throw MessageError("Allow Speech Recognition in Quick Setup.")
         }
         guard let recognizer = SFSpeechRecognizer(locale: .current) ?? SFSpeechRecognizer(locale: Locale(identifier: "en-US")),
               recognizer.isAvailable else {
-            throw TranscriptionError("Speech recognition isn't available for your language.")
+            throw MessageError("Speech recognition isn't available for your language.")
         }
         // Without on-device support the recognizer would send audio to Apple's
         // servers. Refuse instead: that would break Murmur's privacy promise.
         guard recognizer.supportsOnDeviceRecognition else {
-            throw TranscriptionError("On-device recognition isn't installed for \(recognizer.locale.identifier). Turn on Dictation in System Settings › Keyboard to download it.")
+            throw MessageError("On-device recognition isn't installed for \(recognizer.locale.identifier). Turn on Dictation in System Settings › Keyboard to download it.")
         }
         request.requiresOnDeviceRecognition = true
         request.shouldReportPartialResults = true

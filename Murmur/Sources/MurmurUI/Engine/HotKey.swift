@@ -30,7 +30,9 @@ final class HotKey {
         let context = Unmanaged.passUnretained(self).toOpaque()
         let installed = InstallEventHandler(GetApplicationEventTarget(), { _, event, context in
             guard let event, let context else { return OSStatus(eventNotHandledErr) }
-            return Unmanaged<HotKey>.fromOpaque(context).takeUnretainedValue().handle(event)
+            // The callback may release this HotKey (Esc cancels and drops the Esc key): keep it alive until done.
+            let hotKey = Unmanaged<HotKey>.fromOpaque(context).takeUnretainedValue()
+            return withExtendedLifetime(hotKey) { hotKey.handle(event) }
         }, eventTypes.count, &eventTypes, context, &handlerRef)
         guard installed == noErr else { return nil }
 

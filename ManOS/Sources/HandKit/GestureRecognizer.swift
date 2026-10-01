@@ -95,6 +95,7 @@ public struct GestureRecognizer: Sendable {
     /// Set once the hand is in the anchor grip with fingers apart, so a fist that
     /// closes with thumb on index doesn't click.
     private var anchorArmed = false
+    private var rebasing = false
 
     /// 0 = fingers apart, 1 = at the click threshold. Drives the on-screen pinch ring.
     public private(set) var pinchProgress = 0.0
@@ -119,6 +120,11 @@ public struct GestureRecognizer: Sendable {
         isPaused = false
         palmSince = nil
     }
+
+    /// The pose source changed (Vision switched between a crop and the full
+    /// frame), so landmarks may shift a little: re-reference on the next frame
+    /// instead of moving the cursor by the shift.
+    public mutating func rebase() { rebasing = true }
 
     public mutating func releaseAll() -> [GestureEvent] {
         let events = releaseEvents()
@@ -145,7 +151,13 @@ public struct GestureRecognizer: Sendable {
         // Palm units against a slowly adapting reference: robust to leaning in or out.
         referenceScale += (pose.scale - referenceScale) * 0.02
         let raw = pose.anchor
+        if rebasing { filter.reset() }
         let anchor = filter.filter(CGPoint(x: raw.x / referenceScale, y: raw.y / referenceScale), at: t)
+        if rebasing {
+            rebasing = false
+            mapper.track(anchor, at: t)
+            (lastAnchor, pressAnchor, scrollLast) = (anchor, anchor, anchor)
+        }
         // Unfiltered fingertips: the filter would blunt exactly the fast motion a flick is.
         let tips = pose.fingertipCenter ?? raw
         let flickPoint = CGPoint(x: tips.x / referenceScale, y: tips.y / referenceScale)

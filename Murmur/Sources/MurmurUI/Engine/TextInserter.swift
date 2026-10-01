@@ -37,7 +37,8 @@ struct SystemPasteboard: Clipboard {
 }
 
 enum TextInserter {
-    /// Pastes `text` into the frontmost app.
+    /// Pastes (or types) `text` into the frontmost app. Returns as soon as the
+    /// text is sent; the clipboard is restored in the background.
     /// - Returns: false when Accessibility is missing; the text is then left
     ///   on the clipboard for the user to paste.
     @MainActor
@@ -48,9 +49,29 @@ enum TextInserter {
             return false
         }
         await waitForModifiersReleased()
-        await PasteSequence.insert(text, into: board, restoreAfter: restoreClipboard ? .milliseconds(500) : nil,
-                                   paste: sendCommandV)
+        let app = NSWorkspace.shared.frontmostApplication?.bundleIdentifier
+        if InsertMethod.choose(bundleID: app, secureInput: IsSecureEventInputEnabled()) == .type {
+            type(text)
+        } else {
+            Task {
+                await PasteSequence.insert(text, into: board, restoreAfter: restoreClipboard ? .milliseconds(500) : nil,
+                                           paste: sendCommandV)
+            }
+        }
         return true
+    }
+
+    private static func type(_ text: String) {
+        let source = CGEventSource(stateID: .combinedSessionState)
+        for chunk in InsertMethod.typingChunks(text) {
+            let units = Array(chunk.utf16)
+            for keyDown in [true, false] {
+                let event = CGEvent(keyboardEventSource: source, virtualKey: 0, keyDown: keyDown)
+                event?.keyboardSetUnicodeString(stringLength: units.count, unicodeString: units)
+                event?.flags = [] // a still-held ⌘ would turn letters into shortcuts
+                event?.post(tap: .cghidEventTap)
+            }
+        }
     }
 
     private static func sendCommandV() {

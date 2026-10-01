@@ -129,3 +129,39 @@ struct MeetingPersistenceTests {
         #expect(loaded.transcript.plainText == "Alice: hello\nYou: hi")
     }
 }
+
+struct SilentCallTests {
+    struct Words: FileTranscribing {
+        func transcribe(_ audioURL: URL) async throws -> [TimedWord] {
+            audioURL.lastPathComponent == "mic.m4a" ? [w("Hmm,", 3.4, 5.5), w("hello?", 5.5, 6)] : []
+        }
+    }
+    struct Unreachable: SpeakerDiarizer {
+        func diarize(_ audioURL: URL) async throws -> Diarization { throw TranscriptionError("too short to diarize") }
+    }
+
+    @MainActor @Test func emptyCallTrackGivesJustYou() async throws {
+        let folder = FileManager.default.temporaryDirectory.appendingPathComponent("MeetingKitTests-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        let recording = MeetingRecording(id: UUID(), title: "Short", startedAt: Date(), duration: 11, folder: folder)
+        for url in [recording.micURL, recording.systemURL] { FileManager.default.createFile(atPath: url.path, contents: Data()) }
+        let meeting = try await MeetingProcessor(diarizer: Unreachable(), transcriber: Words())
+            .process(recording, profiles: VoiceProfileStore(directory: folder))
+        #expect(meeting.speakers.isEmpty)
+        #expect(meeting.transcript.turns.map(\.speakerName) == ["You"])
+    }
+
+    @Test func badTimestampsDoNotTrap() {
+        #expect(TrackWriter.paddingFrames(at: .nan, meetingStart: 100, sampleRate: 48_000, framesWritten: 0) == 0)
+        #expect(MeetingTranscript.timestamp(.nan) == "00:00:00")
+        #expect(MeetingTranscript.timestamp(.infinity) == "00:00:00")
+    }
+
+    @Test func meetingsSavedBeforeCallAudioErrorStillLoad() throws {
+        let json = #"{"localName":"You","recording":{"id":"4151920D-F62F-47B0-ACAB-0A45F7C9FB9E","title":"Call","duration":11.5,"startedAt":"2026-10-01T02:56:51Z","folder":"file:\/\/\/tmp\/"},"diarization":{"segments":[],"centroids":{}},"systemWords":[],"speakers":{},"micWords":[]}"#
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        let meeting = try decoder.decode(Meeting.self, from: Data(json.utf8))
+        #expect(meeting.recording.callAudioError == nil)
+    }
+}

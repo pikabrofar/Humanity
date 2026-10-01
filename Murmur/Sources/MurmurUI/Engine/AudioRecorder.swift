@@ -8,19 +8,19 @@ final class AudioRecorder {
     private var engine = AVAudioEngine()
     private var file: AVAudioFile?
     private var startedAt: Date?
+    private var configObserver: NSObjectProtocol?
 
-    struct NoMicrophone: LocalizedError {
-        var errorDescription: String? { "No microphone is available." }
-    }
-
+    /// - Parameter onLost: called when the input device changes or disconnects
+    ///   mid-recording; the engine has stopped itself by then.
     func start(writingTo url: URL?,
                onBuffer: @escaping @Sendable (AVAudioPCMBuffer) -> Void,
-               onLevel: @escaping @Sendable (Float) -> Void) throws {
+               onLevel: @escaping @Sendable (Float) -> Void,
+               onLost: @escaping @MainActor () -> Void) throws {
         // A fresh engine picks up the current input device and its format.
         engine = AVAudioEngine()
         let input = engine.inputNode
         let format = input.outputFormat(forBus: 0)
-        guard format.sampleRate > 0, format.channelCount > 0 else { throw NoMicrophone() }
+        guard format.sampleRate > 0, format.channelCount > 0 else { throw MessageError("No microphone is available.") }
 
         // Matching the input's rate and channels makes the file's processing
         // format equal the tap's buffers, so no conversion is needed to write.
@@ -32,7 +32,9 @@ final class AudioRecorder {
                 AVEncoderAudioQualityKey: AVAudioQuality.high.rawValue,
             ])
         }
-        input.installTap(onBus: 0, bufferSize: 1024, format: format,
+        // nil = the node's own format. Passing a format that no longer matches
+        // the hardware (e.g. AirPods just connected) raises an uncatchable exception.
+        input.installTap(onBus: 0, bufferSize: 1024, format: nil,
                          block: Self.tap(file: file, onBuffer: onBuffer, onLevel: onLevel))
         engine.prepare()
         do {
@@ -40,7 +42,15 @@ final class AudioRecorder {
         } catch {
             input.removeTap(onBus: 0)
             file = nil
-            throw error
+            throw MessageError("Couldn't start the microphone. Check System Settings › Sound › Input.")
+        }
+        // A device change stops the engine; buffers silently stop arriving unless we notice.
+        configObserver = NotificationCenter.default.addObserver(
+            forName: .AVAudioEngineConfigurationChange, object: engine, queue: .main
+        ) { [weak self] _ in
+            MainActor.assumeIsolated {
+                if self?.engine.isRunning == false { onLost() }
+            }
         }
         startedAt = Date()
     }
@@ -48,6 +58,8 @@ final class AudioRecorder {
     /// - Returns: the recording's length in seconds.
     @discardableResult
     func stop() -> TimeInterval {
+        if let configObserver { NotificationCenter.default.removeObserver(configObserver) }
+        configObserver = nil
         engine.inputNode.removeTap(onBus: 0)
         engine.stop()
         // Closing finalizes the m4a; otherwise it happens whenever the file deallocates.
@@ -63,7 +75,11 @@ final class AudioRecorder {
                                         onBuffer: @escaping @Sendable (AVAudioPCMBuffer) -> Void,
                                         onLevel: @escaping @Sendable (Float) -> Void) -> AVAudioNodeTapBlock {
         { buffer, _ in
-            try? file?.write(from: buffer)
+            // A mismatched buffer would make the AAC writer fail; skip it rather than risk it.
+            if let file, buffer.format.sampleRate == file.processingFormat.sampleRate,
+               buffer.format.channelCount == file.processingFormat.channelCount {
+                try? file.write(from: buffer)
+            }
             onBuffer(buffer)
             onLevel(level(of: buffer))
         }

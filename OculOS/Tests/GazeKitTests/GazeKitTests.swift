@@ -259,22 +259,81 @@ import Testing
     @Test func stabilizerHoldsFixationsAndConfirmsSaccades() {
         var stabilizer = FixationStabilizer(radius: 60, confirmSamples: 4)
         var rng = SeededRandom(seed: 1)
+        var t = 0.0
         func noisy(_ x: Double, _ y: Double) -> CGPoint { CGPoint(x: x + rng.gaussian() * 15, y: y + rng.gaussian() * 15) }
+        func update(_ p: CGPoint) -> CGPoint { t += 1.0 / 30; return stabilizer.update(p, at: t) }
 
         var outputs: [CGPoint] = []
-        for _ in 0..<60 { outputs.append(stabilizer.update(noisy(500, 400))) }
-        // Settled output barely moves even though raw noise spans ~60 pt.
-        let settled = outputs.suffix(30)
-        #expect(settled.map(\.x).max()! - settled.map(\.x).min()! < 6)
+        for _ in 0..<60 { outputs.append(update(noisy(500, 400))) }
+        // Settled output jitters far less than the raw 15 pt noise.
+        let settled = outputs.suffix(30).map { Double($0.x) }
+        #expect(PursuitFilter.standardDeviation(settled) < 6)
 
         // One glitch is ignored.
-        let held = stabilizer.update(CGPoint(x: 900, y: 100))
-        #expect(held.distance(to: CGPoint(x: 500, y: 400)) < 10)
+        let held = update(CGPoint(x: 900, y: 100))
+        #expect(held.distance(to: CGPoint(x: 500, y: 400)) < 15)
 
         // A real saccade is accepted after confirmSamples frames.
         var last = CGPoint.zero
-        for _ in 0..<4 { last = stabilizer.update(noisy(1200, 700)) }
+        for _ in 0..<4 { last = update(noisy(1200, 700)) }
         #expect(last.distance(to: CGPoint(x: 1200, y: 700)) < 30)
+    }
+
+    @Test func stabilizerLooksOneSampleAhead() {
+        var stabilizer = FixationStabilizer(radius: 60) // default: one-sample look-ahead
+        var t = 0.0
+        func update(_ x: Double, _ y: Double) -> CGPoint { t += 1.0 / 30; return stabilizer.update(CGPoint(x: x, y: y), at: t) }
+        for _ in 0..<10 { _ = update(500, 400) }
+
+        // An outlier is held for one frame, then dropped when gaze returns.
+        #expect(update(900, 100) == CGPoint(x: 500, y: 400))
+        #expect(update(500, 400) == CGPoint(x: 500, y: 400))
+        // Two agreeing samples are a saccade: the cursor moves on the second.
+        #expect(update(1200, 700) == CGPoint(x: 500, y: 400))
+        #expect(update(1210, 700).distance(to: CGPoint(x: 1205, y: 700)) < 5)
+    }
+
+    @Test func stabilizerWindowFollowsDrift() {
+        var stabilizer = FixationStabilizer(radius: 60)
+        var t = 0.0, out = CGPoint.zero
+        for _ in 0..<90 { t += 1.0 / 30; out = stabilizer.update(CGPoint(x: 500, y: 400), at: t) }
+        // Gaze settles 40 pt away, inside the radius: only the last 450 ms count,
+        // so after half a second the cursor has caught up (a whole-fixation mean
+        // would still sit near 500).
+        for _ in 0..<15 { t += 1.0 / 30; out = stabilizer.update(CGPoint(x: 540, y: 400), at: t) }
+        #expect(out.x > 538)
+    }
+
+    @Test func dwellFiresOnceAndCancelsOnLeaving() {
+        var dwell = Dwell(duration: 1, radius: 50)
+        func fire(_ p: CGPoint?, at t: Double) -> Bool { dwell.update(p, at: t) }
+        let p = CGPoint(x: 100, y: 100)
+        #expect(!fire(p, at: 0))
+        #expect(!fire(CGPoint(x: 130, y: 100), at: 0.5)) // small drift keeps the dwell
+        #expect(abs(dwell.progress - 0.5) < 1e-9)
+        #expect(fire(p, at: 1.0))
+        #expect(!fire(p, at: 3.0)) // no repeat without a new fixation
+        #expect(dwell.progress == 0)
+
+        #expect(!fire(CGPoint(x: 300, y: 100), at: 3.1)) // leaving restarts
+        #expect(!fire(CGPoint(x: 300, y: 100), at: 3.9))
+        #expect(!fire(nil, at: 4.0)) // tracking lost cancels
+        #expect(!fire(CGPoint(x: 300, y: 100), at: 4.5))
+        #expect(fire(CGPoint(x: 300, y: 100), at: 5.5))
+    }
+
+    @Test func snapPicksNearestTargetWithinRadius() {
+        let p = CGPoint(x: 500, y: 500)
+        let near = CGRect(x: 540, y: 490, width: 40, height: 20) // 40 pt away
+        let far = CGRect(x: 800, y: 490, width: 40, height: 20)
+        let around = CGRect(x: 0, y: 0, width: 1000, height: 1000) // contains p
+        #expect(GazeClick.nearest(to: p, in: [far, near], radius: 100) == CGPoint(x: 560, y: 500))
+        #expect(GazeClick.nearest(to: p, in: [far], radius: 100) == nil)
+        #expect(GazeClick.nearest(to: p, in: [near, around], radius: 100) == CGPoint(x: 500, y: 500))
+        #expect(GazeClick.probes(around: p, radius: 200).count == 19)
+        // 13" MacBook-class: ~1440 pt across 300 mm at 60 cm ≈ 50 pt per degree.
+        let ppd = GazeClick.pointsPerDegree(widthPoints: 1440, widthMM: 300, distanceMM: 600)
+        #expect(abs(ppd - 50.3) < 0.5)
     }
 
     @Test func detectsFixations() {

@@ -75,6 +75,8 @@ final class Suite {
         // Created first, so OculOS configures the shared camera at the 1080p it needs.
         gaze = OculOSModule(camera: camera)
         hands = ManOSModule(camera: camera)
+        // Both on: look to aim, pinch to click (research/19, Gaze + Pinch).
+        hands.pointerSource = { [gaze] in gaze.isActive ? gaze.gazePoint : nil }
         // Development: `open Humanity.app --args -Humanity.start voice.library`
         if let start = UserDefaults.standard.string(forKey: "Humanity.start") { selection = start }
         Self.current = self

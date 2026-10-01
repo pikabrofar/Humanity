@@ -34,6 +34,12 @@ public final class ManOSModule {
     public var canControl: Bool { model.canControl }
     public var handInView: Bool { model.engine.activeHand != nil }
 
+    /// Aim with something else (e.g. gaze) and click with a pinch. Nil = the hand aims.
+    public var pointerSource: (() -> CGPoint?)? {
+        get { model.engine.pointerSource }
+        set { model.engine.pointerSource = newValue }
+    }
+
     public func toggleControl() { model.toggleControl() }
 
     public func window() -> some View { RootView().environment(model) }

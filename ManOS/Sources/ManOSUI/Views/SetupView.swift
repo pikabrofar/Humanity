@@ -46,7 +46,7 @@ struct SetupView: View {
                 }
 
                 StepCard(number: 3, title: "Fit to your hand", done: calibrated,
-                         detail: "Measures your relaxed hand and your pinch so clicks trigger reliably.") {
+                         detail: "Measures your relaxed hand and your pinch so clicks trigger reliably. Rest your elbow on the desk and keep your hand low, just above the keyboard: less tiring, like a trackpad.") {
                     if let calibration {
                         CalibrationPanel(calibration: calibration)
                     } else {
@@ -115,7 +115,7 @@ private struct CalibrationPanel: View {
         VStack(alignment: .leading, spacing: 8) {
             switch calibration.step {
             case .relaxed:
-                Label("Hold your hand up, relaxed and open, facing the camera.", systemImage: "hand.raised")
+                Label("Elbow on the desk, hand low, relaxed and open, facing the camera.", systemImage: "hand.raised")
                 ProgressView(value: calibration.progress)
             case .pinch:
                 Label("Pinch thumb and index finger together, then release. \(calibration.pinchesDone)/3",

@@ -84,7 +84,7 @@ public struct MeetingTranscript: Codable, Hashable, Sendable {
 
     /// Always HH:MM:SS so columns line up and long meetings don't change the format midway.
     public static func timestamp(_ seconds: Double) -> String {
-        let total = max(0, Int(seconds))
+        let total = seconds.isFinite ? Int(min(max(seconds, 0), 359_999)) : 0 // Int(.nan) traps
         return String(format: "%02d:%02d:%02d", total / 3600, total / 60 % 60, total % 60)
     }
 }

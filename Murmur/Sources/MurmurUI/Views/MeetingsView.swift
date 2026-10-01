@@ -59,9 +59,10 @@ final class MeetingsModel {
     }
 
     func binding(for id: UUID) -> Binding<Meeting>? {
-        guard meetings.contains(where: { $0.id == id }) else { return nil }
+        guard let initial = meetings.first(where: { $0.id == id }) else { return nil }
+        // Falls back to the last known value, not meetings[0]: after a delete the list may be empty.
         return Binding(
-            get: { self.meetings.first { $0.id == id } ?? self.meetings[0] },
+            get: { self.meetings.first { $0.id == id } ?? initial },
             set: { updated in
                 guard let i = self.meetings.firstIndex(where: { $0.id == id }) else { return }
                 self.meetings[i] = updated
@@ -181,7 +182,7 @@ private struct MeetingRow: View {
             Image(systemName: "person.2.wave.2").foregroundStyle(Color.accentColor).frame(width: 20)
             VStack(alignment: .leading, spacing: 2) {
                 Text(meeting.recording.title).lineLimit(1)
-                Text("\(meeting.recording.startedAt.formatted(date: .abbreviated, time: .shortened)) · \(Transcript.clock(meeting.recording.duration)) · \(meeting.speakers.count + 1) speakers")
+                Text("\(meeting.recording.startedAt.formatted(date: .abbreviated, time: .shortened)) · \(Transcript.clock(meeting.recording.duration)) · \(meeting.speakers.count + 1) speaker\(meeting.speakers.isEmpty ? "" : "s")")
                     .font(.caption).foregroundStyle(.secondary).lineLimit(1)
             }
         }

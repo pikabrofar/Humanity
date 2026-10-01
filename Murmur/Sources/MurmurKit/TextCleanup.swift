@@ -45,6 +45,38 @@ public enum TextCleanup {
         return t
     }
 
+    /// The user's custom words, one per comma or line, without duplicates.
+    public static func terms(from list: String) -> [String] {
+        var seen = Set<String>()
+        return list.split(whereSeparator: { $0 == "," || $0.isNewline })
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty && seen.insert($0.lowercased()).inserted }
+    }
+
+    /// Spells custom words the way the user wrote them, ignoring case and the
+    /// spaces recognizers put inside compounds: "swift ui" → "SwiftUI", "gpt 4" → "GPT4".
+    public static func respell(_ text: String, terms: [String]) -> String {
+        terms.reduce(text) { text, term in
+            var pattern = ""
+            var previous: Character?
+            for ch in term {
+                if ch.isWhitespace || ch == "-" {
+                    pattern += "[\\s-]?"
+                    previous = nil
+                    continue
+                }
+                if let p = previous, (p.isLowercase && ch.isUppercase) || (p.isLetter && ch.isNumber) || (p.isNumber && ch.isLetter) {
+                    pattern += "[\\s-]?"
+                }
+                pattern += NSRegularExpression.escapedPattern(for: String(ch))
+                previous = ch
+            }
+            guard let regex = try? NSRegularExpression(pattern: "(?<!\\w)\(pattern)(?!\\w)", options: .caseInsensitive) else { return text }
+            return regex.stringByReplacingMatches(in: text, range: NSRange(text.startIndex..., in: text),
+                                                  withTemplate: NSRegularExpression.escapedTemplate(for: term))
+        }
+    }
+
     static func capitalizeSentences(_ s: String) -> String {
         var out = ""
         var capitalizeNext = true

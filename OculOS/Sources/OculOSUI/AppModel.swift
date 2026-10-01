@@ -57,6 +57,18 @@ final class AppModel {
     var learnFromClicks = Defaults.bool(.learnFromClicks, default: true) {
         didSet { Defaults.set(learnFromClicks, .learnFromClicks) }
     }
+    /// Gaze never clicks by itself unless this is on (research 07, 12, 13).
+    var dwellClick = Defaults.bool(.dwellClick, default: false) {
+        didSet { Defaults.set(dwellClick, .dwellClick); dwellProgress = 0; updateCursorWindow() }
+    }
+    /// Seconds, 0.3 … 3.
+    var dwellTime = Defaults.double(.dwellTime, default: 1) {
+        didSet { Defaults.set(dwellTime, .dwellTime) }
+    }
+    var snapToTargets = Defaults.bool(.snapToTargets, default: true) {
+        didSet { Defaults.set(snapToTargets, .snapToTargets) }
+    }
+    private(set) var dwellProgress = 0.0
 
     private(set) var activeRecording: ActiveRecording?
     private(set) var calibration: CalibrationController?
@@ -68,6 +80,8 @@ final class AppModel {
     @ObservationIgnored private var heatmapWindow: OverlayWindow?
     @ObservationIgnored private var keyMonitor: Any?
     @ObservationIgnored private var hotKey: HotKey?
+    @ObservationIgnored private var clickHotKey: HotKey?
+    @ObservationIgnored private var dwell = Dwell()
     @ObservationIgnored private var screenObserver: Any?
     @ObservationIgnored private var clickMonitors: [Any] = []
 
@@ -77,6 +91,10 @@ final class AppModel {
         hotKey = HotKey(keyCode: kVK_ANSI_R, modifiers: cmdKey | optionKey) { [weak self] in
             MainActor.assumeIsolated { self?.toggleRecording() }
         }
+        clickHotKey = HotKey(keyCode: kVK_ANSI_G, modifiers: controlKey | optionKey | cmdKey) { [weak self] in
+            MainActor.assumeIsolated { self?.clickAfterModifiersUp() }
+        }
+        engine.onGaze = { [weak self] in self?.updateDwell() }
         screenObserver = NotificationCenter.default.addObserver(
             forName: NSApplication.didChangeScreenParametersNotification, object: nil, queue: .main
         ) { [weak self] _ in
@@ -84,19 +102,21 @@ final class AppModel {
         }
         // Mouse-button global monitors need no Accessibility permission (key monitors do).
         clickMonitors = [
-            NSEvent.addGlobalMonitorForEvents(matching: .leftMouseDown) { [weak self] _ in
-                MainActor.assumeIsolated { self?.handleClick() }
+            NSEvent.addGlobalMonitorForEvents(matching: .leftMouseDown) { [weak self] event in
+                MainActor.assumeIsolated { self?.handleClick(event) }
             } as Any,
             NSEvent.addLocalMonitorForEvents(matching: .leftMouseDown) { [weak self] event in
-                MainActor.assumeIsolated { self?.handleClick() }
+                MainActor.assumeIsolated { self?.handleClick(event) }
                 return event
             } as Any,
         ]
         updateCursorWindow()
     }
 
-    private func handleClick() {
-        guard learnFromClicks, calibration == nil else { return }
+    private func handleClick(_ event: NSEvent) {
+        // Our own gaze clicks land where we predicted, so they teach nothing.
+        guard learnFromClicks, calibration == nil,
+              event.cgEvent?.getIntegerValueField(.eventSourceUserData) != GazeClick.tag else { return }
         let frame = engine.targetScreen.frame
         let location = NSEvent.mouseLocation // global, origin bottom-left
         guard frame.contains(location) else { return }
@@ -104,14 +124,58 @@ final class AppModel {
                                           y: 1 - (location.y - frame.minY) / frame.height))
     }
 
+    // MARK: Gaze click
+
+    /// Gaze in global display points (top-left origin, as CGEvent uses).
+    var gazePoint: CGPoint? {
+        guard let gaze = engine.gaze, let top = NSScreen.screens.first?.frame.maxY else { return nil }
+        let frame = engine.targetScreen.frame
+        return CGPoint(x: frame.minX + gaze.x * frame.width, y: top - frame.maxY + gaze.y * frame.height)
+    }
+
+    /// Where a click would land: the gaze, snapped to the nearest control within about 4°.
+    private var clickTarget: CGPoint? {
+        guard calibration == nil, let point = gazePoint else { return nil }
+        guard snapToTargets, let ppd = engine.calibration?.pointsPerDegree else { return point }
+        return GazeClick.snap(point, radius: 4 * ppd) ?? point
+    }
+
+    /// Clicks where the user looks. False when not tracking.
+    @discardableResult
+    func click() -> Bool {
+        guard let point = clickTarget else { return false }
+        GazeClick.click(at: point)
+        return true
+    }
+
+    /// The hot key's modifiers would turn the click into a ⌘/⌃/⌥-click, so wait
+    /// for their release (up to 1 s). The target is taken at the press.
+    private func clickAfterModifiersUp() {
+        guard let point = clickTarget else { return }
+        Task {
+            for _ in 0..<50 where !NSEvent.modifierFlags.intersection([.command, .control, .option, .shift]).isEmpty {
+                try? await Task.sleep(for: .milliseconds(20))
+            }
+            GazeClick.click(at: point)
+        }
+    }
+
+    private func updateDwell() {
+        guard dwellClick, calibration == nil else { return }
+        dwell.duration = dwellTime
+        dwell.radius = engine.fixationRadius
+        if dwell.update(gazePoint, at: CACurrentMediaTime()) { click() }
+        if dwellProgress != dwell.progress { dwellProgress = dwell.progress }
+    }
+
     // MARK: Gaze cursor
 
     private func updateCursorWindow() {
-        let wanted = showCursor && engine.isCalibrated && calibration == nil
+        let wanted = (showCursor || dwellClick) && engine.isCalibrated && calibration == nil
         if wanted, cursorWindow == nil {
             let window = OverlayWindow(
                 screen: engine.targetScreen, interactive: false,
-                content: GazeCursorView(engine: engine, style: cursorStyle, size: cursorSize)
+                content: GazeCursorView(model: self, style: cursorStyle, size: cursorSize)
             )
             window.present()
             cursorWindow = window

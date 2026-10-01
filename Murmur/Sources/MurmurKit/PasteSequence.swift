@@ -11,6 +11,40 @@ public protocol Clipboard {
     func restore(_ items: [[String: Data]])
 }
 
+/// How dictated text reaches the target app.
+public enum InsertMethod: Equatable, Sendable {
+    /// ⌘V with the clipboard restored afterwards. Fast for any length.
+    case paste
+    /// Synthesized Unicode keystrokes. Leaves the clipboard alone; used where
+    /// pasting is unreliable: terminals (paste warnings, no clipboard churn in
+    /// shells) and secure fields, which may refuse paste.
+    case type
+
+    static let terminals: Set = ["com.apple.Terminal", "com.googlecode.iterm2"]
+
+    public static func choose(bundleID: String?, secureInput: Bool) -> InsertMethod {
+        secureInput || bundleID.map(terminals.contains) == true ? .type : .paste
+    }
+
+    /// Splits text for `CGEventKeyboardSetUnicodeString`, which takes at most
+    /// 20 UTF-16 units per event, without breaking a character apart. Newlines
+    /// become spaces so a terminal never runs a half-dictated command.
+    public static func typingChunks(_ text: String, maxUnits: Int = 20) -> [String] {
+        var chunks: [String] = []
+        var current = ""
+        for ch in text {
+            let ch: Character = ch.isNewline ? " " : ch
+            if !current.isEmpty, current.utf16.count + ch.utf16.count > maxUnits {
+                chunks.append(current)
+                current = ""
+            }
+            current.append(ch)
+        }
+        if !current.isEmpty { chunks.append(current) }
+        return chunks
+    }
+}
+
 public enum PasteSequence {
     /// Puts `text` on the pasteboard, triggers `paste`, then puts the user's
     /// previous clipboard back.

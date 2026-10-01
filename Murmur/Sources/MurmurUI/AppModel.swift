@@ -3,6 +3,7 @@ import Carbon.HIToolbox
 import AIKit
 import MurmurKit
 import Observation
+import OSLog
 import SwiftUI
 
 enum SidebarSection: String, CaseIterable, Identifiable {
@@ -27,6 +28,8 @@ enum SidebarSection: String, CaseIterable, Identifiable {
         }
     }
 }
+
+private let latency = Logger(subsystem: "Murmur", category: "latency")
 
 @MainActor @Observable
 final class AppModel {
@@ -67,6 +70,12 @@ final class AppModel {
     var restoreClipboard = Defaults.bool(.restoreClipboard, default: true) {
         didSet { Defaults.set(restoreClipboard, .restoreClipboard) }
     }
+    /// Names and jargon, comma-separated: hints for the recognizer and exact spellings.
+    var vocabulary = Defaults.string(.vocabulary) {
+        didSet { Defaults.set(vocabulary, .vocabulary) }
+    }
+    /// False until the speech engine is running; the first start may download Apple's model.
+    private(set) var engineReady = false
 
     let store = RecordingStore.standard
 
@@ -130,12 +139,19 @@ final class AppModel {
         partial = ""
         notice = nil
         stopRequested = false
+        engineReady = false
         phase = .preparing
         session = (id, Date(), NSWorkspace.shared.frontmostApplication?.localizedName)
         updateHUD()
+        // Esc cancels, but only while recording: a global Esc would break every other app.
+        cancelKey = HotKey(keyCode: kVK_Escape, modifiers: 0,
+                           onPress: { [weak self] in MainActor.assumeIsolated { self?.cancel() } })
+        if kind == .dictation, cleanup, useIntelligence { Intelligence.prewarm() }
 
         Task {
-            let transcriber = await Transcribers.make()
+            let transcriber = await Transcribers.make(vocabulary: TextCleanup.terms(from: vocabulary))
+            // Every step below re-checks the session: Esc or an error may have ended it meanwhile.
+            guard session?.id == id else { return }
             transcriber.onPartial = { [weak self] in self?.partial = $0 }
             self.transcriber = transcriber
             do {
@@ -143,39 +159,52 @@ final class AppModel {
                 if saveAudio { try store.prepare() }
                 try recorder.start(writingTo: saveAudio ? store.audioURL(for: id) : nil,
                                    onBuffer: { transcriber.append($0) },
-                                   onLevel: { [weak self] level in Task { @MainActor in self?.level = level } })
+                                   onLevel: { [weak self] level in Task { @MainActor in self?.level = level } },
+                                   onLost: { [weak self] in self?.microphoneLost() })
             } catch {
                 fail(error)
                 return
             }
             phase = .listening
             NSSound(named: "Tink")?.play()
-            // Esc cancels, but only while recording: a global Esc would break every other app.
-            cancelKey = HotKey(keyCode: kVK_Escape, modifiers: 0,
-                               onPress: { [weak self] in MainActor.assumeIsolated { self?.cancel() } })
             let ready = Task { try await transcriber.start() }
             transcriberReady = ready
             if stopRequested { stop() }
-            do { try await ready.value } catch { if phase == .listening { fail(error) } }
+            do {
+                try await ready.value
+                if session?.id == id { engineReady = true }
+            } catch {
+                // Also after stop(), which leaves reporting the error to this.
+                if session?.id == id { fail(error) }
+            }
         }
     }
 
     func stop() {
-        guard phase == .listening else {
+        guard phase == .listening, let id = session?.id else {
             if phase == .preparing { stopRequested = true }
             return
         }
         phase = .finishing
         cancelKey = nil
+        let released = ContinuousClock.now
         let duration = recorder.stop()
         level = 0
         NSSound(named: "Pop")?.play()
+        let transcriber = transcriber, ready = transcriberReady
+        // Never leave the HUD up: if the engine stalls, keep what was heard so far.
+        // A first start may still be downloading Apple's model, so allow longer then.
+        let limit = engineReady ? 3 + duration / 20 : 30
         Task {
-            var raw = ""
-            if let transcriber, (try? await transcriberReady?.value) != nil {
-                raw = await transcriber.finish()
+            let raw = await firstResult(within: .seconds(limit)) { @MainActor () -> String? in
+                guard let transcriber, (try? await ready?.value) != nil else { return nil }
+                return await transcriber.finish()
+            } orElse: { @MainActor () -> String? in
+                transcriber?.cancel()
+                return self.partial
             }
-            await complete(raw: raw, duration: duration)
+            guard session?.id == id, let raw else { return }
+            await complete(raw: raw, duration: duration, released: released)
         }
     }
 
@@ -187,8 +216,17 @@ final class AppModel {
         flash("Cancelled")
     }
 
-    private func complete(raw: String, duration: TimeInterval) async {
+    /// The input device changed or disconnected mid-recording: keep what was said.
+    private func microphoneLost() {
+        guard phase == .listening else { return }
+        stop()
+        flash("Microphone changed. Kept what you said so far.", duration: .seconds(3))
+    }
+
+    private func complete(raw heard: String, duration: TimeInterval, released: ContinuousClock.Instant) async {
         guard let session else { return }
+        let terms = TextCleanup.terms(from: vocabulary)
+        let raw = TextCleanup.respell(heard, terms: terms)
         guard !raw.isEmpty else {
             discardSession()
             flash("Didn't catch that. Try again a little closer to the mic.")
@@ -198,22 +236,30 @@ final class AppModel {
         if cleanup {
             // A cloud model the user connected (AIKit), else Apple Intelligence, else rules.
             // The rewrite check guards against a model answering the text instead of editing it.
-            let cloud = (try? await Tasks.cleanup(raw)).flatMap { TextCleanup.acceptRewrite($0, of: raw) }
-            if let cloud {
-                cleaned = cloud
-            } else {
-                cleaned = await (useIntelligence ? Intelligence.polish(raw) : nil) ?? TextCleanup.basic(raw)
-            }
+            // Dictation waits at most 2 s for a model so the text still lands promptly.
+            let useIntelligence = useIntelligence
+            let rewrite = await firstResult(within: .seconds(mode == .dictation ? 2 : 60)) { @MainActor () -> String? in
+                if let cloud = (try? await Tasks.cleanup(raw)).flatMap({ TextCleanup.acceptRewrite($0, of: raw) }) { return cloud }
+                return useIntelligence ? await Intelligence.polish(raw) : nil
+            } orElse: { nil }
+            cleaned = TextCleanup.respell(rewrite ?? TextCleanup.basic(raw), terms: terms)
         }
         let recording = Recording(id: session.id, createdAt: session.startedAt, duration: duration, kind: mode,
                                   transcript: raw, cleaned: cleaned,
                                   targetApp: mode == .dictation ? session.targetApp : nil)
         var message: String?
-        if mode == .dictation, !(await TextInserter.insert(recording.text, restoreClipboard: restoreClipboard)) {
-            message = "Copied. Press ⌘V to paste, or allow Accessibility in Quick Setup."
+        if mode == .dictation {
+            if await TextInserter.insert(recording.text, restoreClipboard: restoreClipboard) {
+                // Console.app, subsystem "Murmur": the number to keep under 500 ms.
+                let ms = Int(released.duration(to: .now) / .milliseconds(1))
+                latency.info("Key release to text inserted: \(ms) ms")
+            } else {
+                message = "Copied. Press ⌘V to paste, or allow Accessibility in Quick Setup."
+            }
         }
         self.session = nil
         transcriber = nil
+        transcriberReady = nil
         if mode == .note || keepHistory {
             try? store.save(recording)
             recordings.insert(recording, at: 0)
@@ -234,6 +280,7 @@ final class AppModel {
         if let session { store.delete(session.id) }
         session = nil
         transcriber = nil
+        transcriberReady = nil
         cancelKey = nil
         level = 0
         phase = .idle

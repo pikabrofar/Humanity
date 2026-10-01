@@ -30,6 +30,12 @@ struct StoredCalibration: Codable {
     /// Held-out accuracy when available (honest), else training error (optimistic).
     var accuracyDegrees: Double { validation?.accuracyDegrees ?? errorDegrees }
 
+    /// Screen points per degree of visual angle at the calibration distance.
+    var pointsPerDegree: Double {
+        GazeClick.pointsPerDegree(widthPoints: screenSize.width, widthMM: model.geometry.widthMM,
+                                  distanceMM: model.calibrationDistanceMM)
+    }
+
     var quality: String {
         switch accuracyDegrees {
         case ..<1.5: return "Excellent"
@@ -107,6 +113,7 @@ enum Defaults {
         case cameraID, pupilRefinement, stability, responsiveness
         case showCursor, cursorStyle, cursorSize, completedSetup
         case hideWhileRecording, captureScreenshot, learnFromClicks
+        case dwellClick, dwellTime, snapToTargets
 
         /// Prefixed so modules can share one defaults domain inside Humanity.
         var name: String { "OculOS." + rawValue }

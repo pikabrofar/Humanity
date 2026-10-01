@@ -35,6 +35,8 @@ public struct ScreenGeometry: Codable, Sendable, Equatable {
     public var imageAspect: Double
     /// Horizontal field of view of the camera, in radians.
     // ponytail: fixed typical webcam FOV; the fitted distance scale absorbs the error.
+    // AVCaptureDevice.Format.videoFieldOfView is API_UNAVAILABLE(macos) and returns 0
+    // at runtime for the built-in and Continuity cameras (macOS 26), so there is no real value to use.
     public var cameraFOV: Double
 
     public init(widthMM: Double, heightMM: Double, imageAspect: Double, cameraFOV: Double = 72 * .pi / 180) {

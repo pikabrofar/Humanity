@@ -293,4 +293,50 @@ func run(_ r: inout GestureRecognizer, from start: Double, frames: Int, pose: (D
         let tail = values.suffix(20)
         #expect(tail.max()! - tail.min()! < 0.02)
     }
+
+    @Test func roiCoversSmallHandAndSkipsBigOnes() throws {
+        let aspect = 16.0 / 9
+        let h = hand(at: CGPoint(x: 1.2, y: 0.4), scale: 0.05, t: 0)
+        let roi = try #require(HandPose.regionOfInterest(around: [h], imageAspect: aspect))
+        for p in h.joints.values { #expect(roi.contains(CGPoint(x: 1 - p.x / aspect, y: p.y))) } // unmirrored
+        #expect(HandPose.regionOfInterest(around: [hand(scale: 0.3, t: 0)], imageAspect: aspect) == nil)
+        #expect(HandPose.regionOfInterest(around: [], imageAspect: aspect) == nil)
+    }
+
+    @Test func chiralityVoteIgnoresFlickers() {
+        var vote = ChiralityVote()
+        func frame(_ i: Int, right: HandPose.Chirality, left: HandPose.Chirality) -> [HandPose.Chirality] {
+            var a = hand(t: Double(i) / 30), b = hand(at: CGPoint(x: 0.3, y: 0.5), t: Double(i) / 30)
+            (a.chirality, b.chirality) = (right, left)
+            return vote.apply([a, b]).map(\.chirality)
+        }
+        // Every fourth frame Vision swaps the labels.
+        let labels = (0..<20).map { i in i % 4 == 3 ? frame(i, right: .left, left: .right) : frame(i, right: .right, left: .left) }
+        #expect(labels.allSatisfy { $0 == [.right, .left] })
+        // A consistent change still wins.
+        let later = (20..<32).map { frame($0, right: .left, left: .left) }
+        #expect(later.last == [.left, .left])
+    }
+
+    @Test func fatigueCountsContinuousUse() {
+        var f = FatigueTimer()
+        var used = 0.0
+        // Active with a 5 s pause every minute: short pauses aren't a rest.
+        for s in stride(from: 0.0, through: 1300, by: 1) { used = f.update(active: s.truncatingRemainder(dividingBy: 60) > 5, at: s) }
+        #expect(used >= FatigueTimer.breakAfter)
+        _ = f.update(active: false, at: 1310)
+        #expect(f.update(active: false, at: 1316) == 0) // 16 s rest resets
+        #expect(f.update(active: true, at: 1317) == 0)
+    }
+
+    @Test func rebaseAbsorbsSourceShift() {
+        var r = recognizer()
+        _ = run(&r, from: 0, frames: 12, pose: { hand(t: $0) })
+        let before = r.mapper.cursor
+        r.rebase()
+        _ = r.update(hand(at: CGPoint(x: 0.905, y: 0.5), t: 0.4), at: 0.4) // 0.05 palm jump from a crop switch
+        #expect(r.mapper.cursor == before)
+        _ = r.update(hand(at: CGPoint(x: 0.91, y: 0.5), t: 0.433), at: 0.433)
+        #expect(r.mapper.cursor != before) // real motion still moves
+    }
 }

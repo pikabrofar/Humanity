@@ -1,7 +1,7 @@
 import AVFoundation
 import ScreenCaptureKit
 
-/// Fallback for macOS before 14.4, or when a process tap can't be created: records an
+/// Fallback for macOS before 14.4, or when a process tap fails or stays silent: records an
 /// app's audio through ScreenCaptureKit. Needs Screen Recording permission. Filtering by
 /// app also catches its helper processes, since ScreenCaptureKit groups them by app.
 final class ScreenCaptureAudio: NSObject, SCStreamOutput, SCStreamDelegate, @unchecked Sendable {
@@ -47,7 +47,8 @@ final class ScreenCaptureAudio: NSObject, SCStreamOutput, SCStreamDelegate, @unc
     func stream(_ stream: SCStream, didOutputSampleBuffer sampleBuffer: CMSampleBuffer, of type: SCStreamOutputType) {
         guard type == .audio, let buffer = Self.pcmBuffer(sampleBuffer) else { return }
         // ScreenCaptureKit stamps samples on the host clock, the same one the mic uses.
-        onBuffer?(buffer, sampleBuffer.presentationTimeStamp.seconds)
+        let time = sampleBuffer.presentationTimeStamp
+        onBuffer?(buffer, time.isValid ? time.seconds : nil)
     }
 
     private static func pcmBuffer(_ sampleBuffer: CMSampleBuffer) -> AVAudioPCMBuffer? {

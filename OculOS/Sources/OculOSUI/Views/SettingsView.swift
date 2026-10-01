@@ -1,4 +1,5 @@
 import AVFoundation
+import ApplicationServices
 import GazeKit
 import SwiftUI
 
@@ -62,6 +63,29 @@ struct SettingsView: View {
                 }
                 if let clicks = model.engine.calibration?.clickSamples.count, clicks > 0 {
                     LabeledContent("Learned samples", value: "\(clicks)")
+                }
+            }
+
+            Section("Clicking") {
+                Toggle(isOn: $model.dwellClick) {
+                    Text("Dwell to click")
+                    Text("Clicks after you look at one spot; a ring shows the progress. Off, gaze never clicks by itself.")
+                }
+                if model.dwellClick {
+                    Slider(value: $model.dwellTime, in: 0.3...3, step: 0.1) {
+                        Text("Dwell time \(model.dwellTime, specifier: "%.1f") s")
+                    }
+                }
+                Toggle(isOn: $model.snapToTargets) {
+                    Text("Snap to buttons and links")
+                    Text("Clicks the nearest control within about 4° of your gaze.")
+                }
+                Text("Press ⌃⌥⌘G to click where you look.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                if !AXIsProcessTrusted() {
+                    Label("Clicking needs Accessibility permission.", systemImage: "exclamationmark.triangle")
+                        .foregroundStyle(.orange)
                 }
             }
 

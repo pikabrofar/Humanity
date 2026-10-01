@@ -108,6 +108,7 @@ struct SettingsView: View {
                 Text("Removes filler words and stutters, fixes punctuation and capitalization.")
                     .font(.caption).foregroundStyle(.secondary)
                 Toggle("Restore the clipboard after pasting", isOn: $model.restoreClipboard)
+                TextField("Custom words", text: $model.vocabulary, prompt: Text("Names and jargon, comma-separated"))
             }
             Section("Apple Intelligence") {
                 Toggle("Use for cleanup and summaries", isOn: $model.useIntelligence)

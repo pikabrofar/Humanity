@@ -10,6 +10,7 @@ final class TrackWriter: @unchecked Sendable {
     private let lock = NSLock() // capture callbacks and stop() run on different threads
     private var file: AVAudioFile?
     private var framesWritten: AVAudioFramePosition = 0
+    private var failure: Error?
     private var finished = false
 
     init(url: URL, meetingStart: Double) {
@@ -43,8 +44,16 @@ final class TrackWriter: @unchecked Sendable {
             try file.write(from: buffer)
             framesWritten += AVAudioFramePosition(buffer.frameLength)
         } catch {
-            // A failed write loses a buffer, not the meeting; keep going.
+            // A failed write loses a buffer, not the meeting; keep going, but remember why.
+            if failure == nil { failure = error }
         }
+    }
+
+    /// Frames on disk (0 means the file was never created) and the first write error.
+    var status: (frames: AVAudioFramePosition, error: Error?) {
+        lock.lock()
+        defer { lock.unlock() }
+        return (framesWritten, failure)
     }
 
     func finish() {
@@ -60,7 +69,8 @@ final class TrackWriter: @unchecked Sendable {
     /// ignored (it's clock jitter, not a gap); a buffer arriving early never truncates.
     static func paddingFrames(at hostSeconds: Double, meetingStart: Double,
                               sampleRate: Double, framesWritten: AVAudioFramePosition) -> AVAudioFramePosition {
-        let expected = AVAudioFramePosition(((hostSeconds - meetingStart) * sampleRate).rounded())
+        // `exactly` turns a NaN or absurd timestamp into "no padding" instead of a trap.
+        guard let expected = AVAudioFramePosition(exactly: ((hostSeconds - meetingStart) * sampleRate).rounded()) else { return 0 }
         let missing = expected - framesWritten
         return missing > AVAudioFramePosition(sampleRate * 0.05) ? missing : 0
     }

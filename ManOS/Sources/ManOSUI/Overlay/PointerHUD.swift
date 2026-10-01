@@ -29,6 +29,15 @@ struct PointerHUD: View {
                 .background(Circle().fill(.black.opacity(0.25)))
                 .position(x: engine.cursor.x + 22, y: engine.cursor.y + 22)
                 .opacity(engine.gesture == .engaging ? 0.4 : 1)
+                if engine.needsBreak {
+                    Text("20 min of hand use. Lower your arm for 15 s.")
+                        .font(.caption2)
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 6).padding(.vertical, 2)
+                        .background(Capsule().fill(.black.opacity(0.45)))
+                        .fixedSize()
+                        .position(x: engine.cursor.x + 22, y: engine.cursor.y + 50)
+                }
             }
         }
         .ignoresSafeArea()

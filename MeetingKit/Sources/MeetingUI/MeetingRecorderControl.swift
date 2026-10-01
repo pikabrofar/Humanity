@@ -58,6 +58,8 @@ public struct MeetingRecorderControl: View {
 
             if let error {
                 Text(error).font(.caption).foregroundStyle(.red)
+            } else if let callError = recorder.callAudioError {
+                Text(callError).font(.caption).foregroundStyle(.orange)
             }
             // Recording people without telling them is illegal in many places
             // (all-party-consent laws) and erodes trust everywhere else.

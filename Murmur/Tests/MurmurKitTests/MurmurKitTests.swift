@@ -224,3 +224,42 @@ final class FakeBoard: Clipboard {
     // A release with no matching press does nothing.
     #expect(t.release(at: 20, isRecording: true) == .none)
 }
+
+// MARK: - Custom words
+
+@Test func customWordsAreRespelled() {
+    let terms = TextCleanup.terms(from: "SwiftUI, Taylor Pan\nGPT4, c++, swiftui, ")
+    #expect(terms == ["SwiftUI", "Taylor Pan", "GPT4", "c++"])
+    #expect(TextCleanup.respell("i love swift ui and taylor pan uses gpt 4 in C++.", terms: terms)
+        == "i love SwiftUI and Taylor Pan uses GPT4 in c++.")
+    // Only whole words: "swiftly" and "taylored" stay.
+    #expect(TextCleanup.respell("swiftly taylored", terms: ["Swift", "Taylor"]) == "swiftly taylored")
+    #expect(TextCleanup.respell("costs $5", terms: ["$5"]) == "costs $5")
+}
+
+// MARK: - Insert method
+
+@Test func typesInTerminalsAndSecureFields() {
+    #expect(InsertMethod.choose(bundleID: "com.apple.Terminal", secureInput: false) == .type)
+    #expect(InsertMethod.choose(bundleID: "com.apple.Notes", secureInput: true) == .type)
+    #expect(InsertMethod.choose(bundleID: "com.apple.Notes", secureInput: false) == .paste)
+    #expect(InsertMethod.choose(bundleID: nil, secureInput: false) == .paste)
+}
+
+@Test func typingChunksKeepCharactersWholeAndDropNewlines() {
+    let text = String(repeating: "a", count: 19) + "👍🏽" + "b\nc"
+    let chunks = InsertMethod.typingChunks(text)
+    #expect(chunks == [String(repeating: "a", count: 19), "👍🏽b c"])
+    #expect(chunks.allSatisfy { $0.utf16.count <= 20 })
+    #expect(InsertMethod.typingChunks("") == [])
+}
+
+// MARK: - Timeouts
+
+@Test func firstResultFallsBackWhenWorkHangs() async {
+    let late = await firstResult(within: .milliseconds(20), { try? await Task.sleep(for: .seconds(10)); return "late" },
+                                 orElse: { "fallback" })
+    #expect(late == "fallback")
+    let fast = await firstResult(within: .seconds(10), { "fast" }, orElse: { "fallback" })
+    #expect(fast == "fast")
+}

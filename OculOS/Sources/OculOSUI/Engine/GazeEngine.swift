@@ -20,7 +20,7 @@ final class GazeEngine {
     private(set) var features: GazeFeatures?
     private(set) var fps: Double = 0
     /// Smoothed gaze in normalized coordinates of `targetScreen`; nil when not tracking.
-    private(set) var gaze: CGPoint?
+    private(set) var gaze: CGPoint? { didSet { onGaze?() } }
     /// Recent gaze points, newest last.
     private(set) var trail: [CGPoint] = []
 
@@ -44,7 +44,8 @@ final class GazeEngine {
         didSet { Defaults.set(stability, .stability); applySmoothing() }
     }
     /// 0...1. Higher = fewer samples needed to confirm a saccade: faster, but more false jumps.
-    var responsiveness = Defaults.double(.responsiveness, default: 0.5) {
+    /// 0.75 and up is one-sample look-ahead (research 05).
+    var responsiveness = Defaults.double(.responsiveness, default: 0.75) {
         didSet { Defaults.set(responsiveness, .responsiveness); applySmoothing() }
     }
 
@@ -54,6 +55,8 @@ final class GazeEngine {
     @ObservationIgnored var calibrationSink: ((GazeFeatures) -> Void)?
     /// Receives every smoothed gaze estimate. Used by recording.
     @ObservationIgnored var gazeSink: ((GazeSample) -> Void)?
+    /// Called on every gaze update, including loss. Used by dwell clicking.
+    @ObservationIgnored var onGaze: (() -> Void)?
 
     @ObservationIgnored private let camera: CameraCapture
     /// False when a host app (Humanity) owns and configures a shared camera.
@@ -198,7 +201,7 @@ final class GazeEngine {
         if offscreen { return }
         point.x = min(max(point.x, -0.02), 1.02) * size.width
         point.y = min(max(point.y, -0.02), 1.02) * size.height
-        let stable = stabilizer.update(point) // in points, so the radius is isotropic
+        let stable = stabilizer.update(point, at: features.timestamp) // in points, so the radius is isotropic
         let smoothed = CGPoint(x: stable.x / size.width, y: stable.y / size.height)
 
         gaze = smoothed
@@ -217,9 +220,12 @@ final class GazeEngine {
     }
 
     private func applySmoothing() {
-        stabilizer.radius = 30 + 120 * stability                          // 30 … 150 pt
-        stabilizer.confirmSamples = 6 - Int((4 * responsiveness).rounded()) // 6 … 2 frames
+        stabilizer.radius = fixationRadius
+        stabilizer.confirmSamples = 4 - Int((2 * responsiveness).rounded()) // 4 … 2 frames
     }
+
+    /// Fixation radius in screen points (30 … 150).
+    var fixationRadius: Double { 30 + 120 * stability }
 
     /// Implicit recalibration: when the user clicks, they are almost always
     /// looking at the click point. The frames just before the click become

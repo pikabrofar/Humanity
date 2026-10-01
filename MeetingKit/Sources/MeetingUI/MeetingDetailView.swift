@@ -36,6 +36,9 @@ public struct MeetingDetailView: View {
             if let error {
                 Text(error).font(.caption).foregroundStyle(.red).padding(.horizontal, 10)
             }
+            if let callAudioNote {
+                Text(callAudioNote).font(.caption).foregroundStyle(.orange).padding([.horizontal, .bottom], 10)
+            }
             Divider()
             if transcript.turns.isEmpty {
                 Text("No speech was recognized.").foregroundStyle(.secondary).frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -46,6 +49,13 @@ public struct MeetingDetailView: View {
                 .listStyle(.plain)
             }
         }
+    }
+
+    /// Only your side was transcribed; say why rather than leave the call silently missing.
+    private var callAudioNote: String? {
+        if let reason = meeting.recording.callAudioError { return reason }
+        let recorded = FileManager.default.fileExists(atPath: meeting.recording.systemURL.path)
+        return recorded ? nil : "Call audio wasn't captured: no sound arrived from the call, so only your side is transcribed."
     }
 
     private func row(_ turn: TranscriptTurn) -> some View {

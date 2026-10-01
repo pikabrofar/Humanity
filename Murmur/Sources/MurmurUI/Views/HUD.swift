@@ -77,7 +77,9 @@ struct HUDView: View {
         if let notice = model.notice { return notice }
         switch model.phase {
         case .preparing: return "Starting…"
-        case .finishing: return model.cleanup ? "Polishing…" : "Finishing…"
+        case .finishing:
+            if !model.engineReady { return "Loading Apple's speech model…" }
+            return model.cleanup ? "Polishing…" : "Finishing…"
         default:
             if !model.partial.isEmpty { return model.partial }
             return model.mode == .note ? "Recording a note…" : "Listening…"

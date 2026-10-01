@@ -43,8 +43,7 @@ public final class VoiceProfileStore: ObservableObject {
     public let fileURL: URL
 
     public nonisolated static var defaultDirectory: URL {
-        FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-            .appendingPathComponent("Humanity/VoiceProfiles", isDirectory: true)
+        URL.applicationSupportDirectory.appendingPathComponent("Humanity/VoiceProfiles", isDirectory: true)
     }
 
     public init(directory: URL = VoiceProfileStore.defaultDirectory) {

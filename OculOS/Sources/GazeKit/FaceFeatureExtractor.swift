@@ -15,8 +15,8 @@ public struct FrameAnalysis: Sendable {
 ///
 /// Not thread-safe: call `analyze` from a single serial queue.
 public final class FaceFeatureExtractor {
-    /// Refine Vision's pupil landmark by locating the dark iris/pupil blob in the
-    /// luma plane. Noticeably reduces jitter on well-lit faces.
+    /// Refine Vision's pupil landmark by locating the iris center from luma
+    /// gradients (Timm & Barth). Noticeably reduces jitter on well-lit faces.
     public var usesPupilRefinement = true
 
     /// A frame counts as a blink when openness falls below this fraction of the

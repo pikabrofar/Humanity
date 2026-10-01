@@ -5,7 +5,7 @@ import Speech
 /// Typed UserDefaults keys. SwiftUI's @AppStorage doesn't work inside @Observable models.
 enum Defaults {
     enum Key: String {
-        case completedSetup, cleanup, useIntelligence, keepHistory, restoreClipboard
+        case completedSetup, cleanup, useIntelligence, keepHistory, restoreClipboard, vocabulary
 
         /// Prefixed so modules can share one defaults domain inside Humanity.
         var name: String { "Murmur." + rawValue }
@@ -14,6 +14,7 @@ enum Defaults {
     static func bool(_ key: Key, default value: Bool) -> Bool {
         UserDefaults.standard.object(forKey: key.name) as? Bool ?? value
     }
+    static func string(_ key: Key) -> String { UserDefaults.standard.string(forKey: key.name) ?? "" }
     static func set(_ value: Any?, _ key: Key) { UserDefaults.standard.set(value, forKey: key.name) }
 }
 

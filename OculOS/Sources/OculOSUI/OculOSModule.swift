@@ -37,6 +37,15 @@ public final class OculOSModule {
         set { model.showCursor = newValue }
     }
 
+    /// Where the user is looking, in global display points (top-left origin, as
+    /// CGEvent uses); nil when not tracking.
+    public var gazePoint: CGPoint? { model.gazePoint }
+
+    /// Clicks where the user is looking (snapped to the nearest control when
+    /// enabled), for a host trigger such as a ManOS pinch. False when not tracking.
+    @discardableResult
+    public func click() -> Bool { model.click() }
+
     public func startCalibration() { model.startCalibration() }
     public func toggleRecording() { model.toggleRecording() }
 
@@ -124,6 +133,8 @@ struct MenuItems: View {
     var body: some View {
         @Bindable var model = model
         Toggle("Show Gaze Cursor", isOn: $model.showCursor)
+            .disabled(!model.engine.isCalibrated)
+        Toggle("Dwell to Click", isOn: $model.dwellClick)
             .disabled(!model.engine.isCalibrated)
         Button(model.isRecording ? "Stop Recording" : "Start Recording", action: model.toggleRecording)
             .keyboardShortcut("r", modifiers: [.command, .option])

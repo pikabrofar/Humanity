@@ -97,9 +97,11 @@ public struct MeetingProcessor: Sendable {
         let fm = FileManager.default
         let hasSystem = fm.fileExists(atPath: recording.systemURL.path)
         // Sequential on purpose: the speech engine and Core ML both want the Neural Engine.
-        let diarization = hasSystem ? try await diarizer.diarize(recording.systemURL)
-                                    : Diarization(segments: [], centroids: [:])
         let systemWords = hasSystem ? try await transcriber.transcribe(recording.systemURL) : []
+        // Nobody spoke on the call (or it was too short): nothing to diarize, and the
+        // diarizer can reject clips that short. The transcript is then just "You".
+        let diarization = systemWords.isEmpty ? Diarization(segments: [], centroids: [:])
+                                              : try await diarizer.diarize(recording.systemURL)
         let micWords = fm.fileExists(atPath: recording.micURL.path) ? try await transcriber.transcribe(recording.micURL) : []
 
         let matches = await profiles.assign(clusters: diarization.centroids)
