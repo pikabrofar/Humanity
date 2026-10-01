@@ -1,6 +1,6 @@
 import Foundation
 import Testing
-@testable import VozKit
+@testable import MurmurKit
 
 // MARK: - Cleanup fallback
 

@@ -5,7 +5,7 @@ public struct Recording: Codable, Identifiable, Hashable, Sendable {
     public enum Kind: String, Codable, Sendable {
         /// Spoken into another app with the hotkey; the text was pasted there.
         case dictation
-        /// Recorded inside Voz to keep, summarize, and export.
+        /// Recorded inside Murmur to keep, summarize, and export.
         case note
     }
 

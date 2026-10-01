@@ -1,10 +1,10 @@
 import Foundation
 import FoundationModels
-import VozKit
+import MurmurKit
 
 /// Apple's on-device language model (macOS 26 with Apple Intelligence on).
 /// Every function returns nil when it can't help, and callers fall back to
-/// VozKit's deterministic versions.
+/// MurmurKit's deterministic versions.
 enum Intelligence {
     static var isAvailable: Bool {
         if #available(macOS 26, *) { return SystemLanguageModel.default.availability == .available }

@@ -1,10 +1,10 @@
 import AppKit
-import VozUI
+import MurmurUI
 import SwiftUI
 
 @main
-struct VozApp: App {
-    @State private var module = VozModule()
+struct MurmurApp: App {
+    @State private var module = MurmurModule()
 
     init() {
         // Allows `swift run` without an app bundle to show a regular window.
@@ -12,7 +12,7 @@ struct VozApp: App {
     }
 
     var body: some Scene {
-        Window("Voz", id: "main") {
+        Window("Murmur", id: "main") {
             module.window().frame(minWidth: 860, minHeight: 560)
         }
         .windowToolbarStyle(.unified)
@@ -33,12 +33,12 @@ private struct AppMenuItems: View {
     @Environment(\.openWindow) private var openWindow
 
     var body: some View {
-        Button("Open Voz") {
+        Button("Open Murmur") {
             openWindow(id: "main")
             NSApp.activate(ignoringOtherApps: true)
         }
         SettingsLink { Text("Settings…") }
         Divider()
-        Button("Quit Voz") { NSApp.terminate(nil) }.keyboardShortcut("q")
+        Button("Quit Murmur") { NSApp.terminate(nil) }.keyboardShortcut("q")
     }
 }

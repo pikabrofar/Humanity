@@ -1,5 +1,5 @@
 import AVFoundation
-import VozKit
+import MurmurKit
 import Speech
 
 /// A streaming speech-to-text session. Audio may be appended from any thread
@@ -177,7 +177,7 @@ final class LegacyTranscriber: LiveTranscriber {
             throw TranscriptionError("Speech recognition isn't available for your language.")
         }
         // Without on-device support the recognizer would send audio to Apple's
-        // servers. Refuse instead: that would break Voz's privacy promise.
+        // servers. Refuse instead: that would break Murmur's privacy promise.
         guard recognizer.supportsOnDeviceRecognition else {
             throw TranscriptionError("On-device recognition isn't installed for \(recognizer.locale.identifier). Turn on Dictation in System Settings › Keyboard to download it.")
         }

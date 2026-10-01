@@ -1,4 +1,4 @@
-// ponytail: copied from OculOS, now in three apps (OculOS, ManOS, Voz); extract a shared package.
+// ponytail: copied from OculOS, now in three apps (OculOS, ManOS, Murmur); extract a shared package.
 import SwiftUI
 
 /// Rounded, subtly filled container used throughout the main window.

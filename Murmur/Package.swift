@@ -2,23 +2,23 @@
 import PackageDescription
 
 let package = Package(
-    name: "Voz",
+    name: "Murmur",
     platforms: [.macOS(.v14)],
     products: [
-        .library(name: "VozKit", targets: ["VozKit"]),
-        .library(name: "VozUI", targets: ["VozUI"]),
-        .executable(name: "Voz", targets: ["Voz"]),
+        .library(name: "MurmurKit", targets: ["MurmurKit"]),
+        .library(name: "MurmurUI", targets: ["MurmurUI"]),
+        .executable(name: "Murmur", targets: ["Murmur"]),
     ],
     targets: [
-        .target(name: "VozKit"),
-        .executableTarget(name: "Voz", dependencies: ["VozUI"]),
+        .target(name: "MurmurKit"),
+        .executableTarget(name: "Murmur", dependencies: ["MurmurUI"]),
         .target(
-            name: "VozUI",
-            dependencies: ["VozKit"],
+            name: "MurmurUI",
+            dependencies: ["MurmurKit"],
             // FoundationModels ships only with macOS 26. Weak-linking it lets the
             // same binary launch on macOS 14 and 15, where cleanup falls back to regexes.
             linkerSettings: [.unsafeFlags(["-Xlinker", "-weak_framework", "-Xlinker", "FoundationModels"])]
         ),
-        .testTarget(name: "VozKitTests", dependencies: ["VozKit"]),
+        .testTarget(name: "MurmurKitTests", dependencies: ["MurmurKit"]),
     ]
 )

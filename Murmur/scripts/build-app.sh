@@ -1,12 +1,12 @@
 #!/bin/sh
-# Builds Voz.app from the Swift package. Works with just the Command Line Tools.
+# Builds Murmur.app from the Swift package. Works with just the Command Line Tools.
 #
 # SIGN_ID: codesigning identity. The default "-" (ad-hoc) changes on every build,
 # so macOS forgets permission grants (microphone, speech, Accessibility) after rebuilding.
 # A self-signed "Humanity Dev" certificate keeps them: see the repo README.
 set -eu
 
-APP_NAME="Voz"
+APP_NAME="Murmur"
 CONFIG="${1:-release}"
 SIGN_ID="${SIGN_ID:--}"
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"

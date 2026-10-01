@@ -32,6 +32,14 @@ public final class OculOSModule {
     public var isTracking: Bool { model.engine.gaze != nil }
     public var isRecording: Bool { model.isRecording }
 
+    public var showCursor: Bool {
+        get { model.showCursor }
+        set { model.showCursor = newValue }
+    }
+
+    public func startCalibration() { model.startCalibration() }
+    public func toggleRecording() { model.toggleRecording() }
+
     /// Full window content (own sidebar), for the standalone app.
     public func window() -> some View { RootView().environment(model) }
 

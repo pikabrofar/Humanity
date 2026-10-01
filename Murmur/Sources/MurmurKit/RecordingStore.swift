@@ -9,16 +9,10 @@ public struct RecordingStore: Sendable {
         self.directory = directory
     }
 
-    /// ~/Library/Application Support/Voz/Recordings
+    /// ~/Library/Application Support/Murmur/Recordings
     public static var standard: RecordingStore {
         let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-        // The app was called Murmur; keep existing recordings.
-        let current = base.appendingPathComponent("Voz", isDirectory: true)
-        let legacy = base.appendingPathComponent("Murmur", isDirectory: true)
-        if !FileManager.default.fileExists(atPath: current.path), FileManager.default.fileExists(atPath: legacy.path) {
-            try? FileManager.default.moveItem(at: legacy, to: current)
-        }
-        return RecordingStore(directory: current.appendingPathComponent("Recordings", isDirectory: true))
+        return RecordingStore(directory: base.appendingPathComponent("Murmur/Recordings", isDirectory: true))
     }
 
     public func audioURL(for id: UUID) -> URL { directory.appendingPathComponent("\(id.uuidString).m4a") }

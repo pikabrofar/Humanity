@@ -16,28 +16,28 @@ struct SetupView: View {
                 }
 
                 StepCard(number: 1, title: "Microphone", done: model.microphone == .granted,
-                         detail: "Voz listens only while you dictate or record, and shows the pill at the bottom of the screen whenever it does.") {
+                         detail: "Murmur listens only while you dictate or record, and shows the pill at the bottom of the screen whenever it does.") {
                     permissionButtons(model.microphone, allow: "Allow Microphone", pane: .microphone) {
                         _ = await Permissions.requestMicrophone()
                     }
                 }
 
                 StepCard(number: 2, title: "Speech Recognition", done: model.speech == .granted,
-                         detail: "macOS asks before any app transcribes speech. Voz only uses on-device recognition and never falls back to Apple's servers.") {
+                         detail: "macOS asks before any app transcribes speech. Murmur only uses on-device recognition and never falls back to Apple's servers.") {
                     permissionButtons(model.speech, allow: "Allow Speech Recognition", pane: .speech) {
                         _ = await Permissions.requestSpeech()
                     }
                 }
 
                 StepCard(number: 3, title: "Accessibility (for pasting)", done: model.canPaste,
-                         detail: "Lets Voz press ⌘V for you in the app you're dictating into. Without it, text is copied and you paste it yourself.") {
+                         detail: "Lets Murmur press ⌘V for you in the app you're dictating into. Without it, text is copied and you paste it yourself.") {
                     if !model.canPaste {
                         HStack {
                             Button("Grant Access") { Permissions.requestPaste() }
                                 .buttonStyle(.borderedProminent)
                             Button("Open Accessibility Settings") { SystemSettings.open(.accessibility) }
                         }
-                        Text("Already on but not working? After an update, remove Voz from the list with – and add it again.")
+                        Text("Already on but not working? After an update, remove Murmur from the list with – and add it again.")
                             .font(.caption).foregroundStyle(.secondary)
                     }
                 }

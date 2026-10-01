@@ -8,7 +8,7 @@ let package = Package(
     dependencies: [
         .package(path: "../OculOS"),
         .package(path: "../ManOS"),
-        .package(path: "../Voz"),
+        .package(path: "../Murmur"),
     ],
     targets: [
         .executableTarget(
@@ -17,7 +17,7 @@ let package = Package(
                 .product(name: "OculOSUI", package: "OculOS"),
                 .product(name: "GazeKit", package: "OculOS"),
                 .product(name: "ManOSUI", package: "ManOS"),
-                .product(name: "VozUI", package: "Voz"),
+                .product(name: "MurmurUI", package: "Murmur"),
             ]
         ),
     ]

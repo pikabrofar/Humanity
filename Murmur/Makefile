@@ -13,7 +13,7 @@ app:
 	./scripts/build-app.sh release
 
 run: app
-	open build/Voz.app
+	open build/Murmur.app
 
 test:
 	swift test $(TEST_FLAGS)

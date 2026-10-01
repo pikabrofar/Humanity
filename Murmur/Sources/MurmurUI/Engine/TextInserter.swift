@@ -1,8 +1,8 @@
 import AppKit
 import Carbon.HIToolbox
-import VozKit
+import MurmurKit
 
-/// NSPasteboard adapted to VozKit's `Clipboard`, so the insert sequence is unit-testable.
+/// NSPasteboard adapted to MurmurKit's `Clipboard`, so the insert sequence is unit-testable.
 struct SystemPasteboard: Clipboard {
     private let board = NSPasteboard.general
 

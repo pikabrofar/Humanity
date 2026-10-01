@@ -1,4 +1,4 @@
-import VozKit
+import MurmurKit
 import SwiftUI
 
 struct HomeView: View {
@@ -8,7 +8,7 @@ struct HomeView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("Voz").font(.largeTitle.weight(.semibold))
+                    Text("Murmur").font(.largeTitle.weight(.semibold))
                     Text("Talk instead of typing, in any app. Speech is turned into text on this Mac.")
                         .foregroundStyle(.secondary)
                 }

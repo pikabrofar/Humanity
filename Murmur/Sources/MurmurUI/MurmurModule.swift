@@ -1,11 +1,11 @@
 import AppKit
-import VozKit
+import MurmurKit
 import SwiftUI
 
-/// Public entry point for hosting Voz: the standalone app and the Humanity
+/// Public entry point for hosting Murmur: the standalone app and the Humanity
 /// suite both build their windows from this.
 @MainActor
-public final class VozModule {
+public final class MurmurModule {
     let model = AppModel()
 
     public init() {}
@@ -23,6 +23,9 @@ public final class VozModule {
     public var isListening: Bool { model.isActive }
     public var hasMicrophone: Bool { model.microphone == .granted }
     public var canPaste: Bool { model.canPaste }
+
+    public func toggleDictation() { model.toggle(.dictation) }
+    public func toggleNote() { model.toggle(.note) }
 
     public func window() -> some View { RootView().environment(model) }
 
@@ -109,7 +112,7 @@ struct SettingsView: View {
                 Toggle("Use for cleanup and summaries", isOn: $model.useIntelligence)
                     .disabled(!Intelligence.isAvailable)
                 LabeledContent("Status", value: Intelligence.status)
-                Text("Runs Apple's on-device model. When it's off or unavailable, Voz uses built-in rules instead.")
+                Text("Runs Apple's on-device model. When it's off or unavailable, Murmur uses built-in rules instead.")
                     .font(.caption).foregroundStyle(.secondary)
             }
             Section("History") {

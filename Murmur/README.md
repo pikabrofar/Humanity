@@ -1,7 +1,7 @@
-# Voz
+# Murmur
 
 Part of [Humanity](../README.md). Dictate into any Mac app: press a shortcut,
-speak, and clean text appears at your cursor. Voz also records longer voice
+speak, and clean text appears at your cursor. Murmur also records longer voice
 notes and writes summaries and action items for them. Everything runs on your
 Mac. There's no account, no cloud and no analytics.
 
@@ -23,8 +23,8 @@ search, play back, summarize and export recordings to Markdown.
 You only need the Command Line Tools (`xcode-select --install`).
 
 ```sh
-cd Humanity/Voz
-make run    # builds build/Voz.app and opens it
+cd Humanity/Murmur
+make run    # builds build/Murmur.app and opens it
 make test   # unit tests (Swift Testing)
 ```
 
@@ -45,31 +45,31 @@ On first launch, **Quick Setup** asks for the microphone, Speech Recognition and
 | Insertion | Clipboard + synthesized ⌘V, then the old clipboard is restored | Same |
 
 If Apple Intelligence is unavailable or the model's reply doesn't look like an
-edit of what you said, Voz uses the rules instead.
+edit of what you said, Murmur uses the rules instead.
 
 ## Privacy
 
-- **Audio never leaves your Mac.** Voz doesn't use cloud recognition: if
+- **Audio never leaves your Mac.** Murmur doesn't use cloud recognition: if
   on-device recognition isn't installed for your language, it shows an error
   rather than sending audio to Apple's servers. On macOS 26 the first use of a
   language downloads Apple's speech model, which is shared by all apps.
 - Cleanup and summaries run on Apple's on-device model, or on local rules.
-- No screenshots, and no reading of other apps' content. The only thing Voz
+- No screenshots, and no reading of other apps' content. The only thing Murmur
   notes is the frontmost app's name, which is saved with each dictation.
 - Pasted text is marked `org.nspasteboard.TransientType`, so clipboard managers
   skip it. Your previous clipboard is put back after 0.5 s, unless you copied
   something else in the meantime.
-- Recordings are plain files in `~/Library/Application Support/Voz/Recordings`
+- Recordings are plain files in `~/Library/Application Support/Murmur/Recordings`
   (`<id>.m4a` + `<id>.json`). You can delete them in the app, in Finder, or
   stop saving dictations in Settings.
 
 ## Layout
 
-- `Sources/VozKit`: pure logic, no UI. Contains the recording model and file
+- `Sources/MurmurKit`: pure logic, no UI. Contains the recording model and file
   store, the cleanup rules, summary parsing and fallback, Markdown export,
   clipboard-restore sequencing, and the tap/hold hotkey logic. All of it is
   unit-tested.
-- `Sources/Voz`: the SwiftUI app. Contains the audio engine, transcribers,
+- `Sources/Murmur`: the SwiftUI app. Contains the audio engine, transcribers,
   Foundation Models, paste injection, the HUD and the views.
 
 ## Limitations

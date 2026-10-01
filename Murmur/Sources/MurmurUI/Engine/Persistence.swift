@@ -8,7 +8,7 @@ enum Defaults {
         case completedSetup, cleanup, useIntelligence, keepHistory, restoreClipboard
 
         /// Prefixed so modules can share one defaults domain inside Humanity.
-        var name: String { "Voz." + rawValue }
+        var name: String { "Murmur." + rawValue }
     }
 
     static func bool(_ key: Key, default value: Bool) -> Bool {

@@ -1,6 +1,6 @@
 import AppKit
 import Carbon.HIToolbox
-import VozKit
+import MurmurKit
 import Observation
 import SwiftUI
 
@@ -116,7 +116,7 @@ final class AppModel {
                 // Asks only the first time; afterwards it returns the stored answer.
                 let granted = await Permissions.requestMicrophone()
                 refreshPermissions()
-                if granted { start(kind) } else { flash("Voz needs microphone access.", showSetup: true) }
+                if granted { start(kind) } else { flash("Murmur needs microphone access.", showSetup: true) }
             }
             return
         }
