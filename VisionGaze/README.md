@@ -1,6 +1,6 @@
 # VisionGaze
 
-Part of [oculOS](../README.md). Webcam eye tracking for macOS, built on Apple's Vision framework. No extra
+Part of [Humanity](../README.md). Webcam eye tracking for macOS, built on Apple's Vision framework. No extra
 hardware, no cloud, no third-party dependencies.
 
 - **Research-grade calibration**: 9-point grid, smooth-pursuit target, head-motion

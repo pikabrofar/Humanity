@@ -1,6 +1,6 @@
 # ManOS
 
-Part of [OculOS](../README.md). Control your Mac with your hand through the
+Part of [Humanity](../README.md). Control your Mac with your hand through the
 webcam: point with your palm, pinch to click, drag and scroll. It uses Apple
 Vision hand-pose detection on-device. There's no extra hardware, and no video
 leaves your Mac.

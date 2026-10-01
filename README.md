@@ -12,7 +12,7 @@ Each module also builds as a standalone app.
 |---|---|---|
 | [VisionGaze](VisionGaze/) | Eye tracking: calibrated gaze cursor, heatmaps, recordings | Beta |
 | [ManOS](ManOS/) | Hand-gesture mouse: point with your palm, pinch to click, drag and scroll | Beta |
-| Voice app | On-device dictation, recordings and summaries | In progress |
+| [Murmur](Murmur/) | Voice: hold-to-talk dictation into any app, recordings with on-device summaries | Beta |
 
 ## Install
 
@@ -35,7 +35,8 @@ cd oculOS/Humanity && make run      # the all-in-one app
 ```
 
 Each module is a Swift package with a reusable core library (`GazeKit`,
-`HandKit`), a UI module (`VisionGazeUI`, `ManOSUI`) and a thin standalone app.
+`HandKit`, `MurmurKit`), a UI module (`VisionGazeUI`, `ManOSUI`, `MurmurUI`)
+and a thin standalone app.
 `scripts/package.sh <App>` builds a DMG locally.
 
 ## Research

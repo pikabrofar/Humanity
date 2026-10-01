@@ -3,13 +3,13 @@
 <plist version="1.0">
 <dict>
     <key>CFBundleName</key>
-    <string>Humanity</string>
+    <string>Murmur</string>
     <key>CFBundleDisplayName</key>
-    <string>Humanity</string>
+    <string>Murmur</string>
     <key>CFBundleIdentifier</key>
-    <string>io.github.pikabrofar.humanity</string>
+    <string>io.github.pikabrofar.oculos.Murmur</string>
     <key>CFBundleExecutable</key>
-    <string>Humanity</string>
+    <string>Murmur</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleShortVersionString</key>
@@ -26,14 +26,9 @@
     <true/>
     <key>NSPrincipalClass</key>
     <string>NSApplication</string>
-    <!-- Hand poses like thumbs-up would otherwise trigger camera Reactions (macOS 14.4+). -->
-    <key>NSCameraReactionEffectGesturesEnabledDefault</key>
-    <false/>
     <key>NSMicrophoneUsageDescription</key>
-    <string>Humanity listens only while you dictate or record. Audio is transcribed on this Mac and never uploaded.</string>
+    <string>Murmur listens only while you dictate or record. Audio is transcribed on this Mac and never uploaded.</string>
     <key>NSSpeechRecognitionUsageDescription</key>
-    <string>Humanity turns your speech into text with Apple's on-device recognizer. Nothing is sent to Apple or anyone else.</string>
-    <key>NSCameraUsageDescription</key>
-    <string>Humanity uses the camera to track your eyes and hands. Video is processed on-device and never stored or transmitted.</string>
+    <string>Murmur turns your speech into text with Apple's on-device recognizer. Nothing is sent to Apple or anyone else.</string>
 </dict>
 </plist>

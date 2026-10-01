@@ -1,6 +1,7 @@
 import AppKit
 import GazeKit
 import ManOSUI
+import MurmurUI
 import Observation
 import SwiftUI
 import VisionGazeUI
@@ -26,16 +27,19 @@ struct HumanityApp: App {
             TabView {
                 suite.gaze.settings().tabItem { Label("VisionGaze", systemImage: "eye") }
                 suite.hands.settings().tabItem { Label("ManOS", systemImage: "hand.raised") }
+                suite.voice.settings().tabItem { Label("Murmur", systemImage: "waveform") }
             }
         }
 
         MenuBarExtra {
             Section("VisionGaze") { suite.gaze.menuItems() }
             Section("ManOS") { suite.hands.menuItems() }
+            Section("Murmur") { suite.voice.menuItems() }
             Divider()
             AppMenuItems()
         } label: {
-            Image(systemName: suite.hands.isControlling ? "hand.point.up.left.fill"
+            Image(systemName: suite.voice.isListening ? "waveform.circle.fill"
+                  : suite.hands.isControlling ? "hand.point.up.left.fill"
                   : suite.gaze.isRecording ? "record.circle.fill" : "figure.arms.open")
         }
     }
@@ -45,11 +49,12 @@ struct HumanityApp: App {
 /// combine, e.g. look to target + pinch to click).
 @MainActor @Observable
 final class Suite {
-    enum Module: String { case home, gaze, hands }
+    enum Module: String { case home, gaze, hands, voice }
 
     @ObservationIgnored let camera = CameraCapture()
     @ObservationIgnored let gaze: VisionGazeModule
     @ObservationIgnored let hands: ManOSModule
+    @ObservationIgnored let voice = MurmurModule()
     var module: Module = .home
 
     init() {
@@ -65,6 +70,7 @@ final class Suite {
             case .home: "home"
             case .gaze: "gaze." + (gaze.selectedSection ?? "live")
             case .hands: "hands." + (hands.selectedSection ?? "live")
+            case .voice: "voice." + (voice.selectedSection ?? "home")
             }
         }
         set {
@@ -74,6 +80,7 @@ final class Suite {
             if parts.count == 2 {
                 if module == .gaze { gaze.selectedSection = parts[1] }
                 if module == .hands { hands.selectedSection = parts[1] }
+                if module == .voice { voice.selectedSection = parts[1] }
             }
         }
     }
@@ -97,8 +104,10 @@ struct SuiteView: View {
                         Label(s.title, systemImage: s.symbol).tag("hands." + s.id)
                     }
                 }
-                Section("Voice") {
-                    Label("Coming soon", systemImage: "waveform").foregroundStyle(.secondary)
+                Section("Voice · Murmur") {
+                    ForEach(MurmurModule.sections, id: \.id) { s in
+                        Label(s.title, systemImage: s.symbol).tag("voice." + s.id)
+                    }
                 }
             }
             .navigationSplitViewColumnWidth(min: 190, ideal: 210)
@@ -107,6 +116,7 @@ struct SuiteView: View {
             case .home: HomeView()
             case .gaze: suite.gaze.detail(for: suite.gaze.selectedSection ?? "live")
             case .hands: suite.hands.detail(for: suite.hands.selectedSection ?? "live")
+            case .voice: suite.voice.detail(for: suite.voice.selectedSection ?? "home")
             }
         }
     }
@@ -120,7 +130,7 @@ struct HomeView: View {
             VStack(alignment: .leading, spacing: 20) {
                 VStack(alignment: .leading, spacing: 6) {
                     Text("Humanity").font(.system(size: 40, weight: .bold, design: .rounded))
-                    Text("Control your Mac with your eyes and hands. Everything runs on this Mac; video never leaves it.")
+                    Text("Control your Mac with your eyes, hands and voice. Everything runs on this Mac; video and audio never leave it.")
                         .font(.title3)
                         .foregroundStyle(.secondary)
                 }
@@ -145,8 +155,12 @@ struct HomeView: View {
                         open: { suite.selection = "hands." + (suite.hands.canControl ? "live" : "setup") }
                     )
                     ModuleCard(
-                        name: "Voice", tagline: "Dictation and summaries", symbol: "waveform", tint: .orange,
-                        isOn: .constant(false), status: "Coming soon", good: false, open: nil
+                        name: "Murmur", tagline: "Dictation and summaries", symbol: "waveform", tint: .orange,
+                        isOn: nil,
+                        status: !suite.voice.hasMicrophone ? "Needs microphone permission"
+                            : suite.voice.isListening ? "Listening…" : "Ready · ⌃⌥⌘D to dictate",
+                        good: suite.voice.hasMicrophone,
+                        open: { suite.selection = "voice." + (suite.voice.hasMicrophone ? "home" : "setup") }
                     )
                 }
             }
@@ -161,7 +175,8 @@ private struct ModuleCard: View {
     let tagline: String
     let symbol: String
     let tint: Color
-    @Binding var isOn: Bool
+    /// Nil for modules that only run on demand (no background tracking to switch off).
+    let isOn: Binding<Bool>?
     let status: String
     let good: Bool
     let open: (() -> Void)?
@@ -175,8 +190,8 @@ private struct ModuleCard: View {
                     .frame(width: 48, height: 48)
                     .background(tint.gradient, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
                 Spacer()
-                if open != nil {
-                    Toggle("On", isOn: $isOn).toggleStyle(.switch).labelsHidden()
+                if let isOn {
+                    Toggle("On", isOn: isOn).toggleStyle(.switch).labelsHidden()
                         .help("Turning a module off stops its tracking to save power")
                 }
             }

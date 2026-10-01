@@ -8,6 +8,7 @@ let package = Package(
     dependencies: [
         .package(path: "../VisionGaze"),
         .package(path: "../ManOS"),
+        .package(path: "../Murmur"),
     ],
     targets: [
         .executableTarget(
@@ -16,6 +17,7 @@ let package = Package(
                 .product(name: "VisionGazeUI", package: "VisionGaze"),
                 .product(name: "GazeKit", package: "VisionGaze"),
                 .product(name: "ManOSUI", package: "ManOS"),
+                .product(name: "MurmurUI", package: "Murmur"),
             ]
         ),
     ]

@@ -5,7 +5,7 @@ and one Settings window, and every module shares one camera:
 
 - **VisionGaze:** eye tracking, gaze cursor, heatmaps ([details](../VisionGaze/README.md))
 - **ManOS:** hand-gesture mouse ([details](../ManOS/README.md))
-- **Voice:** dictation and summaries (coming soon)
+- **Murmur:** on-device dictation, recordings and summaries ([details](../Murmur/README.md))
 
 ```sh
 make run
@@ -17,5 +17,5 @@ sidebar.
 
 **Adding a module:** expose a `…Module` class from the module's UI library with
 `sections`, `detail(for:)`, `settings()`, `menuItems()` and `isActive`, like
-`VisionGazeModule` and `ManOSModule`. Then add it to `Suite` in
+`VisionGazeModule`, `ManOSModule` and `MurmurModule`. Then add it to `Suite` in
 `HumanityApp.swift`.
