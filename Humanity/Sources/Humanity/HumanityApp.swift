@@ -108,8 +108,12 @@ final class Suite {
         }
     }
 
-    func showMainWindow() {
-        openWindow?("main")
+    func showMainWindow() { show(nil) }
+
+    /// Opens a window, optionally at a sidebar selection.
+    func show(_ selection: String?, window: String = "main") {
+        if let selection { self.selection = selection }
+        openWindow?(window)
         NSApp.activate(ignoringOtherApps: true)
     }
 
@@ -198,7 +202,7 @@ struct HomeView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
                 PermissionsBanner()
-                ModuleRows()
+                ModuleTiles().frame(maxWidth: 300)
                 ControlsList()
             }
             .padding(20)
@@ -210,140 +214,126 @@ struct HomeView: View {
 
 // MARK: - Menu bar panel
 
-/// The whole everyday interface: three switches.
+/// The whole everyday interface: three glass toggles and one menu.
 struct QuickPanel: View {
-    @Environment(\.openWindow) private var openWindow
-    @State private var showHelp = false
+    @Environment(Suite.self) private var suite
+    @Environment(SuitePermissions.self) private var permissions
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(spacing: 10) {
-                Text("Humanity").font(.headline)
-                Spacer()
-                Button { showHelp.toggle() } label: { Image(systemName: "questionmark.circle") }
-                    .help("Controls")
-                    .popover(isPresented: $showHelp, arrowEdge: .bottom) {
-                        VStack(alignment: .leading, spacing: 10) {
-                            ControlsList(compact: true)
-                            Button("Show Tutorial") { open("tutorial") }.buttonStyle(.link).font(.caption)
-                        }
-                        .padding(12)
-                        .frame(width: 300)
+        let missing = permissions.missingRequired.count
+        VStack(spacing: 12) {
+            ModuleTiles()
+            HStack(spacing: 6) {
+                if missing > 0 {
+                    Button { suite.show("permissions") } label: {
+                        Label("\(missing) permission\(missing == 1 ? "" : "s") needed", systemImage: "exclamationmark.triangle.fill")
                     }
-                SettingsLink { Image(systemName: "gearshape") }.help("Settings")
+                    .buttonStyle(.plain)
+                    .foregroundStyle(.orange)
+                } else {
+                    Text("⌃⌥⌘D dictate · ⌃⌥⌘H hands").foregroundStyle(.tertiary)
+                }
+                Spacer(minLength: 0)
+                Menu {
+                    Button("Open Humanity") { suite.show("home") }
+                    Button("Tutorial") { suite.show(nil, window: "tutorial") }
+                    SettingsLink { Text("Settings…") }
+                    Divider()
+                    Button("Quit Humanity") { NSApp.terminate(nil) }
+                } label: {
+                    Image(systemName: "ellipsis")
+                }
+                .menuStyle(.button)
+                .buttonStyle(.borderless)
+                .menuIndicator(.hidden)
+                .fixedSize()
             }
-            .buttonStyle(.borderless)
-
-            PermissionsBanner(compact: true)
-            ModuleRows()
-
-            HStack {
-                Button("Open Humanity") { open("main") }
-                Spacer()
-                Button("Quit") { NSApp.terminate(nil) }
-            }
-            .buttonStyle(.borderless)
             .font(.caption)
-            .foregroundStyle(.secondary)
         }
-        .padding(12)
-        .frame(width: 280)
-    }
-
-    private func open(_ id: String) {
-        openWindow(id: id)
-        NSApp.activate(ignoringOtherApps: true)
+        .padding(14)
+        .frame(width: 236)
     }
 }
 
-/// One line per module: icon, name, state, and a single control.
-struct ModuleRows: View {
+/// One glass button per module: tap toggles it, tap the name to open its page.
+struct ModuleTiles: View {
     @Environment(Suite.self) private var suite
-    @Environment(\.openWindow) private var openWindow
 
     var body: some View {
-        VStack(spacing: 2) {
-            row("eye", .blue, "OculOS", gazeStatus, page: "gaze." + (suite.gaze.isCalibrated ? "live" : "setup")) {
-                Toggle("OculOS", isOn: Binding(
-                    get: { suite.gaze.isActive },
-                    set: { on in
-                        suite.gaze.isActive = on
-                        suite.gaze.showCursor = on && suite.gaze.isCalibrated
-                        if on, !suite.gaze.isCalibrated { show("gaze.setup") }
-                    }))
-            }
-            row("hand.raised", .purple, "ManOS", handsStatus, page: "hands.live") {
-                Toggle("ManOS", isOn: Binding(
-                    get: { suite.hands.isActive && suite.hands.isControlling },
-                    set: { on in
-                        guard on else { suite.hands.isActive = false; return }
-                        guard suite.hands.canControl else { show("permissions"); return }
-                        suite.hands.isActive = true
-                        if !suite.hands.isControlling { suite.hands.toggleControl() }
-                    }))
-            }
-            row("waveform", .orange, "Murmur", voiceStatus, page: "voice.home") {
-                Button { suite.voice.hasMicrophone ? suite.voice.toggleDictation() : show("permissions") } label: {
-                    Image(systemName: suite.voice.isListening ? "stop.fill" : "mic.fill")
-                        .foregroundStyle(suite.voice.isListening ? .red : .primary)
-                }
-                .buttonStyle(.borderless)
-                .help(suite.voice.isListening ? "Stop" : "Dictate (⌃⌥⌘D)")
-            }
+        let gaze = suite.gaze, hands = suite.hands, voice = suite.voice
+        HStack(alignment: .top, spacing: 8) {
+            Tile(symbol: "eye", name: "OculOS", tint: .blue, isOn: gaze.isActive,
+                 status: !gaze.isActive ? "Off" : !gaze.isCalibrated ? "Calibrate" : gaze.isTracking ? "Tracking" : "Searching",
+                 help: "Eye tracking") {
+                gaze.isActive.toggle()
+                gaze.showCursor = gaze.isActive && gaze.isCalibrated
+                if gaze.isActive, !gaze.isCalibrated { suite.show("gaze.setup") }
+            } open: { suite.show("gaze." + (gaze.isCalibrated ? "live" : "setup")) }
+
+            let handsOn = hands.isActive && hands.isControlling
+            Tile(symbol: "hand.raised", name: "ManOS", tint: .purple, isOn: handsOn,
+                 status: !handsOn ? (hands.canControl ? "Off" : "No access") : hands.isPaused ? "Paused" : hands.handInView ? "Active" : "No hand",
+                 help: "Hand control · ⌃⌥⌘H") {
+                if handsOn { hands.isActive = false; return }
+                guard hands.canControl else { suite.show("permissions"); return }
+                hands.isActive = true
+                if !hands.isControlling { hands.toggleControl() }
+            } open: { suite.show("hands.live") }
+
+            Tile(symbol: voice.isListening ? "stop.fill" : "waveform", name: "Murmur", tint: .orange, isOn: voice.isListening,
+                 status: !voice.hasMicrophone ? "No mic" : voice.isListening ? "Listening" : "Ready",
+                 help: "Dictate · hold ⌃⌥⌘D") {
+                voice.hasMicrophone ? voice.toggleDictation() : suite.show("permissions")
+            } open: { suite.show("voice.home") }
         }
     }
+}
 
-    private var gazeStatus: String {
-        guard suite.gaze.isActive else { return "Off" }
-        if !suite.gaze.isCalibrated { return "Needs calibration" }
-        return suite.gaze.isTracking ? "Following your gaze" : "Looking for you"
-    }
+private struct Tile: View {
+    let symbol: String, name: String, tint: Color, isOn: Bool, status: String, help: String
+    let toggle: () -> Void
+    let open: () -> Void
 
-    private var handsStatus: String {
-        guard suite.hands.isActive && suite.hands.isControlling else {
-            return suite.hands.canControl ? "Off" : "Needs Accessibility"
-        }
-        if suite.hands.isPaused { return "Paused · ⌃⌥⌘H" }
-        return suite.hands.handInView ? "In control · ⌃⌥⌘H" : "Show your hand"
-    }
-
-    private var voiceStatus: String {
-        if !suite.voice.hasMicrophone { return "Needs microphone" }
-        return suite.voice.isListening ? "Listening…" : "Hold ⌃⌥⌘D"
-    }
-
-    private func show(_ selection: String) {
-        suite.selection = selection
-        openWindow(id: "main")
-        NSApp.activate(ignoringOtherApps: true)
-    }
-
-    private func row<Control: View>(_ symbol: String, _ tint: Color, _ name: String, _ status: String,
-                                    page: String, @ViewBuilder control: () -> Control) -> some View {
-        HStack(spacing: 10) {
-            Button { show(page) } label: {
-                HStack(spacing: 10) {
-                    Image(systemName: symbol)
-                        .font(.system(size: 12, weight: .semibold))
-                        .foregroundStyle(.white)
-                        .frame(width: 24, height: 24)
-                        .background(tint.gradient, in: RoundedRectangle(cornerRadius: 6, style: .continuous))
-                    VStack(alignment: .leading, spacing: 0) {
-                        Text(name).font(.callout.weight(.medium))
-                        Text(status).font(.caption).foregroundStyle(.secondary).lineLimit(1)
-                    }
-                    Spacer(minLength: 4)
+    var body: some View {
+        VStack(spacing: 6) {
+            Button(action: toggle) {
+                Image(systemName: symbol)
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundStyle(isOn ? AnyShapeStyle(.white) : AnyShapeStyle(.primary))
+                    .frame(width: 34, height: 34)
+                    .contentShape(Circle())
+            }
+            .modifier(Glass(tint: isOn ? tint : nil))
+            .help(help)
+            Button(action: open) {
+                VStack(spacing: 1) {
+                    Text(name).font(.caption.weight(.semibold))
+                    Text(status).font(.caption2).foregroundStyle(.secondary).lineLimit(1)
                 }
-                .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
             .help("Open \(name)")
-            control()
-                .toggleStyle(.switch)
-                .controlSize(.mini)
-                .labelsHidden()
         }
-        .padding(.vertical, 5)
+        .frame(maxWidth: .infinity)
+        .animation(.snappy(duration: 0.2), value: isOn)
+    }
+}
+
+/// Liquid Glass on macOS 26 (tinted when on); a tinted circle before that.
+private struct Glass: ViewModifier {
+    let tint: Color?
+
+    func body(content: Content) -> some View {
+        if #available(macOS 26, *) {
+            if let tint {
+                content.buttonStyle(.glassProminent).tint(tint).buttonBorderShape(.circle)
+            } else {
+                content.buttonStyle(.glass).buttonBorderShape(.circle)
+            }
+        } else {
+            content.buttonStyle(.plain)
+                .background(tint.map { AnyShapeStyle($0.gradient) } ?? AnyShapeStyle(.quaternary), in: Circle())
+        }
     }
 }
 
@@ -351,8 +341,6 @@ struct ModuleRows: View {
 
 /// Every shortcut and gesture in one place.
 struct ControlsList: View {
-    var compact = false
-
     private let groups: [(String, String, [(String, String)])] = [
         ("OculOS", "eye", [
             ("Calibrate", "Menu bar → Calibrate · Esc cancels"),
@@ -377,10 +365,10 @@ struct ControlsList: View {
     ]
 
     var body: some View {
-        VStack(alignment: .leading, spacing: compact ? 8 : 16) {
+        VStack(alignment: .leading, spacing: 16) {
             ForEach(groups, id: \.0) { name, symbol, items in
                 VStack(alignment: .leading, spacing: 4) {
-                    Label(name, systemImage: symbol).font(compact ? .caption.weight(.semibold) : .headline)
+                    Label(name, systemImage: symbol).font(.headline)
                     Grid(alignment: .leading, horizontalSpacing: 10, verticalSpacing: 3) {
                         ForEach(items, id: \.0) { key, action in
                             GridRow {
@@ -521,8 +509,6 @@ struct TutorialView: View {
 struct PermissionsBanner: View {
     @Environment(Suite.self) private var suite
     @Environment(SuitePermissions.self) private var permissions
-    @Environment(\.openWindow) private var openWindow
-    var compact = false
 
     var body: some View {
         let missing = permissions.missingRequired
@@ -531,13 +517,9 @@ struct PermissionsBanner: View {
                 Image(systemName: "lock.shield").foregroundStyle(.orange)
                 Text("\(missing.count) permission\(missing.count == 1 ? "" : "s") needed: \(missing.map(\.title).joined(separator: ", "))")
                     .font(.caption)
-                    .lineLimit(compact ? 2 : 1)
+                    .lineLimit(1)
                 Spacer(minLength: 4)
-                Button("Grant") {
-                    suite.selection = "permissions"
-                    openWindow(id: "main")
-                    NSApp.activate(ignoringOtherApps: true)
-                }
+                Button("Grant") { suite.show("permissions") }
                 .controlSize(.small)
             }
             .padding(8)
