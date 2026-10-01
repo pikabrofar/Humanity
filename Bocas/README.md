@@ -24,7 +24,7 @@ search, play back, summarize and export recordings to Markdown.
 You only need the Command Line Tools (`xcode-select --install`).
 
 ```sh
-cd Humanity/Bocas
+cd sentidoS/Bocas
 make run    # builds build/Bocas.app and opens it
 make test   # unit tests (Swift Testing)
 ```
