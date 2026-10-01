@@ -1,5 +1,6 @@
 import AppKit
 import Carbon.HIToolbox
+import AIKit
 import MurmurKit
 import Observation
 import SwiftUI
@@ -191,7 +192,14 @@ final class AppModel {
         }
         var cleaned: String?
         if cleanup {
-            cleaned = (useIntelligence ? await Intelligence.polish(raw) : nil) ?? TextCleanup.basic(raw)
+            // A cloud model the user connected (AIKit), else Apple Intelligence, else rules.
+            // The rewrite check guards against a model answering the text instead of editing it.
+            let cloud = (try? await Tasks.cleanup(raw)).flatMap { TextCleanup.acceptRewrite($0, of: raw) }
+            if let cloud {
+                cleaned = cloud
+            } else {
+                cleaned = await (useIntelligence ? Intelligence.polish(raw) : nil) ?? TextCleanup.basic(raw)
+            }
         }
         let recording = Recording(id: session.id, createdAt: session.startedAt, duration: duration, kind: mode,
                                   transcript: raw, cleaned: cleaned,
@@ -254,7 +262,18 @@ final class AppModel {
     func summarize(_ id: UUID) async {
         guard let text = recordings.first(where: { $0.id == id })?.text, !summarizing.contains(id) else { return }
         summarizing.insert(id)
-        let summary = await (useIntelligence ? Intelligence.summarize(text) : nil) ?? Summarizer.extractive(text)
+        var summary: Summary
+        do {
+            if let cloud = try await Tasks.summarize(transcript: text) {
+                summary = Summary(text: cloud.text, actionItems: cloud.actionItems)
+            } else {
+                summary = await (useIntelligence ? Intelligence.summarize(text) : nil) ?? Summarizer.extractive(text)
+            }
+        } catch {
+            // The chosen provider failed (no key, offline, rate limit): stay useful on-device.
+            flash("Cloud summary failed: \(error.localizedDescription). Summarized on this Mac instead.")
+            summary = await (useIntelligence ? Intelligence.summarize(text) : nil) ?? Summarizer.extractive(text)
+        }
         summarizing.remove(id)
         update(id) {
             $0.summary = summary.text

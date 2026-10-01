@@ -3,7 +3,12 @@
 Humanity apps watch your face and hands, and listen to your voice, so here is
 exactly what they do with that.
 
-- **Nothing leaves your Mac.** The apps make no network requests: no analytics,
+- **Optional cloud AI is opt-in and explicit.** In AI Providers you can connect
+  your own API key (Groq, Gemini, OpenAI, Anthropic, OpenRouter and others) for a
+  task such as summaries. Only then is that task's *text* sent to the provider
+  you chose, under its terms. Audio and video are never sent. Keys live in your
+  macOS Keychain. The default for every task is on-device.
+- **Otherwise nothing leaves your Mac.** The apps make no network requests: no analytics,
   no telemetry, no crash reporting, no update checks. Only scripts you run
   yourself download anything (for example, OculOS's `make cnn-model`).
 - **Camera frames are never stored.** Each frame is analyzed in memory and

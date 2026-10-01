@@ -1,3 +1,4 @@
+import AIKitUI
 import AppKit
 import GazeKit
 import ManOSUI
@@ -51,6 +52,7 @@ struct HumanityApp: App {
                 suite.gaze.settings().tabItem { Label("OculOS", systemImage: "eye") }
                 suite.hands.settings().tabItem { Label("ManOS", systemImage: "hand.raised") }
                 suite.voice.settings().tabItem { Label("Murmur", systemImage: "waveform") }
+                AIProvidersView().tabItem { Label("AI Providers", systemImage: "sparkles") }
             }
         }
     }
@@ -60,7 +62,7 @@ struct HumanityApp: App {
 /// combine, e.g. look to target + pinch to click).
 @MainActor @Observable
 final class Suite {
-    enum Module: String { case home, permissions, controls, gaze, hands, voice }
+    enum Module: String { case home, permissions, controls, ai, gaze, hands, voice }
 
     @ObservationIgnored let camera = CameraCapture()
     @ObservationIgnored let gaze: OculOSModule
@@ -99,6 +101,7 @@ final class Suite {
             case .home: "home"
             case .permissions: "permissions"
             case .controls: "controls"
+            case .ai: "ai"
             case .gaze: "gaze." + (gaze.selectedSection ?? "live")
             case .hands: "hands." + (hands.selectedSection ?? "live")
             case .voice: "voice." + (voice.selectedSection ?? "home")
@@ -134,6 +137,7 @@ struct SuiteView: View {
                 Label("Permissions", systemImage: "lock.shield").tag("permissions")
                     .badge(permissions.missingRequired.count)
                 Label("Controls", systemImage: "keyboard").tag("controls")
+                Label("AI Providers", systemImage: "sparkles").tag("ai")
                 Section("OculOS · Eyes") {
                     ForEach(OculOSModule.sections, id: \.id) { s in
                         Label(s.title, systemImage: s.symbol).tag("gaze." + s.id)
@@ -156,6 +160,7 @@ struct SuiteView: View {
             case .home: HomeView()
             case .permissions: PermissionsView()
             case .controls: ScrollView { ControlsList().padding(20) }.navigationTitle("Controls")
+            case .ai: AIProvidersView().navigationTitle("AI Providers")
             case .gaze: suite.gaze.detail(for: suite.gaze.selectedSection ?? "live")
             case .hands: suite.hands.detail(for: suite.hands.selectedSection ?? "live")
             case .voice: suite.voice.detail(for: suite.voice.selectedSection ?? "home")

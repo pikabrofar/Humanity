@@ -9,6 +9,7 @@ let package = Package(
         .package(path: "../OculOS"),
         .package(path: "../ManOS"),
         .package(path: "../Murmur"),
+        .package(path: "../AIKit"),
     ],
     targets: [
         .executableTarget(
@@ -18,6 +19,7 @@ let package = Package(
                 .product(name: "GazeKit", package: "OculOS"),
                 .product(name: "ManOSUI", package: "ManOS"),
                 .product(name: "MurmurUI", package: "Murmur"),
+                .product(name: "AIKitUI", package: "AIKit"),
             ]
         ),
     ]

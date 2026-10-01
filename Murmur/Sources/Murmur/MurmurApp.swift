@@ -1,3 +1,4 @@
+import AIKitUI
 import AppKit
 import MurmurUI
 import SwiftUI
@@ -17,7 +18,12 @@ struct MurmurApp: App {
         }
         .windowToolbarStyle(.unified)
 
-        Settings { module.settings() }
+        Settings {
+            TabView {
+                module.settings().tabItem { Label("Murmur", systemImage: "waveform") }
+                AIProvidersView().tabItem { Label("AI Providers", systemImage: "sparkles") }
+            }
+        }
 
         MenuBarExtra {
             module.menuItems()
