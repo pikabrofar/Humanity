@@ -134,8 +134,10 @@ struct SuiteView: View {
         NavigationSplitView {
             List(selection: $suite.selection) {
                 Label("Home", systemImage: "house").tag("home")
-                Label("Permissions", systemImage: "lock.shield").tag("permissions")
+                // The tag must be the outermost modifier, or List can't select the row.
+                Label("Permissions", systemImage: "lock.shield")
                     .badge(permissions.missingRequired.count)
+                    .tag("permissions")
                 Label("Controls", systemImage: "keyboard").tag("controls")
                 Label("AI Providers", systemImage: "sparkles").tag("ai")
                 Section("OculOS · Eyes") {
