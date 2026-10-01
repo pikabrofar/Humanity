@@ -9,6 +9,8 @@ framework: no extra hardware, no cloud.
 | [VisionGaze](VisionGaze/) | Eye tracking: calibrated gaze cursor, heatmaps, recordings | Working |
 | Hand gesture control | Point, pinch to click, and scroll with your hands | Planned |
 
+![VisionGaze live view](VisionGaze/docs/screenshots/live.png)
+
 ## Requirements
 
 - macOS 14 Sonoma or later

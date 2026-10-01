@@ -14,6 +14,16 @@ hardware, no cloud, no third-party dependencies.
 
 Everything runs on-device. Video frames are processed in memory and never saved.
 
+![VisionGaze: live view with face tracking, gaze map, head pose and eyes](docs/screenshots/live.png)
+
+| Calibrate | Recordings |
+|---|---|
+| ![Calibration page with steps and current accuracy](docs/screenshots/calibrate.png) | ![Recording with a heatmap over the page that was read](docs/screenshots/recordings.png) |
+| **Full-screen calibration** | **Dark mode** |
+| ![Calibration intro: follow the dots with your eyes](docs/screenshots/calibration.png) | ![Live view in dark mode](docs/screenshots/live-dark.png) |
+
+<sub>Screenshots are rendered from canned data, so the camera view is empty. See [UI screenshots](#ui-screenshots).</sub>
+
 ## Requirements
 
 - macOS 14 Sonoma or later
@@ -36,12 +46,13 @@ use `make run` instead of `swift run`.
 ## Using it
 
 1. Grant camera access on first launch.
-2. Click **Calibrate…** and follow the nine dots with your eyes, keeping your
-   head still. It takes about 20 seconds. The results screen shows the error at
-   each target, and a live gaze circle you can use to check the fit.
-3. Turn on **Show gaze cursor** (⇧⌘G), or press **Record** (⌥⌘R, which works
-   from any app) to capture a session.
-4. Open **Recordings** to view the heatmap or scanpath, overlay it on your
+2. Open **Calibrate** (⌘2), press **Start Calibration** (⇧⌘K) and follow the
+   dots with your eyes, keeping your head still. It takes about 45 seconds. The
+   results screen shows the error at each target, and a live gaze ring you can
+   use to check the fit.
+3. In **Live** (⌘1), turn on **Gaze cursor** (⇧⌘G), or press **Record** (⌥⌘R,
+   which works from any app) to capture a session.
+4. Open **Recordings** (⌘3) to view the heatmap or scanpath, overlay it on your
    screen, or export it.
 
 Expect roughly 2–4° of accuracy (about 80–150 pt on a laptop), which is typical
@@ -130,7 +141,7 @@ the standard way to personalize a generic gaze CNN. To build L2CS-Net
 make cnn-model   # downloads PyTorch + weights (~1 GB), writes build/GazeCNN.mlpackage
 ```
 
-Then open **Settings → Gaze CNN → Load Model…** and recalibrate. The L2CS-Net
+Then open **Settings → Tracking → Load Model…** and recalibrate. The L2CS-Net
 code is MIT, but the pretrained weights are trained on Gaze360, which is for
 research use only. That's why no model is included in this repo. Any Core ML
 model with an image input and a 2-value output works.
@@ -156,7 +167,7 @@ model with an image input and a 2-value output works.
 click, frames from the previous 250 ms become samples for the click point, and
 the model is refit (up to 400 click samples). Clicks more than 25% of the
 screen away from the predicted gaze are ignored. This corrects head movement
-and posture changes since calibration. Turn it off in Settings → Accuracy.
+and posture changes since calibration. Turn it off in Settings → Tracking.
 
 **Smoothing.** Webcam gaze noise is larger than eye movements within a
 fixation, so a low-pass filter either jitters or lags. `FixationStabilizer`
@@ -195,6 +206,19 @@ scripts/                app bundling and icon generation
 ```
 
 Data is stored in `~/Library/Application Support/VisionGaze/`.
+
+## UI screenshots
+
+Debug builds can render every screen with canned data, without a camera:
+
+```sh
+swift build && VISIONGAZE_SHOWCASE=/tmp/visiongaze-shots .build/debug/VisionGaze
+```
+
+It writes light and dark PNGs of each page, the settings tabs and the
+calibration overlay, then quits. Your calibration and recordings are not read
+or changed. CI does the same on every push and uploads the images as the
+`ui-screenshots` artifact.
 
 ## Contributing
 
