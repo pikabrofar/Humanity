@@ -1,0 +1,57 @@
+name: Feature request
+description: Suggest an idea or improvement for sentidoS.
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the idea. sentidoS keeps camera and audio processing on the Mac and won't add features designed for covert recording or tracking of other people (see [CONTRIBUTING.md](https://github.com/pikabrofar/sentidoS/blob/main/CONTRIBUTING.md)).
+
+  - type: dropdown
+    id: module
+    attributes:
+      label: Module
+      multiple: true
+      options:
+        - sentidoS (menu bar app)
+        - ojoS (eye tracking)
+        - manoS (hand gestures)
+        - bocaS dictation or notes
+        - bocaS meetings
+        - AI providers
+        - Accessibility
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What are you trying to do, and what gets in the way?
+      placeholder: "When I'm reading long documents, I'd like to..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed solution
+      description: How should it work? Gestures, shortcuts or settings you have in mind.
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Workarounds you use today, or other apps that do this well.
+
+  - type: checkboxes
+    id: privacy
+    attributes:
+      label: Privacy
+      options:
+        - label: This idea doesn't need new network calls, or I've described what would be sent and why.
+        - label: This idea doesn't record or track people without their knowledge.
+          required: true
