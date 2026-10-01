@@ -12,11 +12,6 @@ struct HumanityApp: App {
     @NSApplicationDelegateAdaptor private var appDelegate: AppDelegate
     @State private var suite = Suite()
 
-    init() {
-        // Allows `swift run` without an app bundle to show a regular window.
-        NSApplication.shared.setActivationPolicy(.regular)
-    }
-
     var body: some Scene {
         // Everyday use happens in the menu bar panel; the window is for setup,
         // calibration and libraries, so it stays small.
@@ -35,11 +30,6 @@ struct HumanityApp: App {
         }
         .defaultSize(width: 760, height: 500)
         .windowToolbarStyle(.unifiedCompact)
-        .commands {
-            CommandGroup(replacing: .help) {
-                TutorialCommand()
-            }
-        }
 
         Window("Welcome to Humanity", id: "tutorial") {
             TutorialView().environment(suite).environment(suite.permissions)
@@ -75,6 +65,7 @@ final class Suite {
     /// bar icon hands it over so app-level events (Dock click, relaunch) can use it.
     @ObservationIgnored var openWindow: ((String) -> Void)?
     @ObservationIgnored static weak var current: Suite?
+    @ObservationIgnored private var wasControlling = false
 
     var seenTutorial = UserDefaults.standard.bool(forKey: "Humanity.seenTutorial") {
         didSet { UserDefaults.standard.set(seenTutorial, forKey: "Humanity.seenTutorial") }
@@ -87,6 +78,32 @@ final class Suite {
         // Development: `open Humanity.app --args -Humanity.start voice.library`
         if let start = UserDefaults.standard.string(forKey: "Humanity.start") { selection = start }
         Self.current = self
+
+        // Lightweight by default: modules stay off until switched on, and the
+        // camera is fully off (light off, no CPU) whenever no module needs it.
+        gaze.isActive = UserDefaults.standard.bool(forKey: "Humanity.gazeOn")
+        hands.isActive = UserDefaults.standard.bool(forKey: "Humanity.handsOn")
+        watchModules()
+    }
+
+    /// Keeps the camera and the saved on/off state in sync with the modules,
+    /// whichever way they were switched (panel, hotkey, module page).
+    private func watchModules() {
+        let defaults = UserDefaults.standard
+        defaults.set(gaze.isActive, forKey: "Humanity.gazeOn")
+        defaults.set(hands.isActive, forKey: "Humanity.handsOn")
+        // Control switched off (e.g. ⌃⌥⌘H) also stops hand tracking, unless the
+        // ManOS page is open and showing the camera.
+        if wasControlling, !hands.isControlling, hands.isActive, module != .hands {
+            hands.isActive = false
+        }
+        wasControlling = hands.isControlling
+        camera.setPaused(!gaze.isActive && !hands.isActive)
+        withObservationTracking {
+            _ = (gaze.isActive, hands.isActive, hands.isControlling)
+        } onChange: { [weak self] in
+            Task { @MainActor in self?.watchModules() }
+        }
     }
 
     func showMainWindow() {
@@ -124,120 +141,111 @@ final class Suite {
 
 // MARK: - Main window
 
+/// Only for setup, calibration and libraries; everyday use is the menu bar.
 struct SuiteView: View {
     @Environment(Suite.self) private var suite
     @Environment(SuitePermissions.self) private var permissions
-    @Environment(\.openWindow) private var openWindow
 
     var body: some View {
         @Bindable var suite = suite
         NavigationSplitView {
             List(selection: $suite.selection) {
                 Label("Home", systemImage: "house").tag("home")
-                // The tag must be the outermost modifier, or List can't select the row.
-                Label("Permissions", systemImage: "lock.shield")
-                    .badge(permissions.missingRequired.count)
-                    .tag("permissions")
-                Label("Controls", systemImage: "keyboard").tag("controls")
-                Label("AI Providers", systemImage: "sparkles").tag("ai")
-                Section("OculOS · Eyes") {
+                if !permissions.missingRequired.isEmpty {
+                    // The tag must be the outermost modifier, or List can't select the row.
+                    Label("Permissions", systemImage: "lock.shield")
+                        .badge(permissions.missingRequired.count)
+                        .tag("permissions")
+                }
+                Section("OculOS") {
                     ForEach(OculOSModule.sections, id: \.id) { s in
                         Label(s.title, systemImage: s.symbol).tag("gaze." + s.id)
                     }
                 }
-                Section("ManOS · Hands") {
+                Section("ManOS") {
                     ForEach(ManOSModule.sections, id: \.id) { s in
                         Label(s.title, systemImage: s.symbol).tag("hands." + s.id)
                     }
                 }
-                Section("Murmur · Voice") {
+                Section("Murmur") {
                     ForEach(MurmurModule.sections, id: \.id) { s in
                         Label(s.title, systemImage: s.symbol).tag("voice." + s.id)
                     }
                 }
+                Section("More") {
+                    Label("AI Providers", systemImage: "sparkles").tag("ai")
+                    Label("Permissions", systemImage: "lock.shield").tag("permissions")
+                }
             }
-            .navigationSplitViewColumnWidth(min: 170, ideal: 180)
+            .navigationSplitViewColumnWidth(min: 160, ideal: 170)
         } detail: {
             switch suite.module {
-            case .home: HomeView()
+            case .home, .controls: HomeView()
             case .permissions: PermissionsView()
-            case .controls: ScrollView { ControlsList().padding(20) }.navigationTitle("Controls")
             case .ai: AIProvidersView().navigationTitle("AI Providers")
             case .gaze: suite.gaze.detail(for: suite.gaze.selectedSection ?? "live")
             case .hands: suite.hands.detail(for: suite.hands.selectedSection ?? "live")
             case .voice: suite.voice.detail(for: suite.voice.selectedSection ?? "home")
             }
         }
-        .onAppear {
-            if !suite.seenTutorial { openWindow(id: "tutorial") }
-        }
     }
 }
 
-/// Compact overview: one row per module with its switch and main action.
 struct HomeView: View {
-    @Environment(Suite.self) private var suite
-    @Environment(\.openWindow) private var openWindow
-
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 14) {
-                Text("Your eyes, hands and voice, on this Mac only.")
-                    .foregroundStyle(.secondary)
+            VStack(alignment: .leading, spacing: 16) {
                 PermissionsBanner()
-                ModuleRows(compact: false)
-                HStack {
-                    Button("Show Tutorial") { openWindow(id: "tutorial") }
-                    Text("Tip: everything here is also in the menu bar.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
+                ModuleRows()
+                ControlsList()
             }
             .padding(20)
-            .frame(maxWidth: 640, alignment: .leading)
+            .frame(maxWidth: 520, alignment: .leading)
         }
-        .navigationTitle("Home")
+        .navigationTitle("Humanity")
     }
 }
 
 // MARK: - Menu bar panel
 
-/// The everyday interface: one glance shows each module's state, one click runs it.
+/// The whole everyday interface: three switches.
 struct QuickPanel: View {
-    @Environment(Suite.self) private var suite
     @Environment(\.openWindow) private var openWindow
-    @State private var showControls = false
+    @State private var showHelp = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 10) {
                 Text("Humanity").font(.headline)
                 Spacer()
-                SettingsLink { Image(systemName: "gearshape") }
-                    .buttonStyle(.borderless)
-                    .help("Settings")
+                Button { showHelp.toggle() } label: { Image(systemName: "questionmark.circle") }
+                    .help("Controls")
+                    .popover(isPresented: $showHelp, arrowEdge: .bottom) {
+                        VStack(alignment: .leading, spacing: 10) {
+                            ControlsList(compact: true)
+                            Button("Show Tutorial") { open("tutorial") }.buttonStyle(.link).font(.caption)
+                        }
+                        .padding(12)
+                        .frame(width: 300)
+                    }
+                SettingsLink { Image(systemName: "gearshape") }.help("Settings")
             }
+            .buttonStyle(.borderless)
 
             PermissionsBanner(compact: true)
-            ModuleRows(compact: true)
+            ModuleRows()
 
-            DisclosureGroup("Controls", isExpanded: $showControls) {
-                ControlsList(compact: true).padding(.top, 6)
-            }
-            .font(.callout)
-
-            Divider()
             HStack {
                 Button("Open Humanity") { open("main") }
-                Button("Tutorial") { open("tutorial") }
                 Spacer()
                 Button("Quit") { NSApp.terminate(nil) }
             }
             .buttonStyle(.borderless)
-            .font(.callout)
+            .font(.caption)
+            .foregroundStyle(.secondary)
         }
-        .padding(14)
-        .frame(width: 320)
+        .padding(12)
+        .frame(width: 280)
     }
 
     private func open(_ id: String) {
@@ -246,48 +254,60 @@ struct QuickPanel: View {
     }
 }
 
-/// Shared by the panel and Home: module, state, on/off, and its main action.
+/// One line per module: icon, name, state, and a single control.
 struct ModuleRows: View {
     @Environment(Suite.self) private var suite
     @Environment(\.openWindow) private var openWindow
-    let compact: Bool
 
     var body: some View {
-        VStack(spacing: compact ? 8 : 10) {
-            row(symbol: "eye", tint: .blue, name: "OculOS",
-                status: !suite.gaze.isCalibrated ? "Not calibrated" : suite.gaze.isTracking ? "Tracking your gaze" : "Calibrated",
-                isOn: Binding(get: { suite.gaze.isActive }, set: { suite.gaze.isActive = $0 })) {
-                if suite.gaze.isCalibrated {
-                    Toggle("Cursor", isOn: Binding(get: { suite.gaze.showCursor }, set: { suite.gaze.showCursor = $0 }))
-                        .toggleStyle(.button)
-                        .help("Show the gaze cursor")
-                }
-                Button(suite.gaze.isCalibrated ? "Recalibrate" : "Calibrate") { suite.gaze.startCalibration() }
+        VStack(spacing: 2) {
+            row("eye", .blue, "OculOS", gazeStatus, page: "gaze." + (suite.gaze.isCalibrated ? "live" : "setup")) {
+                Toggle("OculOS", isOn: Binding(
+                    get: { suite.gaze.isActive },
+                    set: { on in
+                        suite.gaze.isActive = on
+                        suite.gaze.showCursor = on && suite.gaze.isCalibrated
+                        if on, !suite.gaze.isCalibrated { show("gaze.setup") }
+                    }))
             }
-            row(symbol: "hand.raised", tint: .purple, name: "ManOS",
-                status: !suite.hands.canControl ? "Needs Accessibility"
-                    : suite.hands.isControlling ? (suite.hands.isPaused ? "Paused" : "Controlling the pointer")
-                    : suite.hands.handInView ? "Hand in view" : "Off",
-                isOn: Binding(get: { suite.hands.isActive }, set: { suite.hands.isActive = $0 })) {
-                if suite.hands.canControl {
-                    Button(suite.hands.isControlling ? "Stop  ⌃⌥⌘H" : "Control  ⌃⌥⌘H") { suite.hands.toggleControl() }
-                        .tint(suite.hands.isControlling ? .red : nil)
-                } else {
-                    Button("Grant Access") { show("permissions") }
-                }
+            row("hand.raised", .purple, "ManOS", handsStatus, page: "hands.live") {
+                Toggle("ManOS", isOn: Binding(
+                    get: { suite.hands.isActive && suite.hands.isControlling },
+                    set: { on in
+                        guard on else { suite.hands.isActive = false; return }
+                        guard suite.hands.canControl else { show("permissions"); return }
+                        suite.hands.isActive = true
+                        if !suite.hands.isControlling { suite.hands.toggleControl() }
+                    }))
             }
-            row(symbol: "waveform", tint: .orange, name: "Murmur",
-                status: !suite.voice.hasMicrophone ? "Needs microphone"
-                    : suite.voice.isListening ? "Listening…" : "Hold ⌃⌥⌘D to dictate",
-                isOn: nil) {
-                if suite.voice.hasMicrophone {
-                    Button(suite.voice.isListening ? "Stop" : "Dictate") { suite.voice.toggleDictation() }
-                    Button("Note") { suite.voice.toggleNote() }.disabled(suite.voice.isListening)
-                } else {
-                    Button("Grant Access") { show("permissions") }
+            row("waveform", .orange, "Murmur", voiceStatus, page: "voice.home") {
+                Button { suite.voice.hasMicrophone ? suite.voice.toggleDictation() : show("permissions") } label: {
+                    Image(systemName: suite.voice.isListening ? "stop.fill" : "mic.fill")
+                        .foregroundStyle(suite.voice.isListening ? .red : .primary)
                 }
+                .buttonStyle(.borderless)
+                .help(suite.voice.isListening ? "Stop" : "Dictate (⌃⌥⌘D)")
             }
         }
+    }
+
+    private var gazeStatus: String {
+        guard suite.gaze.isActive else { return "Off" }
+        if !suite.gaze.isCalibrated { return "Needs calibration" }
+        return suite.gaze.isTracking ? "Following your gaze" : "Looking for you"
+    }
+
+    private var handsStatus: String {
+        guard suite.hands.isActive && suite.hands.isControlling else {
+            return suite.hands.canControl ? "Off" : "Needs Accessibility"
+        }
+        if suite.hands.isPaused { return "Paused · ⌃⌥⌘H" }
+        return suite.hands.handInView ? "In control · ⌃⌥⌘H" : "Show your hand"
+    }
+
+    private var voiceStatus: String {
+        if !suite.voice.hasMicrophone { return "Needs microphone" }
+        return suite.voice.isListening ? "Listening…" : "Hold ⌃⌥⌘D"
     }
 
     private func show(_ selection: String) {
@@ -296,30 +316,32 @@ struct ModuleRows: View {
         NSApp.activate(ignoringOtherApps: true)
     }
 
-    private func row<Actions: View>(symbol: String, tint: Color, name: String, status: String,
-                                    isOn: Binding<Bool>?, @ViewBuilder actions: () -> Actions) -> some View {
+    private func row<Control: View>(_ symbol: String, _ tint: Color, _ name: String, _ status: String,
+                                    page: String, @ViewBuilder control: () -> Control) -> some View {
         HStack(spacing: 10) {
-            Image(systemName: symbol)
-                .font(.system(size: compact ? 13 : 15, weight: .semibold))
-                .foregroundStyle(.white)
-                .frame(width: compact ? 26 : 32, height: compact ? 26 : 32)
-                .background(tint.gradient, in: RoundedRectangle(cornerRadius: 7, style: .continuous))
-                .opacity(isOn?.wrappedValue == false ? 0.4 : 1)
-            VStack(alignment: .leading, spacing: 1) {
-                Text(name).font(compact ? .callout.weight(.semibold) : .headline)
-                Text(status).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+            Button { show(page) } label: {
+                HStack(spacing: 10) {
+                    Image(systemName: symbol)
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(.white)
+                        .frame(width: 24, height: 24)
+                        .background(tint.gradient, in: RoundedRectangle(cornerRadius: 6, style: .continuous))
+                    VStack(alignment: .leading, spacing: 0) {
+                        Text(name).font(.callout.weight(.medium))
+                        Text(status).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                    }
+                    Spacer(minLength: 4)
+                }
+                .contentShape(Rectangle())
             }
-            Spacer(minLength: 6)
-            HStack(spacing: 6) { actions() }
-                .controlSize(.small)
-                .disabled(isOn?.wrappedValue == false)
-            if let isOn {
-                Toggle("On", isOn: isOn).toggleStyle(.switch).controlSize(.mini).labelsHidden()
-                    .help("Turn \(name)'s tracking off to save power")
-            }
+            .buttonStyle(.plain)
+            .help("Open \(name)")
+            control()
+                .toggleStyle(.switch)
+                .controlSize(.mini)
+                .labelsHidden()
         }
-        .padding(compact ? 8 : 12)
-        .background(.quinary, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+        .padding(.vertical, 5)
     }
 }
 
@@ -492,13 +514,6 @@ struct TutorialView: View {
     }
 }
 
-private struct TutorialCommand: View {
-    @Environment(\.openWindow) private var openWindow
-
-    var body: some View {
-        Button("Humanity Tutorial") { openWindow(id: "tutorial") }
-    }
-}
 
 /// Shown until every required permission is granted.
 struct PermissionsBanner: View {
@@ -540,9 +555,14 @@ private struct MenuBarIcon: View {
               : suite.gaze.isRecording ? "record.circle.fill" : "figure.arms.open")
             .task {
                 suite.openWindow = { openWindow(id: $0) }
-                // Launching the app should always show it, even if its window was
-                // closed last time (SwiftUI would otherwise restore "closed").
-                suite.showMainWindow()
+                // A menu bar app stays out of the way: a window only on first launch
+                // (the tutorial) or when asked for.
+                if !suite.seenTutorial {
+                    openWindow(id: "tutorial")
+                    NSApp.activate(ignoringOtherApps: true)
+                } else if UserDefaults.standard.string(forKey: "Humanity.start") != nil {
+                    suite.showMainWindow()
+                }
             }
     }
 }

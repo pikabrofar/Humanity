@@ -44,6 +44,7 @@ struct SectionDetail: View {
     var body: some View {
         switch section {
         case .home: HomeView()
+        case .meetings: MeetingsView()
         case .library: LibraryView()
         case .setup: SetupView()
         }

@@ -26,6 +26,8 @@
     <true/>
     <key>NSPrincipalClass</key>
     <string>NSApplication</string>
+    <key>NSAudioCaptureUsageDescription</key>
+    <string>Murmur records the meeting app's audio so it can transcribe the call and tell speakers apart. It stays on this Mac.</string>
     <key>NSMicrophoneUsageDescription</key>
     <string>Murmur listens only while you dictate or record. Audio is transcribed on this Mac and never uploaded.</string>
     <key>NSSpeechRecognitionUsageDescription</key>

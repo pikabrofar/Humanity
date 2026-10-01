@@ -1,4 +1,5 @@
 import HandKit
+import QuartzCore
 import SwiftUI
 
 struct LiveView: View {
@@ -101,6 +102,13 @@ private struct CameraCard: View {
                                tint: engine.activeHand == nil ? .orange : .green)
                     if engine.yieldingToMouse {
                         StatusChip(text: "Mouse", symbol: "computermouse", tint: .yellow)
+                    }
+                    // Confirms a flick was detected, separately from whether it scrolled.
+                    TimelineView(.periodic(from: .now, by: 0.2)) { _ in
+                        if let flick = engine.lastFlick, CACurrentMediaTime() - flick.time < 0.8 {
+                            StatusChip(text: flick.direction == .up ? "Flick ↑" : "Flick ↓",
+                                       symbol: "chevron.up.chevron.down", tint: .accentColor)
+                        }
                     }
                 }
                 .padding(10)

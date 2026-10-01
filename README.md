@@ -13,6 +13,7 @@ Each module also builds as a standalone app.
 | [OculOS](OculOS/) | Eye tracking: calibrated gaze cursor, heatmaps, recordings | Beta |
 | [ManOS](ManOS/) | Hand-gesture mouse: point with your palm, pinch to click, drag and scroll | Beta |
 | [Murmur](Murmur/) | Voice: hold-to-talk dictation into any app, recordings with on-device summaries | Beta |
+| [MeetingKit](MeetingKit/) | Meeting capture (mic + app audio), on-device speaker separation, voice profiles, labeled transcripts (used by Murmur → Meetings) | Beta |
 | [AIKit](AIKit/) | Optional bring-your-own-key AI (Groq, Gemini, OpenAI, Anthropic, OpenRouter, Ollama…) for summaries and more | Beta |
 
 ## Install

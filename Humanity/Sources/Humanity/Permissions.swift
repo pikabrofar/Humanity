@@ -37,10 +37,10 @@ final class SuitePermissions {
         var reason: String {
             switch self {
             case .camera: "OculOS tracks your eyes and ManOS your hands. Frames never leave this Mac."
-            case .microphone: "Murmur listens while you dictate or record a note."
+            case .microphone: "Murmur listens while you dictate, record a note, or record your side of a meeting. (Recording the other side of a call is a separate macOS prompt the first time.)"
             case .speech: "Murmur turns speech into text with Apple's on-device recognizer."
             case .accessibility: "ManOS moves the pointer and clicks; Murmur pastes your dictation."
-            case .screenRecording: "Optional: OculOS shows what you looked at behind gaze heatmaps."
+            case .screenRecording: "Optional: gaze heatmap backgrounds in OculOS, and capturing call audio on older macOS."
             }
         }
 

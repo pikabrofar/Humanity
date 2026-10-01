@@ -77,6 +77,7 @@ final class AppModel {
             section = .setup
             return
         }
+        if on { engine.isActive = true } // a host may have switched tracking off
         engine.isEnabled = on
         updateHUD()
         NSSound(named: on ? "Tink" : "Pop")?.play()

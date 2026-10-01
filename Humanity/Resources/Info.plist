@@ -24,11 +24,16 @@
     <string>public.app-category.utilities</string>
     <key>NSHighResolutionCapable</key>
     <true/>
+    <!-- Menu bar app: no Dock icon. -->
+    <key>LSUIElement</key>
+    <true/>
     <key>NSPrincipalClass</key>
     <string>NSApplication</string>
     <!-- Hand poses like thumbs-up would otherwise trigger camera Reactions (macOS 14.4+). -->
     <key>NSCameraReactionEffectGesturesEnabledDefault</key>
     <false/>
+    <key>NSAudioCaptureUsageDescription</key>
+    <string>Murmur records the meeting app's audio so it can transcribe the call and tell speakers apart. It stays on this Mac.</string>
     <key>NSMicrophoneUsageDescription</key>
     <string>Humanity listens only while you dictate or record. Audio is transcribed on this Mac and never uploaded.</string>
     <key>NSSpeechRecognitionUsageDescription</key>

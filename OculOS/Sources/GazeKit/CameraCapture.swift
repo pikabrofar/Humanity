@@ -116,12 +116,32 @@ public final class CameraCapture: NSObject, @unchecked Sendable {
         device.unlockForConfiguration()
     }
 
+    private var wantsRunning = false
+    private var paused = false
+
     public func start() {
-        queue.async { [session] in if !session.isRunning { session.startRunning() } }
+        wantsRunning = true
+        apply()
     }
 
     public func stop() {
-        queue.async { [session] in if session.isRunning { session.stopRunning() } }
+        wantsRunning = false
+        apply()
+    }
+
+    /// A host can switch the camera fully off (light off, no CPU) while every
+    /// module using it is turned off, without the modules needing to know.
+    public func setPaused(_ paused: Bool) {
+        self.paused = paused
+        apply()
+    }
+
+    private func apply() {
+        let run = wantsRunning && !paused
+        queue.async { [session] in
+            if run, !session.isRunning { session.startRunning() }
+            if !run, session.isRunning { session.stopRunning() }
+        }
     }
 }
 

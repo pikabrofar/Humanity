@@ -6,12 +6,13 @@ import Observation
 import SwiftUI
 
 enum SidebarSection: String, CaseIterable, Identifiable {
-    case home, library, setup
+    case home, meetings, library, setup
     var id: Self { self }
 
     var title: String {
         switch self {
         case .home: "Dictate"
+        case .meetings: "Meetings"
         case .library: "Library"
         case .setup: "Quick Setup"
         }
@@ -20,6 +21,7 @@ enum SidebarSection: String, CaseIterable, Identifiable {
     var symbol: String {
         switch self {
         case .home: "mic"
+        case .meetings: "person.2.wave.2"
         case .library: "tray.full"
         case .setup: "checklist"
         }
@@ -28,6 +30,8 @@ enum SidebarSection: String, CaseIterable, Identifiable {
 
 @MainActor @Observable
 final class AppModel {
+    /// Created on first use: loading the diarization models costs memory.
+    @ObservationIgnored private(set) lazy var meetings = MeetingsModel()
     enum Phase: Equatable {
         case idle
         /// Choosing an engine; the mic isn't open yet.
