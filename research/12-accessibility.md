@@ -1,7 +1,7 @@
-# Accessibility-First Design for VisionGaze and ManOS
+# Accessibility-First Design for OculOS and ManOS
 
 ## Summary
-The people who need VisionGaze and ManOS most have ALS/MND, spinal cord injury, RSI, tremor or cerebral palsy. Their abilities vary and they tire quickly. AAC vendors (Tobii Dynavox, Eyegaze), research on dwell and switch input, and Apple's docs agree on four things: conservative defaults that each user can tune, selections that are visible and safe to get wrong, quick pause and recalibration, and working with the macOS assistive stack rather than replacing it. Webcam tracking is less accurate than infrared AAC hardware, so it needs bigger targets and longer dwell.
+The people who need OculOS and ManOS most have ALS/MND, spinal cord injury, RSI, tremor or cerebral palsy. Their abilities vary and they tire quickly. AAC vendors (Tobii Dynavox, Eyegaze), research on dwell and switch input, and Apple's docs agree on four things: conservative defaults that each user can tune, selections that are visible and safe to get wrong, quick pause and recalibration, and working with the macOS assistive stack rather than replacing it. Webcam tracking is less accurate than infrared AAC hardware, so it needs bigger targets and longer dwell.
 
 ## Key findings
 - **Dwell timing:** typical thresholds are 500–1000 ms. Novices need about 1000 ms or more, and experts can go to about 300 ms. Longer dwell raises selection success and cuts corrections, but slows input. Tobii offers 8 dwell levels plus per-button dwell.
@@ -11,13 +11,13 @@ The people who need VisionGaze and ManOS most have ALS/MND, spinal cord injury, 
 - **macOS built-ins:** the Accessibility Keyboard has Dwell (click, drag, scroll and pause actions, a toolbar, a menu-bar item, hot corners). Head Pointer has speed, camera choice, recenter and a pause switch. Facial expressions can be mapped to clicks.
 
 ## Recommendations (ranked)
-1. **[VisionGaze] Tunable dwell.** Default to **1000 ms**, adjustable from 300 to 3000 ms in 100 ms steps. Show a progress ring the user can hide. Destructive targets get about 1.5× dwell.
+1. **[OculOS] Tunable dwell.** Default to **1000 ms**, adjustable from 300 to 3000 ms in 100 ms steps. Show a progress ring the user can hide. Destructive targets get about 1.5× dwell.
 2. **[Both] Hands-free pause/resume.** Use a 2 s corner glance or a held resting palm, plus a menu-bar item. Start paused after launch or wake.
 3. **[ManOS] User-recorded gestures.** Record 3 samples per action. Let the user choose either hand and swap hands without retraining. Detect gestures with the forearm resting, not held up in the air.
 4. **[ManOS] Tremor filtering.** Use a One-Euro filter (min cutoff about 1.0 Hz, beta about 0.007) with a heavier "tremor" preset. Require the click pose to be held for at least 150 ms, with hysteresis, so jitter doesn't double-fire.
-5. **[VisionGaze] Snap to targets.** Snap to AX elements within about 60 px and offer a 2× dwell magnifier. Webcam gaze error is about 2–4°, so don't promise pixel-level pointing.
-6. **[Both] Work with macOS, not around it.** Offer a cursor-only mode so macOS Dwell or the Accessibility Keyboard handles clicks. Let VisionGaze or ManOS events act as Switch Control switches. Make the settings fully VoiceOver-labelled.
-7. **[VisionGaze] Fast recalibration.** Use a 5-point recalibration plus drift correction against known targets. Check calibration quality each session and warn about glare, low light or droopy eyelids.
+5. **[OculOS] Snap to targets.** Snap to AX elements within about 60 px and offer a 2× dwell magnifier. Webcam gaze error is about 2–4°, so don't promise pixel-level pointing.
+6. **[Both] Work with macOS, not around it.** Offer a cursor-only mode so macOS Dwell or the Accessibility Keyboard handles clicks. Let OculOS or ManOS events act as Switch Control switches. Make the settings fully VoiceOver-labelled.
+7. **[OculOS] Fast recalibration.** Use a 5-point recalibration plus drift correction against known targets. Check calibration quality each session and warn about glare, low light or droopy eyelids.
 8. **[Both] Fatigue awareness.** Track undo and cancel rates and session length. After about 20 minutes, or when errors rise, suggest a break or a longer dwell. Never lock the user out.
 9. **[Both] Undo for unintended selections.** Keep the last 5 synthesized events and offer one undo gesture or gaze target, as a guard against the Midas-touch problem.
 10. **[Both] Day profiles.** Offer "Fresh", "Tired" (dwell +50%, more smoothing, wider snap radius) and an OT/caregiver setup mode. Keep all data on the device.

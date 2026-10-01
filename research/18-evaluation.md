@@ -1,4 +1,4 @@
-# Evaluating and Benchmarking VisionGaze and ManOS
+# Evaluating and Benchmarking OculOS and ManOS
 
 ## Summary
 
@@ -16,8 +16,8 @@ Both projects are tested only on synthetic data, so nothing yet shows how they p
 
 ## Recommendations (ranked)
 
-1. **Ship a built-in Fitts test in ManOS (and in VisionGaze's gaze-pointer mode).** Use ISO 9241-411 circles of 13–20 targets, 3 amplitudes × 2–3 widths, and 2+ blocks. Log every selection's x/y, the target, MT, and whether it was an error. Report TP_e as a mean of means, the error rate, and the click-induced cursor jitter at pinch. Run the same test with the user's own mouse or trackpad so each result has its own baseline.
-2. **Add a VisionGaze validation screen that uses held-out targets.** Show a fresh 9–13-point grid, none of which were calibration points, with 1–1.5 s fixations, and drop the first 300 ms of each fixation. Report accuracy (°, mean and per target), RMS-S2S and STD (°), and data loss (%). Convert pixels to degrees using the measured viewing distance and screen PPI. Repeat at 0, 5 and 15 minutes to capture drift.
+1. **Ship a built-in Fitts test in ManOS (and in OculOS's gaze-pointer mode).** Use ISO 9241-411 circles of 13–20 targets, 3 amplitudes × 2–3 widths, and 2+ blocks. Log every selection's x/y, the target, MT, and whether it was an error. Report TP_e as a mean of means, the error rate, and the click-induced cursor jitter at pinch. Run the same test with the user's own mouse or trackpad so each result has its own baseline.
+2. **Add a OculOS validation screen that uses held-out targets.** Show a fresh 9–13-point grid, none of which were calibration points, with 1–1.5 s fixations, and drop the first 300 ms of each fixation. Report accuracy (°, mean and per target), RMS-S2S and STD (°), and data loss (%). Convert pixels to degrees using the measured viewing distance and screen PPI. Repeat at 0, 5 and 15 minutes to capture drift.
 3. **Measure latency from capture time and publish p50/p95/p99.** Break it into stages (capture→landmarks→filter→OS event). Add an optional "flash-on-pinch" mode that changes a screen corner's colour when a click fires, so users can check end-to-end latency with a 240 fps phone video.
 4. **Build a record/replay harness.** Record versioned sessions containing raw landmark streams (MediaPipe face and hand), capture timestamps, screen geometry, and ground-truth targets or clicks, with no video by default. Replay them through the filter, calibration and pinch logic in CI. Assert accuracy and TP within set tolerances, plus pinch false-positive and false-negative rates. Collect at least 10–20 consented recordings that cover glasses, low light, darker skin tones, and varied backgrounds.
 5. **Publish results the way the field expects.** Follow the Dunn 2023 checklist. Report N, demographics, hardware (camera model, resolution, fps), lighting, viewing distance, the calibration and validation protocol, and per-participant distributions, not only means. Present results as "as deployed" and state plainly that we are not lab-grade (EyeLink is below 0.5°). Put the raw data and analysis scripts in the repo.

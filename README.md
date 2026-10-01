@@ -10,14 +10,14 @@ Each module also builds as a standalone app.
 
 | Module | What it does | Status |
 |---|---|---|
-| [VisionGaze](VisionGaze/) | Eye tracking: calibrated gaze cursor, heatmaps, recordings | Beta |
+| [OculOS](OculOS/) | Eye tracking: calibrated gaze cursor, heatmaps, recordings | Beta |
 | [ManOS](ManOS/) | Hand-gesture mouse: point with your palm, pinch to click, drag and scroll | Beta |
-| [Murmur](Murmur/) | Voice: hold-to-talk dictation into any app, recordings with on-device summaries | Beta |
+| [Voz](Voz/) | Voice: hold-to-talk dictation into any app, recordings with on-device summaries | Beta |
 
 ## Install
 
 Download **Humanity** (or a single module) from
-[Releases](https://github.com/pikabrofar/oculOS/releases) and drag it to
+[Releases](https://github.com/pikabrofar/Humanity/releases) and drag it to
 Applications. It isn't notarized yet, so macOS blocks the first launch. Open **System Settings → Privacy & Security** and click
 **Open Anyway**. Each app then walks you through a one-minute Quick Setup.
 
@@ -30,12 +30,12 @@ Everything runs on your Mac. See [PRIVACY.md](PRIVACY.md).
 - Xcode 15+ or just the Command Line Tools (`xcode-select --install`)
 
 ```sh
-git clone https://github.com/pikabrofar/oculOS.git
-cd oculOS/Humanity && make run      # the all-in-one app
+git clone https://github.com/pikabrofar/Humanity.git
+cd Humanity/Humanity && make run      # the all-in-one app
 ```
 
 Each module is a Swift package with a reusable core library (`GazeKit`,
-`HandKit`, `MurmurKit`), a UI module (`VisionGazeUI`, `ManOSUI`, `MurmurUI`)
+`HandKit`, `VozKit`), a UI module (`OculOSUI`, `ManOSUI`, `VozUI`)
 and a thin standalone app.
 `scripts/package.sh <App>` builds a DMG locally.
 

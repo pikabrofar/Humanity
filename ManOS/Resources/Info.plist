@@ -7,7 +7,7 @@
     <key>CFBundleDisplayName</key>
     <string>ManOS</string>
     <key>CFBundleIdentifier</key>
-    <string>io.github.pikabrofar.oculos.ManOS</string>
+    <string>io.github.pikabrofar.humanity.ManOS</string>
     <key>CFBundleExecutable</key>
     <string>ManOS</string>
     <key>CFBundlePackageType</key>

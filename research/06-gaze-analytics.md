@@ -1,8 +1,8 @@
-# Gaze Analytics: What VisionGaze Recordings Should Add
+# Gaze Analytics: What OculOS Recordings Should Add
 
 ## Summary
 
-Commercial tools (iMotions, Tobii Pro Lab, Tobii Sticky, RealEye, GazeRecorder) and open-source ones (OGAMA, PsychoPy/ioHub) are built on the same few things: **Areas of Interest (AOIs) with a standard metric set**, **gaze replay over the stimulus or a screen recording**, **aggregation across participants**, and **tabular export**. VisionGaze already has heatmaps, I-DT fixations, scanpaths and PNG/CSV export. What it lacks is AOIs, replay, multi-session aggregation and a standards-based export. Webcam accuracy is about 2–4° (RealEye reports about 106 px on desktop). That means VisionGaze should target large AOIs and coarse metrics, and skip word-level reading analysis.
+Commercial tools (iMotions, Tobii Pro Lab, Tobii Sticky, RealEye, GazeRecorder) and open-source ones (OGAMA, PsychoPy/ioHub) are built on the same few things: **Areas of Interest (AOIs) with a standard metric set**, **gaze replay over the stimulus or a screen recording**, **aggregation across participants**, and **tabular export**. OculOS already has heatmaps, I-DT fixations, scanpaths and PNG/CSV export. What it lacks is AOIs, replay, multi-session aggregation and a standards-based export. Webcam accuracy is about 2–4° (RealEye reports about 106 px on desktop). That means OculOS should target large AOIs and coarse metrics, and skip word-level reading analysis.
 
 ## Key findings
 
@@ -19,7 +19,7 @@ Commercial tools (iMotions, Tobii Pro Lab, Tobii Sticky, RealEye, GazeRecorder) 
 2. **Per-AOI CSV export plus an accuracy record.** Write an `aoi_metrics.csv` with one row per (session, AOI). Save each session's validation error (px and approximate degrees) in its metadata, so users can filter out bad sessions.
 3. **Gaze-overlay replay.** Scrub through a session with a moving gaze dot, a short fixation trail and an optional rolling heatmap over the screenshot or a recorded screen video. Export it as MP4/GIF using AVFoundation. This is the feature UX users notice most (GazeRecorder, iMotions).
 4. **Multi-session aggregation.** Select N sessions that share a stimulus or screen region and produce a pooled heatmap, averaged AOI metrics, and "viewed by X/N" (respondent ratio). Normalize each session's coordinates to the screen size before pooling.
-5. **BIDS eye-tracking export.** Add a one-click export of `sub-XX_task-YY_recording-eye1_physio.tsv.gz` plus JSON. Use `RecordedEye: "cyclopean"` and `gaze-on-screen` coordinates in pixels, and fill `ScreenSize`/`ScreenResolution`/`AverageCalibrationError`. I-DT fixations go in `_physioevents.tsv.gz`. It's cheap to add and gives VisionGaze research credibility.
+5. **BIDS eye-tracking export.** Add a one-click export of `sub-XX_task-YY_recording-eye1_physio.tsv.gz` plus JSON. Use `RecordedEye: "cyclopean"` and `gaze-on-screen` coordinates in pixels, and fill `ScreenSize`/`ScreenResolution`/`AverageCalibrationError`. I-DT fixations go in `_physioevents.tsv.gz`. It's cheap to add and gives OculOS research credibility.
 6. **Event markers.** Add hotkey or API markers that appear as `message` rows and split a session into intervals, so TTFF is measured per interval and not only from session start.
 7. **Coarse reading analysis only.** Detect line-level progression (return sweeps, regressions between lines, reading versus skimming) for text that is large enough. Don't offer word-level metrics. State that limit in the UI.
 8. **Defer:** dynamic or moving AOIs, saliency models, a Visual Attention Index-style composite score, and pupil metrics. None of these are reliable with a webcam.

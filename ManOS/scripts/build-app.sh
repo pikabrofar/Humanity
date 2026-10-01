@@ -3,7 +3,7 @@
 #
 # SIGN_ID: codesigning identity. The default "-" (ad-hoc) changes on every build,
 # so macOS forgets permission grants (camera, Accessibility) after rebuilding.
-# A self-signed "oculOS Dev" certificate keeps them: see the repo README.
+# A self-signed "Humanity Dev" certificate keeps them: see the repo README.
 set -eu
 
 APP_NAME="ManOS"

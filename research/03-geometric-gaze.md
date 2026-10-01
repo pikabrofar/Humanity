@@ -1,8 +1,8 @@
-# Geometric (Model-Based) Gaze from RGB Landmarks: Improving VisionGaze
+# Geometric (Model-Based) Gaze from RGB Landmarks: Improving OculOS
 
 ## Summary
 
-VisionGaze gets its head distance from face-box width (150 mm assumed, 72° FOV) and its gaze from where the pupil sits relative to the eye corners. Both are weak spots. Face-box width changes with yaw and from person to person, and nobody knows what the real FOV is. Pupil-relative-to-corners is a 2D proxy, not a 3D eye model. The published work points to three fixes: metric head pose from a 3D face model fitted with PnP, an eyeball center fixed in the head frame with per-user calibration (center offset plus kappa), and correct camera intrinsics. Expect about 4–7° from geometry alone with a webcam. Getting to about 3° needs calibration and a learned residual on top.
+OculOS gets its head distance from face-box width (150 mm assumed, 72° FOV) and its gaze from where the pupil sits relative to the eye corners. Both are weak spots. Face-box width changes with yaw and from person to person, and nobody knows what the real FOV is. Pupil-relative-to-corners is a 2D proxy, not a 3D eye model. The published work points to three fixes: metric head pose from a 3D face model fitted with PnP, an eyeball center fixed in the head frame with per-user calibration (center offset plus kappa), and correct camera intrinsics. Expect about 4–7° from geometry alone with a webcam. Getting to about 3° needs calibration and a learned residual on top.
 
 ## Key findings
 

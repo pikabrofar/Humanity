@@ -1,23 +1,23 @@
 // swift-tools-version: 5.10
 import PackageDescription
 
-/// Humanity: one app hosting every OculOS module, sharing one camera.
+/// Humanity: one app hosting every Humanity module, sharing one camera.
 let package = Package(
     name: "Humanity",
     platforms: [.macOS(.v14)],
     dependencies: [
-        .package(path: "../VisionGaze"),
+        .package(path: "../OculOS"),
         .package(path: "../ManOS"),
-        .package(path: "../Murmur"),
+        .package(path: "../Voz"),
     ],
     targets: [
         .executableTarget(
             name: "Humanity",
             dependencies: [
-                .product(name: "VisionGazeUI", package: "VisionGaze"),
-                .product(name: "GazeKit", package: "VisionGaze"),
+                .product(name: "OculOSUI", package: "OculOS"),
+                .product(name: "GazeKit", package: "OculOS"),
                 .product(name: "ManOSUI", package: "ManOS"),
-                .product(name: "MurmurUI", package: "Murmur"),
+                .product(name: "VozUI", package: "Voz"),
             ]
         ),
     ]

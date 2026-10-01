@@ -1,6 +1,6 @@
 # Appearance-Based Webcam Gaze Estimation: State of the Art 2022–2026
 
-From 2022 to 2026, the field moved from single-dataset CNNs (L2CS-Net, the ETH-XGaze ResNet-50 baseline) to hybrid transformers (GazeTR) and then to models pre-trained at scale for generalization: 3DGazeNet (ECCV 2024), UniGaze (WACV 2026) and OmniGaze (NeurIPS 2025). Errors within a single dataset have plateaued at about 3–4° on MPIIFaceGaze. The real gap is cross-dataset error, and only large ViT pre-training has narrowed it a lot. None of the top generalist models is licensed for commercial use, and most are too large to run well on a laptop in real time. VisionGaze's reported ~5° is already close to the best cross-dataset numbers on MPIIFaceGaze-like (frontal, desk-distance) conditions. Per-user few-shot calibration, done cheaply on the device, is therefore the step with the best return, not a bigger backbone.
+From 2022 to 2026, the field moved from single-dataset CNNs (L2CS-Net, the ETH-XGaze ResNet-50 baseline) to hybrid transformers (GazeTR) and then to models pre-trained at scale for generalization: 3DGazeNet (ECCV 2024), UniGaze (WACV 2026) and OmniGaze (NeurIPS 2025). Errors within a single dataset have plateaued at about 3–4° on MPIIFaceGaze. The real gap is cross-dataset error, and only large ViT pre-training has narrowed it a lot. None of the top generalist models is licensed for commercial use, and most are too large to run well on a laptop in real time. OculOS's reported ~5° is already close to the best cross-dataset numbers on MPIIFaceGaze-like (frontal, desk-distance) conditions. Per-user few-shot calibration, done cheaply on the device, is therefore the step with the best return, not a bigger backbone.
 
 ## Key findings
 
@@ -26,7 +26,7 @@ From 2022 to 2026, the field moved from single-dataset CNNs (L2CS-Net, the ETH-X
   - ETH-XGaze and MPIIFaceGaze are CC BY-NC-SA 4.0. ETH-XGaze's terms extend the non-commercial restriction to models.
   - Gaze360 is non-commercial research only, and it forbids redistribution and restricts models trained on it.
   - GazeCapture requires a signed agreement.
-  - So every public gaze checkpoint is effectively non-commercial, **including the MobileGaze weights VisionGaze ships today**.
+  - So every public gaze checkpoint is effectively non-commercial, **including the MobileGaze weights OculOS ships today**.
 - **Few-shot personalization is the big lever.**
   - WebEyeTrack/BlazeGaze (2025) is 0.16M parameters / 670 KB and runs in 2.4 ms on an iPhone 14. It uses MAML meta-learning with k≤9 calibration points and gets 2.32 cm error on GazeCapture.
   - Fine-tuning only the last fully-connected layer cuts error by 52.8% after 30 s of calibration.
@@ -37,7 +37,7 @@ From 2022 to 2026, the field moved from single-dataset CNNs (L2CS-Net, the ETH-X
   - ViT-B at 224 px (UniGaze-B) should convert with coremltools and probably runs at about 10–30 ms on Apple Silicon. I estimated this and have not measured it. That is fine for 30 fps.
   - ViT-H is impractical for always-on use.
 
-## Recommendations for OculOS (ranked)
+## Recommendations for Humanity (ranked)
 
 1. **Ship on-device few-shot calibration on top of the frozen MobileOne-S0.**
    - Take features from the penultimate layer, concatenate the head-pose vector from the geometric model, and fit a closed-form ridge-regression head that maps them to screen point-of-regard (PoG).

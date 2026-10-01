@@ -1,8 +1,8 @@
-# UX/UI Design for oculOS macOS Utilities
+# UX/UI Design for Humanity macOS Utilities
 
 ## Summary
 
-The best macOS utilities (Raycast, CleanShot X, Rectangle, Ice, Bartender) stay out of the way. Each has a monochrome menu bar icon that shows state, explains permissions before macOS asks for them, keeps Settings to a few grouped tabs, and gives feedback in small HUDs that never take focus. oculOS apps need Camera, Microphone, Speech Recognition and Accessibility permissions, so the first-run flow is the screen that matters most. On macOS 26, Liquid Glass belongs only on floating controls and HUDs, never on content. These notes come from limited research (about 10 lookups). The Apple HIG pages render with JavaScript and could not be fetched, so the HIG points are paraphrased from search snippets and established practice.
+The best macOS utilities (Raycast, CleanShot X, Rectangle, Ice, Bartender) stay out of the way. Each has a monochrome menu bar icon that shows state, explains permissions before macOS asks for them, keeps Settings to a few grouped tabs, and gives feedback in small HUDs that never take focus. Humanity apps need Camera, Microphone, Speech Recognition and Accessibility permissions, so the first-run flow is the screen that matters most. On macOS 26, Liquid Glass belongs only on floating controls and HUDs, never on content. These notes come from limited research (about 10 lookups). The Apple HIG pages render with JavaScript and could not be fetched, so the HIG points are paraphrased from search snippets and established practice.
 
 ## Key findings
 

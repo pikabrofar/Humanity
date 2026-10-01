@@ -16,10 +16,10 @@
 
 ## Lessons
 
-1. **VisionGaze: don't use raw gaze as the cursor.** Use gaze to move the cursor
+1. **OculOS: don't use raw gaze as the cursor.** Use gaze to move the cursor
    near the target, then refine it. Use a hold radius (1–10 cm), warp only on a
    trigger, and add a zoom-to-click or head-refine step.
-2. **VisionGaze: expect accuracy to drift.** Show a "head in calibration zone"
+2. **OculOS: expect accuracy to drift.** Show a "head in calibration zone"
    indicator and offer a quick re-calibration from the menu bar. Store which
    display each calibration belongs to, and handle mirrored displays.
 3. **Both: test the camera during onboarding.** Measure fps and lighting, set
@@ -30,7 +30,7 @@
    so the elbow can rest, keep the clutch, and include practice.
 6. **ManOS: make gestures distinct and thresholds per user,** with a visible
    state overlay and a kill switch.
-7. **VisionGaze: offer several ways to click, without dwell as the default.**
+7. **OculOS: offer several ways to click, without dwell as the default.**
    Use a hotkey, gaze plus a ManOS pinch, or optional dwell with a ring.
    Snap-to-item helps at 2–5° accuracy.
 8. **Both: lead with privacy, a free Mac-native setup, and a live preview.**

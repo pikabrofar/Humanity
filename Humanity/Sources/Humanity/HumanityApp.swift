@@ -1,10 +1,10 @@
 import AppKit
 import GazeKit
 import ManOSUI
-import MurmurUI
+import VozUI
 import Observation
 import SwiftUI
-import VisionGazeUI
+import OculOSUI
 
 @main
 struct HumanityApp: App {
@@ -25,16 +25,16 @@ struct HumanityApp: App {
 
         Settings {
             TabView {
-                suite.gaze.settings().tabItem { Label("VisionGaze", systemImage: "eye") }
+                suite.gaze.settings().tabItem { Label("OculOS", systemImage: "eye") }
                 suite.hands.settings().tabItem { Label("ManOS", systemImage: "hand.raised") }
-                suite.voice.settings().tabItem { Label("Murmur", systemImage: "waveform") }
+                suite.voice.settings().tabItem { Label("Voz", systemImage: "waveform") }
             }
         }
 
         MenuBarExtra {
-            Section("VisionGaze") { suite.gaze.menuItems() }
+            Section("OculOS") { suite.gaze.menuItems() }
             Section("ManOS") { suite.hands.menuItems() }
-            Section("Murmur") { suite.voice.menuItems() }
+            Section("Voz") { suite.voice.menuItems() }
             Divider()
             AppMenuItems()
         } label: {
@@ -52,14 +52,14 @@ final class Suite {
     enum Module: String { case home, gaze, hands, voice }
 
     @ObservationIgnored let camera = CameraCapture()
-    @ObservationIgnored let gaze: VisionGazeModule
+    @ObservationIgnored let gaze: OculOSModule
     @ObservationIgnored let hands: ManOSModule
-    @ObservationIgnored let voice = MurmurModule()
+    @ObservationIgnored let voice = VozModule()
     var module: Module = .home
 
     init() {
-        // Created first, so VisionGaze configures the shared camera at the 1080p it needs.
-        gaze = VisionGazeModule(camera: camera)
+        // Created first, so OculOS configures the shared camera at the 1080p it needs.
+        gaze = OculOSModule(camera: camera)
         hands = ManOSModule(camera: camera)
     }
 
@@ -94,8 +94,8 @@ struct SuiteView: View {
         NavigationSplitView {
             List(selection: $suite.selection) {
                 Label("Home", systemImage: "house").tag("home")
-                Section("Eyes · VisionGaze") {
-                    ForEach(VisionGazeModule.sections, id: \.id) { s in
+                Section("Eyes · OculOS") {
+                    ForEach(OculOSModule.sections, id: \.id) { s in
                         Label(s.title, systemImage: s.symbol).tag("gaze." + s.id)
                     }
                 }
@@ -104,8 +104,8 @@ struct SuiteView: View {
                         Label(s.title, systemImage: s.symbol).tag("hands." + s.id)
                     }
                 }
-                Section("Voice · Murmur") {
-                    ForEach(MurmurModule.sections, id: \.id) { s in
+                Section("Voice · Voz") {
+                    ForEach(VozModule.sections, id: \.id) { s in
                         Label(s.title, systemImage: s.symbol).tag("voice." + s.id)
                     }
                 }
@@ -137,7 +137,7 @@ struct HomeView: View {
 
                 HStack(alignment: .top, spacing: 16) {
                     ModuleCard(
-                        name: "VisionGaze", tagline: "Eye tracking", symbol: "eye", tint: .blue,
+                        name: "OculOS", tagline: "Eye tracking", symbol: "eye", tint: .blue,
                         isOn: Binding(get: { suite.gaze.isActive }, set: { suite.gaze.isActive = $0 }),
                         status: suite.gaze.isCalibrated
                             ? (suite.gaze.isTracking ? "Tracking your gaze" : "Calibrated")
@@ -155,7 +155,7 @@ struct HomeView: View {
                         open: { suite.selection = "hands." + (suite.hands.canControl ? "live" : "setup") }
                     )
                     ModuleCard(
-                        name: "Murmur", tagline: "Dictation and summaries", symbol: "waveform", tint: .orange,
+                        name: "Voz", tagline: "Dictation and summaries", symbol: "waveform", tint: .orange,
                         isOn: nil,
                         status: !suite.voice.hasMicrophone ? "Needs microphone permission"
                             : suite.voice.isListening ? "Listening…" : "Ready · ⌃⌥⌘D to dictate",

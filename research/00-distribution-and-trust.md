@@ -1,7 +1,7 @@
 # Distribution and trust for open-source macOS utilities
 
 How successful open-source Mac utilities (Rectangle, Maccy, Stats, Ice,
-MonitorControl, LinearMouse) get installed and trusted, applied to oculOS.
+MonitorControl, LinearMouse) get installed and trusted, applied to Humanity.
 
 **Most important finding:** from September 1, 2026, the official Homebrew cask
 repo disables casks that fail Gatekeeper, and Homebrew 5.0 deprecated
@@ -20,7 +20,7 @@ repo disables casks that fail Gatekeeper, and Homebrew 5.0 deprecated
      [YARG#1695](https://github.com/YARC-Official/YARG/issues/1695),
      [SuperDictate#19](https://github.com/shlgd/SuperDictate/issues/19))
    - **Create the certificate:**
-     `openssl req -x509 -newkey rsa:2048 -keyout k.pem -out c.pem -days 3650 -nodes -subj "/CN=oculOS Self-Signed" -addext "extendedKeyUsage=codeSigning"`.
+     `openssl req -x509 -newkey rsa:2048 -keyout k.pem -out c.pem -days 3650 -nodes -subj "/CN=Humanity Self-Signed" -addext "extendedKeyUsage=codeSigning"`.
      Export it as a .p12 and store it base64-encoded as a CI secret.
    - **Verify:** `codesign -d --requirements - App.app` must not show `cdhash H"…"`.
 2. **Budget $99/yr for a Developer ID and notarization.** It's the biggest trust
@@ -47,7 +47,7 @@ repo disables casks that fail Gatekeeper, and Homebrew 5.0 deprecated
    - Create a DMG that includes an `/Applications` symlink (`hdiutil create -format UDZO`).
    - Publish a SHA-256 file next to it, then run `gh release create`.
    - ([SwiftToolkit](https://www.swifttoolkit.dev/posts/releasing-with-gh-actions))
-6. **Per-app tag prefixes** in the monorepo: `visiongaze/v1.4.0`,
+6. **Per-app tag prefixes** in the monorepo: `oculos/v1.4.0`,
    `dextra/v0.9.0`. Use path filters per app.
    - **Pitfall:** `releases/latest` is shared by the whole repo, so don't use it
      as a Sparkle feed.

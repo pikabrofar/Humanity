@@ -1,4 +1,4 @@
-// ponytail: copied from VisionGaze; move to a shared package when a third app needs it.
+// ponytail: copied from OculOS; move to a shared package when a third app needs it.
 import AppKit
 import SwiftUI
 

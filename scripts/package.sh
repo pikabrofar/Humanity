@@ -1,5 +1,5 @@
 #!/bin/sh
-# Builds an OculOS app and wraps it in a drag-to-Applications DMG.
+# Builds an Humanity app and wraps it in a drag-to-Applications DMG.
 # Usage: scripts/package.sh <AppName> [version]
 #   UNIVERSAL=1  build arm64 + x86_64 (needs full Xcode, as on GitHub runners)
 #   SIGN_ID=...  codesigning identity (default: ad-hoc)

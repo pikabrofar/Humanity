@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleName</key>
+    <string>OculOS</string>
+    <key>CFBundleDisplayName</key>
+    <string>OculOS</string>
+    <key>CFBundleIdentifier</key>
+    <string>io.github.pikabrofar.humanity.OculOS</string>
+    <key>CFBundleExecutable</key>
+    <string>OculOS</string>
+    <key>CFBundlePackageType</key>
+    <string>APPL</string>
+    <key>CFBundleShortVersionString</key>
+    <string>0.1.0</string>
+    <key>CFBundleVersion</key>
+    <string>1</string>
+    <key>CFBundleIconFile</key>
+    <string>AppIcon</string>
+    <key>LSMinimumSystemVersion</key>
+    <string>14.0</string>
+    <key>LSApplicationCategoryType</key>
+    <string>public.app-category.utilities</string>
+    <key>NSHighResolutionCapable</key>
+    <true/>
+    <key>NSPrincipalClass</key>
+    <string>NSApplication</string>
+    <!-- Hand poses like thumbs-up would otherwise trigger camera Reactions (macOS 14.4+). -->
+    <key>NSCameraReactionEffectGesturesEnabledDefault</key>
+    <false/>
+    <key>NSCameraUsageDescription</key>
+    <string>OculOS uses the camera to track your eyes. Video is processed on-device and never stored or transmitted.</string>
+</dict>
+</plist>

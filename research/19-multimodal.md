@@ -1,15 +1,15 @@
-# Multimodal Interaction Design for oculOS: Gaze + Hand + Voice
+# Multimodal Interaction Design for Humanity: Gaze + Hand + Voice
 
 ## Summary
 
-The best-tested hands-free model is to **look to target, then act with a second modality to commit**. visionOS ships it as "look and tap" (gaze plus indirect pinch). Pfeuffer et al. showed it in research as Gaze + Pinch, Bolt's "Put-That-There" did it with gaze/pointing and voice, and Talon users do it with eye tracking and voice or noise commands. In oculOS, VisionGaze should only point. ManOS and voice should do the committing. A single input arbiter should decide which modality controls the cursor at any moment. For architecture, use **one background "oculOS Core" agent** that owns the camera, the Vision models, event synthesis and arbitration. The three apps become front-ends that talk to it over XPC and share settings through an App Group container.
+The best-tested hands-free model is to **look to target, then act with a second modality to commit**. visionOS ships it as "look and tap" (gaze plus indirect pinch). Pfeuffer et al. showed it in research as Gaze + Pinch, Bolt's "Put-That-There" did it with gaze/pointing and voice, and Talon users do it with eye tracking and voice or noise commands. In Humanity, OculOS should only point. ManOS and voice should do the committing. A single input arbiter should decide which modality controls the cursor at any moment. For architecture, use **one background "Humanity Core" agent** that owns the camera, the Vision models, event synthesis and arbitration. The three apps become front-ends that talk to it over XPC and share settings through an App Group container.
 
 ## Key findings
 
 - **Gaze points, it never commits.** If looking alone triggers actions, everything you glance at gets clicked (the "Midas touch" problem). Gaze + Pinch splits the job: eyes pick the target and the hand confirms or manipulates it. The 2024 design-principles paper lists eye-hand coordination, late triggering, gaze jitter, feedback and fatigue as the main issues.
 - **The eyes move on before the commit lands.** By the time a pinch or spoken word is recognized, the eyes are often already looking elsewhere. Keep a short gaze history buffer and resolve the target from the fixation just before the commit began, not the gaze sample at the moment it was recognized.
 - **Gaze plus hand beats hands alone.** In Gaze-Hand Alignment (Lystbæk, Pfeuffer et al., 2022), gaze-assisted techniques were faster than hands-only input for menus. Gaze&Hand (gaze sets the cursor roughly, relative hand motion fine-tunes it) suits a webcam setup, where gaze accuracy is coarse.
-- **visionOS keeps gaze private.** Hover feedback is drawn outside the app's process, so apps only learn what was targeted once a gesture fires. oculOS should follow the same rule: gaze stays inside Core and front-ends receive only resolved intents.
+- **visionOS keeps gaze private.** Hover feedback is drawn outside the app's process, so apps only learn what was targeted once a gesture fires. Humanity should follow the same rule: gaze stays inside Core and front-ends receive only resolved intents.
 - **Voice needs a time window to pair with pointing.** Put-That-There required the speech and pointing events to land within roughly **1.5 s**. Talon's "control mouse" (eye tracker places the cursor, then voice, a hiss/pop or a key clicks) and "zoom mouse" (a pop zooms the screen, a second pop clicks) show that people accept a two-stage approach: look roughly, then refine or zoom.
 - **Camera sharing on macOS is unreliable, and running the models twice is wasteful.** The built-in camera can often be opened by several apps at once, but USB webcams often cannot. Even when sharing works, two apps would each run Vision face and hand inference on the same frames. One capture session should feed both face landmarks (gaze) and hand pose (ManOS).
 - **IPC options compared:**
@@ -19,19 +19,19 @@ The best-tested hands-free model is to **look to target, then act with a second 
 
 ## Recommendations (ranked)
 
-1. **Build `oculOS Core` as a login-item agent** (`SMAppService.agent`) that exposes a Mach-service XPC endpoint. Core owns:
+1. **Build `Humanity Core` as a login-item agent** (`SMAppService.agent`) that exposes a Mach-service XPC endpoint. Core owns:
    - one `AVCaptureSession`
    - a Vision pipeline that runs face-landmark and hand-pose requests on the same frame
    - the voice engine's command channel
    - the only `CGEvent` poster
 
-   This also means camera, Accessibility and Input Monitoring permission is granted once, to one binary. VisionGaze, ManOS and Dictation become thin UIs that subscribe to Core. Each app should still run standalone when Core is not installed, for gradual adoption.
+   This also means camera, Accessibility and Input Monitoring permission is granted once, to one binary. OculOS, ManOS and Dictation become thin UIs that subscribe to Core. Each app should still run standalone when Core is not installed, for gradual adoption.
 2. **Make the arbiter an explicit state machine** (`idle`, `pointing`, `dragging`, `dictating`, `paused`). Modalities emit *intents* such as `target(gazePoint, confidence)`, `commit(kind)`, `command(text)` and `cursorDelta`, never raw clicks. Rules:
    - gaze can never commit
    - while `dictating`, ManOS commands are suppressed except pause
    - hand motion overrides gaze for the cursor until it has been still for about 500 ms
    - a real mouse or trackpad event pauses all synthetic pointer output for about 2 s
-3. **Add one global pause that works from every modality**: a hotkey, the voice command "oculOS sleep", a held open palm, and a menu-bar toggle. All of them route to Core's `paused` state, and Core broadcasts it through a userInfo-less distributed notification and XPC. A menu-bar HUD shows which modalities are live and how confident tracking is.
+3. **Add one global pause that works from every modality**: a hotkey, the voice command "Humanity sleep", a held open palm, and a menu-bar toggle. All of them route to Core's `paused` state, and Core broadcasts it through a userInfo-less distributed notification and XPC. A menu-bar HUD shows which modalities are live and how confident tracking is.
 4. **Use XPC for real-time data, the App Group for state, and distributed notifications only for pause or mode changes.** Version the XPC protocol, verify that peers are signed with the same team ID, and keep the shared settings schema in the App Group.
 5. **Snap targets with the Accessibility API.** Webcam gaze is accurate only to within a few centimetres of screen, so snap the gaze point to the nearest actionable `AXUIElement`, much as visionOS uses hover regions. Show a subtle highlight before the commit, which is the visionOS hover-feedback idea applied to the Mac.
 

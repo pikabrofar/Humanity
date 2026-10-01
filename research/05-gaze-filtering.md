@@ -2,7 +2,7 @@
 
 ## Summary
 
-VisionGaze's FixationStabilizer is close to the weighted on-off ("Woo") filter: it holds one fixation buffer, fills a second buffer with candidate samples, and switches only after enough of them agree. Špakov (ETRA 2012) compared real-time filters for 30–100 Hz trackers. Filters that detect fixation vs. saccade did best. Dropping the confirmation buffer (his AWoo variant) cut the delay metric by about 4.6x while keeping smoothness. Kumar's EyePoint filter gets the same result with one sample of look-ahead and a time-bounded fixation window. The largest gains for oculOS come from confirming saccades faster, limiting how much history is averaged, and keeping the spring from adding lag after a saccade.
+OculOS's FixationStabilizer is close to the weighted on-off ("Woo") filter: it holds one fixation buffer, fills a second buffer with candidate samples, and switches only after enough of them agree. Špakov (ETRA 2012) compared real-time filters for 30–100 Hz trackers. Filters that detect fixation vs. saccade did best. Dropping the confirmation buffer (his AWoo variant) cut the delay metric by about 4.6x while keeping smoothness. Kumar's EyePoint filter gets the same result with one sample of look-ahead and a time-bounded fixation window. The largest gains for Humanity come from confirming saccades faster, limiting how much history is averaged, and keeping the spring from adding lag after a saccade.
 
 ## Key findings
 

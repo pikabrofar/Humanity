@@ -1,6 +1,6 @@
-# HCI Pointing Research for VisionGaze and ManOS
+# HCI Pointing Research for OculOS and ManOS
 
-**Summary.** Gaze is fast but imprecise and should not click by itself. Mid-air hands carry about 35% less information per second than a mouse, and the click gesture itself moves the pointer. VisionGaze (2–5° error) should use gaze to get near a target and finish with a hand, zoom or moving target. ManOS's biggest losses are pinch jitter and a poor transfer function.
+**Summary.** Gaze is fast but imprecise and should not click by itself. Mid-air hands carry about 35% less information per second than a mouse, and the click gesture itself moves the pointer. OculOS (2–5° error) should use gaze to get near a target and finish with a hand, zoom or moving target. ManOS's biggest losses are pinch jitter and a poor transfer function.
 
 ## Key findings
 
@@ -20,15 +20,15 @@
 
 ## Recommendations (ranked)
 
-1. **[VisionGaze] Never let gaze alone click.** Commit with a pinch (Gaze + Pinch with ManOS), a key or a pursuit match. If dwell is required, start at 600–800 ms, let the user tune it down to about 300 ms, and show a progress ring.
+1. **[OculOS] Never let gaze alone click.** Commit with a pinch (Gaze + Pinch with ManOS), a key or a pursuit match. If dwell is required, start at 600–800 ms, let the user tune it down to about 300 ms, and show a progress ring.
 2. **[ManOS] Freeze the pointer at pinch onset.** When the finger gap starts closing, use the cursor position from 100–150 ms earlier and ignore motion until the pinch is confirmed. This targets about 30% of errors.
-3. **[VisionGaze] Snap to targets instead of showing a free cursor.** Make effective hit areas at least 2x the error: about 5–10 cm at 60 cm. Use the macOS accessibility tree to get target positions, with invisible expanded hit areas.
+3. **[OculOS] Snap to targets instead of showing a free cursor.** Make effective hit areas at least 2x the error: about 5–10 cm at 60 cm. Use the macOS accessibility tree to get target positions, with invisible expanded hit areas.
 4. **[Both] Use conservative MAGIC.** Warp to the gaze point only when the hand starts moving and the gaze point is more than about 120 px (about 3°) away. ManOS then finishes in relative mode at low gain.
 5. **[ManOS] Use a 1€ filter with velocity-based gain.** Start at `mincutoff` 1.0 Hz and `beta` 0.007, then tune. Use CD gain below 1 when slow and higher gain when fast.
-6. **[VisionGaze] Use pursuits for dense or small targets.** Put 2–8 candidates on distinct orbits and select at r > 0.8 on both axes over 0.5–1 s. This survives calibration drift.
-7. **[VisionGaze] Zoom only when the target is ambiguous.** Use a 2–3x magnifier only when more than one target is inside the error circle. Lower gain or keep snapping inside the zoom.
+6. **[OculOS] Use pursuits for dense or small targets.** Put 2–8 candidates on distinct orbits and select at r > 0.8 on both axes over 0.5–1 s. This survives calibration drift.
+7. **[OculOS] Zoom only when the target is ambiguous.** Use a 2–3x magnifier only when more than one target is inside the error circle. Lower gain or keep snapping inside the zoom.
 8. **[ManOS] Plan for about 2.7 bits/s.** Avoid ID > 3.2 and keep frequent targets large and near the hand's resting position.
-9. **[VisionGaze] Avoid the bottom and right edges for critical targets.** Weight recalibration toward those regions and show per-user accuracy.
+9. **[OculOS] Avoid the bottom and right edges for critical targets.** Weight recalibration toward those regions and show per-user accuracy.
 10. **[Both] Benchmark with ISO 9241-411 multidirectional tapping.** Track throughput and error rate for each release.
 
 **Possible design mistakes:**

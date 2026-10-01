@@ -21,12 +21,12 @@ never fight.
 
 ## Install
 
-Download the DMG from [Releases](https://github.com/pikabrofar/oculOS/releases),
+Download the DMG from [Releases](https://github.com/pikabrofar/Humanity/releases),
 or build it from source:
 
 ```sh
-git clone https://github.com/pikabrofar/oculOS.git
-cd oculOS/ManOS
+git clone https://github.com/pikabrofar/Humanity.git
+cd Humanity/ManOS
 make run
 ```
 
@@ -76,7 +76,7 @@ Safeguards against accidental input (the "Midas touch" problem):
 The default ad-hoc signature changes on every build, so macOS may forget the
 Accessibility grant. If you see the toggle on but ManOS can't click, remove
 ManOS from the list with **–**, then add it again. Or sign with a stable
-certificate: `SIGN_ID="OculOS Self-Signed" make app`.
+certificate: `SIGN_ID="Humanity Self-Signed" make app`.
 
 ## License
 

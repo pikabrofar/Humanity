@@ -7,21 +7,21 @@ Treat any figure marked as unverified in a file accordingly.
 
 | # | Topic | Applies to |
 |---|---|---|
-| [00](00-competitors.md) | Competitor teardown: Tobii, Beam, Talon, Head Pointer, Leap… | VisionGaze, ManOS |
+| [00](00-competitors.md) | Competitor teardown: Tobii, Beam, Talon, Head Pointer, Leap… | OculOS, ManOS |
 | [00](00-distribution-and-trust.md) | Distribution, signing, Homebrew, Sparkle, README | All |
-| [01](01-gaze-models.md) | Appearance-based gaze CNNs and their licenses | VisionGaze |
-| [02](02-gaze-calibration.md) | Calibration, personalization, drift | VisionGaze |
-| [03](03-geometric-gaze.md) | Geometric eye models, head pose, camera FOV | VisionGaze |
-| [04](04-iris-pupil.md) | Iris and pupil localization, jitter | VisionGaze |
-| [05](05-gaze-filtering.md) | Real-time gaze filters for cursors | VisionGaze |
-| [06](06-gaze-analytics.md) | AOIs, metrics, replay, export | VisionGaze |
-| [07](07-gaze-interaction.md) | Dwell, zoom, snap-to-target, gaze UIs | VisionGaze |
+| [01](01-gaze-models.md) | Appearance-based gaze CNNs and their licenses | OculOS |
+| [02](02-gaze-calibration.md) | Calibration, personalization, drift | OculOS |
+| [03](03-geometric-gaze.md) | Geometric eye models, head pose, camera FOV | OculOS |
+| [04](04-iris-pupil.md) | Iris and pupil localization, jitter | OculOS |
+| [05](05-gaze-filtering.md) | Real-time gaze filters for cursors | OculOS |
+| [06](06-gaze-analytics.md) | AOIs, metrics, replay, export | OculOS |
+| [07](07-gaze-interaction.md) | Dwell, zoom, snap-to-target, gaze UIs | OculOS |
 | [08](08-hand-tracking-models.md) | Hand-tracking models and performance | ManOS |
 | [09](09-gesture-vocabulary.md) | Gesture vocabulary and teaching | ManOS |
 | [10](10-ergonomics.md) | Mid-air fatigue and posture | ManOS |
 | [11](11-jitter-latency.md) | Jitter, latency, click rewind | ManOS |
 | [12](12-accessibility.md) | Users with motor disabilities | All |
-| [13](13-hci-pointing.md) | Fitts' law, MAGIC, Gaze + Pinch | VisionGaze, ManOS |
+| [13](13-hci-pointing.md) | Fitts' law, MAGIC, Gaze + Pinch | OculOS, ManOS |
 | [14](14-apple-apis.md) | Apple APIs and pitfalls | All |
 | [15](15-dictation-apps.md) | Dictation app landscape | Voice app |
 | [16](16-speech-engines.md) | On-device speech and summarization engines | Voice app |
@@ -34,7 +34,7 @@ Treat any figure marked as unverified in a file accordingly.
 
 Status: ✅ done · 🔜 next · 💡 later
 
-### VisionGaze
+### OculOS
 - ✅ Geometric head-pose model, pursuit + validation calibration, click learning (02, 13)
 - 🔜 **Never click with gaze alone.** Gaze points; a pinch (ManOS), a hotkey, or
   an optional dwell commits. Dwell defaults to 800–1000 ms with a progress ring,

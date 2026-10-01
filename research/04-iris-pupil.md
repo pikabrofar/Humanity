@@ -2,7 +2,7 @@
 
 ## Summary
 
-VisionGaze's ~4° frame-to-frame jitter is about what an unfiltered webcam pipeline produces. A recent capture-clock benchmark measured 2.2–4.3° within-fixation jitter for both WebGazer and MediaPipe FaceMesh+KRR. The cause is mostly geometric. At 60 cm on a 720p webcam the iris is only about 20 px wide, and a 1 px iris shift equals about 2–3° of eye rotation (iris ≈ 11.7 mm, eyeball radius ≈ 12 mm). Cutting jitter therefore takes three things: (a) sub-pixel limbus/iris-center estimation on full-resolution crops, (b) a stable eye-corner reference frame, and (c) speed-adaptive temporal filtering. A dark-blob centroid in luma does poorly here. In visible light the pupil/iris contrast is weak (especially for dark irises), and eyelids, lashes and glints bias the centroid. The limbus (iris/sclera edge) is the strongest, most stable edge in RGB.
+OculOS's ~4° frame-to-frame jitter is about what an unfiltered webcam pipeline produces. A recent capture-clock benchmark measured 2.2–4.3° within-fixation jitter for both WebGazer and MediaPipe FaceMesh+KRR. The cause is mostly geometric. At 60 cm on a 720p webcam the iris is only about 20 px wide, and a 1 px iris shift equals about 2–3° of eye rotation (iris ≈ 11.7 mm, eyeball radius ≈ 12 mm). Cutting jitter therefore takes three things: (a) sub-pixel limbus/iris-center estimation on full-resolution crops, (b) a stable eye-corner reference frame, and (c) speed-adaptive temporal filtering. A dark-blob centroid in luma does poorly here. In visible light the pupil/iris contrast is weak (especially for dark irises), and eyelids, lashes and glints bias the centroid. The limbus (iris/sclera edge) is the strongest, most stable edge in RGB.
 
 ## Key findings
 
