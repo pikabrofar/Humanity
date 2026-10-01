@@ -33,7 +33,7 @@ struct CalibrationPage: View {
                         .fixedSize()
                     }
                     Text("⇧⌘K")
-                        .font(.system(size: 12, design: .monospaced))
+                        .font(.system(size: 12))
                         .foregroundStyle(.tertiary)
                 }
                 .padding(.top, 28)

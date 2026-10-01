@@ -175,12 +175,9 @@ private struct GazeSection: View {
                 .font(.system(size: 11.5))
                 .foregroundStyle(.secondary)
             } else {
-                HStack(spacing: 10) {
-                    Button("Calibrate", action: model.startCalibration)
-                        .buttonStyle(PrimaryButtonStyle())
-                        .disabled(engine.cameraState != .running)
-                    Text("⇧⌘K").font(.system(size: 11, design: .monospaced)).foregroundStyle(.tertiary)
-                }
+                Button("Calibrate", action: model.startCalibration)
+                    .buttonStyle(PrimaryButtonStyle())
+                    .disabled(engine.cameraState != .running)
             }
         }
     }

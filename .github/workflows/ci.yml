@@ -48,7 +48,8 @@ jobs:
           for f in *.png icon.iconset/icon_256x256.png; do
             [ -f "$f" ] || continue
             echo "@@BEGIN $f"
-            base64 -b 200 -i "$f"
+            # Long lines keep the whole dump under log readers' line limits.
+            base64 -b 16000 -i "$f"
             echo "@@END $f"
           done
       - uses: actions/upload-artifact@v4
