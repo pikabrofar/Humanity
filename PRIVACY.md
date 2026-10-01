@@ -20,6 +20,9 @@ network requests in only these cases:
   Hugging Face.
 - **Apple's speech models.** On macOS 26, macOS may download its on-device speech
   model the first time you dictate. Apple handles this download.
+- **License check.** When you activate, and about once a week after that, the
+  apps send your license key and the product ID to Gumroad
+  (`api.gumroad.com`) to confirm the key is valid. Nothing else is sent.
 - **Scripts you run yourself**, such as OculOS's `make cnn-model`.
 
 ## What is stored
@@ -60,4 +63,4 @@ All permissions are granted to **Humanity** once. Each one is used for:
 
 Don't take our word for it. The code is short. Camera code is in
 `OculOS/Sources/GazeKit/CameraCapture.swift`, and all network code is in
-`AIKit/` and MeetingKit's `Diarizer.swift`.
+`AIKit/`, `LicenseKit/` and MeetingKit's `Diarizer.swift`.

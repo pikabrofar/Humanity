@@ -1,14 +1,17 @@
 import AppKit
 import ManOSUI
+import LicenseKit
 import SwiftUI
 
 @main
 struct ManOSApp: App {
-    @State private var module = ManOSModule()
+    @State private var module: ManOSModule
 
     init() {
         // Allows `swift run` without an app bundle to show a regular window.
         NSApplication.shared.setActivationPolicy(.regular)
+        License.requireActivation(appName: "ManOS")
+        _module = State(initialValue: ManOSModule())
     }
 
     var body: some Scene {

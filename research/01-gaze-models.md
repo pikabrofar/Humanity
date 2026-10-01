@@ -26,7 +26,7 @@ From 2022 to 2026, the field moved from single-dataset CNNs (L2CS-Net, the ETH-X
   - ETH-XGaze and MPIIFaceGaze are CC BY-NC-SA 4.0. ETH-XGaze's terms extend the non-commercial restriction to models.
   - Gaze360 is non-commercial research only, and it forbids redistribution and restricts models trained on it.
   - GazeCapture requires a signed agreement.
-  - So every public gaze checkpoint is effectively non-commercial, **including the MobileGaze weights OculOS ships today**.
+  - So every public gaze checkpoint is effectively non-commercial, **including the MobileGaze weights that OculOS's optional `make cnn-model` script downloads** (they are never bundled in the apps).
 - **Few-shot personalization is the big lever.**
   - WebEyeTrack/BlazeGaze (2025) is 0.16M parameters / 670 KB and runs in 2.4 ms on an iPhone 14. It uses MAML meta-learning with k≤9 calibration points and gets 2.32 cm error on GazeCapture.
   - Fine-tuning only the last fully-connected layer cuts error by 52.8% after 30 s of calibration.
@@ -44,7 +44,7 @@ From 2022 to 2026, the field moved from single-dataset CNNs (L2CS-Net, the ETH-X
    - Use a 9–16-point calibration, then keep recalibrating implicitly from cursor clicks and ManOS clicks, where gaze is about at the click target.
    - Based on the results above, expect roughly a 30–50% error reduction for under 1 ms of extra compute. Add a 1€ filter for smoothing.
 2. **Fix the license exposure now.**
-   - The bundled MobileGaze weights come from Gaze360 data, which is non-commercial and forbids redistribution.
+   - The MobileGaze weights (never bundled; only the optional `make cnn-model` script downloads them) come from Gaze360 data, which is non-commercial and forbids redistribution.
    - Move the weights out of the repo into a separate download that requires accepting the license, and document this in the README.
    - Keep the geometric head-pose path as a fully open fallback with no learned weights.
 3. **Retrain the student network on multiple datasets with ETH-XGaze normalization.**

@@ -9,10 +9,11 @@ let package = Package(
         .library(name: "OculOSUI", targets: ["OculOSUI"]),
         .executable(name: "OculOS", targets: ["OculOS"]),
     ],
+    dependencies: [.package(path: "../LicenseKit")],
     targets: [
         .target(name: "GazeKit"),
         .target(name: "OculOSUI", dependencies: ["GazeKit"]),
-        .executableTarget(name: "OculOS", dependencies: ["OculOSUI"]),
+        .executableTarget(name: "OculOS", dependencies: ["OculOSUI", "LicenseKit"]),
         .testTarget(
             name: "GazeKitTests",
             dependencies: ["GazeKit", "OculOSUI"]

@@ -18,6 +18,9 @@ cd "$ROOT"
 # UNIVERSAL=1 builds arm64 + x86_64; that needs full Xcode (as on GitHub runners).
 ARCH_FLAGS=""
 [ "${UNIVERSAL:-0}" = 1 ] && ARCH_FLAGS="--arch arm64 --arch x86_64"
+# SCRATCH: build directory. Releases build outside the home folder so no local
+# path ends up in the binary.
+[ -n "${SCRATCH:-}" ] && ARCH_FLAGS="$ARCH_FLAGS --scratch-path $SCRATCH"
 swift build -c "$CONFIG" --product "$APP_NAME" $ARCH_FLAGS
 BIN="$(swift build -c "$CONFIG" $ARCH_FLAGS --show-bin-path)/$APP_NAME"
 
@@ -32,6 +35,9 @@ if [ ! -f build/AppIcon.icns ]; then
     iconutil -c icns build/AppIcon.iconset -o build/AppIcon.icns
 fi
 cp build/AppIcon.icns "$APP/Contents/Resources/AppIcon.icns"
+# Licenses ship with every copy; the About window shows them as credits.
+cp ../LICENSE ../THIRD_PARTY_NOTICES.md "$APP/Contents/Resources/"
+cat ../LICENSE ../THIRD_PARTY_NOTICES.md | textutil -stdin -format txt -convert rtf -output "$APP/Contents/Resources/Credits.rtf"
 
 BUNDLE_ID="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' Resources/Info.plist)"
 # Hardened runtime: no injected libraries or debugger attach into a process that

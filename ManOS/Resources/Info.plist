@@ -2,34 +2,33 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-    <key>CFBundleName</key>
-    <string>ManOS</string>
-    <key>CFBundleDisplayName</key>
-    <string>ManOS</string>
-    <key>CFBundleIdentifier</key>
-    <string>io.github.pikabrofar.humanity.ManOS</string>
-    <key>CFBundleExecutable</key>
-    <string>ManOS</string>
-    <key>CFBundlePackageType</key>
-    <string>APPL</string>
-    <key>CFBundleShortVersionString</key>
-    <string>0.1.0</string>
-    <key>CFBundleVersion</key>
-    <string>1</string>
-    <key>CFBundleIconFile</key>
-    <string>AppIcon</string>
-    <key>LSMinimumSystemVersion</key>
-    <string>14.0</string>
-    <key>LSApplicationCategoryType</key>
-    <string>public.app-category.utilities</string>
-    <key>NSHighResolutionCapable</key>
-    <true/>
-    <key>NSPrincipalClass</key>
-    <string>NSApplication</string>
-    <!-- Hand poses like thumbs-up would otherwise trigger camera Reactions (macOS 14.4+). -->
-    <key>NSCameraReactionEffectGesturesEnabledDefault</key>
-    <false/>
-    <key>NSCameraUsageDescription</key>
-    <string>ManOS uses the camera to track your hand. Video is processed on-device and never stored or transmitted.</string>
+	<key>CFBundleDisplayName</key>
+	<string>ManOS</string>
+	<key>CFBundleExecutable</key>
+	<string>ManOS</string>
+	<key>CFBundleIconFile</key>
+	<string>AppIcon</string>
+	<key>CFBundleIdentifier</key>
+	<string>io.github.pikabrofar.humanity.ManOS</string>
+	<key>CFBundleName</key>
+	<string>ManOS</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>CFBundleShortVersionString</key>
+	<string>1.0.0</string>
+	<key>CFBundleVersion</key>
+	<string>1</string>
+	<key>LSApplicationCategoryType</key>
+	<string>public.app-category.utilities</string>
+	<key>LSMinimumSystemVersion</key>
+	<string>14.0</string>
+	<key>NSCameraReactionEffectGesturesEnabledDefault</key>
+	<false/>
+	<key>NSCameraUsageDescription</key>
+	<string>ManOS uses the camera to track your hand. Video is processed on-device and never stored or transmitted.</string>
+	<key>NSHighResolutionCapable</key>
+	<true/>
+	<key>NSPrincipalClass</key>
+	<string>NSApplication</string>
 </dict>
 </plist>

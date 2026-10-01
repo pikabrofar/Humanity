@@ -1,6 +1,7 @@
 import AIKitUI
 import AppKit
 import GazeKit
+import LicenseKit
 import ManOSUI
 import MurmurUI
 import Observation
@@ -10,7 +11,12 @@ import SwiftUI
 @main
 struct HumanityApp: App {
     @NSApplicationDelegateAdaptor private var appDelegate: AppDelegate
-    @State private var suite = Suite()
+    @State private var suite: Suite
+
+    init() {
+        License.requireActivation(appName: "Humanity")
+        _suite = State(initialValue: Suite())
+    }
 
     var body: some Scene {
         // Everyday use happens in the menu bar panel; the window is for setup,
@@ -237,6 +243,10 @@ struct QuickPanel: View {
                 Spacer(minLength: 0)
                 Menu {
                     Button("Open Humanity") { suite.show("home") }
+                    Button("About Humanity") {
+                        NSApp.activate(ignoringOtherApps: true)
+                        NSApp.orderFrontStandardAboutPanel()
+                    }
                     Button("Tutorial") { suite.show(nil, window: "tutorial") }
                     SettingsLink { Text("Settings…") }
                     Divider()

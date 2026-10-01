@@ -1,5 +1,6 @@
 import AIKitUI
 import AppKit
+import LicenseKit
 import MurmurUI
 import SwiftUI
 
@@ -11,6 +12,7 @@ struct MurmurApp: App {
     init() {
         // Allows `swift run` without an app bundle to show a regular window.
         NSApplication.shared.setActivationPolicy(.regular)
+        License.requireActivation(appName: "Murmur")
     }
 
     var body: some Scene {
@@ -38,7 +40,8 @@ struct MurmurApp: App {
 
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
-    let module = MurmurModule()
+    /// Created on first use, after activation.
+    lazy var module = MurmurModule()
 
     /// Quitting mid-meeting or mid-note finalizes the audio first; otherwise it's unreadable.
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {

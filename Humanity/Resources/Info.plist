@@ -2,43 +2,41 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-    <key>CFBundleName</key>
-    <string>Humanity</string>
-    <key>CFBundleDisplayName</key>
-    <string>Humanity</string>
-    <key>CFBundleIdentifier</key>
-    <string>io.github.pikabrofar.humanity</string>
-    <key>CFBundleExecutable</key>
-    <string>Humanity</string>
-    <key>CFBundlePackageType</key>
-    <string>APPL</string>
-    <key>CFBundleShortVersionString</key>
-    <string>0.1.0</string>
-    <key>CFBundleVersion</key>
-    <string>1</string>
-    <key>CFBundleIconFile</key>
-    <string>AppIcon</string>
-    <key>LSMinimumSystemVersion</key>
-    <string>14.0</string>
-    <key>LSApplicationCategoryType</key>
-    <string>public.app-category.utilities</string>
-    <key>NSHighResolutionCapable</key>
-    <true/>
-    <!-- Menu bar app: no Dock icon. -->
-    <key>LSUIElement</key>
-    <true/>
-    <key>NSPrincipalClass</key>
-    <string>NSApplication</string>
-    <!-- Hand poses like thumbs-up would otherwise trigger camera Reactions (macOS 14.4+). -->
-    <key>NSCameraReactionEffectGesturesEnabledDefault</key>
-    <false/>
-    <key>NSAudioCaptureUsageDescription</key>
-    <string>Murmur records the meeting app's audio so it can transcribe the call and tell speakers apart. It stays on this Mac.</string>
-    <key>NSMicrophoneUsageDescription</key>
-    <string>Humanity listens only while you dictate or record. Audio is transcribed on this Mac and never uploaded.</string>
-    <key>NSSpeechRecognitionUsageDescription</key>
-    <string>Humanity turns your speech into text with Apple's on-device recognizer. Nothing is sent to Apple or anyone else.</string>
-    <key>NSCameraUsageDescription</key>
-    <string>Humanity uses the camera to track your eyes and hands. Video is processed on-device and never stored or transmitted.</string>
+	<key>CFBundleDisplayName</key>
+	<string>Humanity</string>
+	<key>CFBundleExecutable</key>
+	<string>Humanity</string>
+	<key>CFBundleIconFile</key>
+	<string>AppIcon</string>
+	<key>CFBundleIdentifier</key>
+	<string>io.github.pikabrofar.humanity</string>
+	<key>CFBundleName</key>
+	<string>Humanity</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>CFBundleShortVersionString</key>
+	<string>1.0.0</string>
+	<key>CFBundleVersion</key>
+	<string>1</string>
+	<key>LSApplicationCategoryType</key>
+	<string>public.app-category.utilities</string>
+	<key>LSMinimumSystemVersion</key>
+	<string>14.0</string>
+	<key>LSUIElement</key>
+	<true/>
+	<key>NSAudioCaptureUsageDescription</key>
+	<string>Murmur records the meeting app's audio so it can transcribe the call and tell speakers apart. It stays on this Mac.</string>
+	<key>NSCameraReactionEffectGesturesEnabledDefault</key>
+	<false/>
+	<key>NSCameraUsageDescription</key>
+	<string>Humanity uses the camera to track your eyes and hands. Video is processed on-device and never stored or transmitted.</string>
+	<key>NSHighResolutionCapable</key>
+	<true/>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Humanity listens only while you dictate or record. Audio is transcribed on this Mac and never uploaded.</string>
+	<key>NSPrincipalClass</key>
+	<string>NSApplication</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>Humanity turns your speech into text with Apple's on-device recognizer. Nothing is sent to Apple or anyone else.</string>
 </dict>
 </plist>

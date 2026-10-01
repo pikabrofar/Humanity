@@ -12,11 +12,12 @@ let package = Package(
     dependencies: [
         // Camera capture (and later gaze + pinch) come from OculOS's GazeKit.
         .package(path: "../OculOS"),
+        .package(path: "../LicenseKit"),
     ],
     targets: [
         .target(name: "HandKit"),
         .target(name: "ManOSUI", dependencies: ["HandKit", .product(name: "GazeKit", package: "OculOS")]),
-        .executableTarget(name: "ManOS", dependencies: ["ManOSUI"]),
+        .executableTarget(name: "ManOS", dependencies: ["ManOSUI", "LicenseKit"]),
         .testTarget(name: "HandKitTests", dependencies: ["HandKit"]),
     ]
 )

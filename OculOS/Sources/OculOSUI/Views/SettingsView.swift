@@ -44,7 +44,7 @@ struct SettingsView: View {
                         Button("Remove", role: .destructive) { engine.removeNetwork() }
                     }
                 }
-                Text("An appearance-based gaze CNN such as L2CS-Net, run on the face each frame. Build one with `make cnn-model`. Its output is combined with the eye and head features during calibration.")
+                Text("Optional: load your own appearance-based gaze model (Core ML), run on the face each frame and combined with the eye and head features during calibration. Make sure its weights are licensed for your use; most public gaze models are research-only.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
