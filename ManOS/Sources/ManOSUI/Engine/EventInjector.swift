@@ -54,16 +54,23 @@ final class EventInjector {
                 event?.post(tap: .cghidEventTap)
             }
         case .scroll:
-            // Flick up = swipe up on a phone = content moves up (next item).
-            // Sent as a short phased burst so feeds treat it as one gesture.
-            var total = profile.flickScrollAmount * (direction == .up ? 1 : -1)
+            // Flick up = swipe up on a phone = content moves up (next item), i.e. a
+            // negative wheel delta. Sent as plain mouse-wheel events (no trackpad
+            // phases): feeds like Shorts, TikTok and Reels react to wheel ticks,
+            // and some ignore phased gesture events that lack momentum.
+            var total = profile.flickScrollAmount * (direction == .up ? -1 : 1)
             if profile.invertScroll { total = -total }
-            let steps = 6
-            scroll(dx: 0, dy: 0, phase: .began)
-            for _ in 0..<steps { scroll(dx: 0, dy: total / Double(steps), phase: .changed) }
-            scroll(dx: 0, dy: 0, phase: .ended)
+            let steps = 4
+            for _ in 0..<steps {
+                let event = CGEvent(scrollWheelEvent2Source: source, units: .pixel, wheelCount: 1,
+                                    wheel1: Int32(total / Double(steps)), wheel2: 0, wheel3: 0)
+                event?.setIntegerValueField(.eventSourceUserData, value: Self.tag)
+                event?.post(tap: .cghidEventTap)
+            }
         }
     }
+
+    func resetPosition(to point: CGPoint) { lastPosted = point }
 
     /// Lifts a held button. Call on disable, pause, quit, and tracking loss.
     func releaseAll() {

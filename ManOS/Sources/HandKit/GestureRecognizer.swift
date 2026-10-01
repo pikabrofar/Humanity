@@ -23,7 +23,8 @@ public enum GestureEvent: Sendable, Equatable {
 ///
 /// Gestures: move the palm to point; thumb–index pinch to click, hold and move
 /// to drag; thumb–middle pinch to right-click, hold and move to scroll; fist to
-/// clutch (reposition the hand without moving the cursor); hold an open palm
+/// clutch (reposition the hand without moving the cursor); curl middle, ring and
+/// little fingers to anchor the pointer, then pinch thumb + index to click there; hold an open palm
 /// still for 1 s to pause or resume; flick up/down for next/previous.
 ///
 /// Guards against accidental input ("Midas touch"):
@@ -38,6 +39,8 @@ public enum GestureEvent: Sendable, Equatable {
 public struct GestureRecognizer: Sendable {
     public enum State: Sendable, Equatable {
         case idle, engaging, hovering, pressing, dragging, rightPending, scrolling, clutched
+        /// Pinch-click while anchored: the pointer can't move.
+        case anchoredPressing
     }
 
     public private(set) var state = State.idle
@@ -49,7 +52,8 @@ public struct GestureRecognizer: Sendable {
     static let engageDwell = 0.25
     static let lostTimeout = 0.2
     static let rightClickMaxDuration = 0.3
-    static let pauseHold = 1.0
+    /// Long enough that a relaxed open hand resting still doesn't pause by accident.
+    static let pauseHold = 1.5
     /// Bounds for rewinding a click to the start of the pinch motion.
     static let rewindRange = 0.05...0.25
     /// Pointer gain while fingers are closing toward a pinch.
@@ -59,7 +63,7 @@ public struct GestureRecognizer: Sendable {
     static let slop = 0.12
     static let doubleClickRadius = 6.0
     /// A flick must happen within this window.
-    static let flickWindow = 0.25
+    static let flickWindow = 0.3
     /// Repeated flicks in the same direction (skimming several videos).
     static let flickRepeatDelay = 0.45
     /// The hand's return after a flick is also fast; ignore the opposite
@@ -88,6 +92,9 @@ public struct GestureRecognizer: Sendable {
     private var recentAnchors: [(TimeInterval, CGPoint)] = []
     private var lastFlick: (time: TimeInterval, direction: FlickDirection)?
     private var freezeUntil: TimeInterval = 0
+    /// Set once the hand is in the anchor grip with fingers apart, so a fist that
+    /// closes with thumb on index doesn't click.
+    private var anchorArmed = false
 
     /// 0 = fingers apart, 1 = at the click threshold. Drives the on-screen pinch ring.
     public private(set) var pinchProgress = 0.0
@@ -98,7 +105,7 @@ public struct GestureRecognizer: Sendable {
         self.mapper.sensitivity = profile.sensitivity
     }
 
-    public var isButtonDown: Bool { state == .pressing || state == .dragging }
+    public var isButtonDown: Bool { state == .pressing || state == .dragging || state == .anchoredPressing }
 
     /// Call when the physical mouse moved the cursor, so hand control resumes from there.
     public mutating func setCursor(_ point: CGPoint) {
@@ -107,6 +114,12 @@ public struct GestureRecognizer: Sendable {
     }
 
     /// Ends any press or scroll and disengages. Use for kill switches and shutdown.
+    /// Resume after a pause (e.g. from the hotkey), without a palm gesture.
+    public mutating func resume() {
+        isPaused = false
+        palmSince = nil
+    }
+
     public mutating func releaseAll() -> [GestureEvent] {
         let events = releaseEvents()
         state = .idle
@@ -133,6 +146,9 @@ public struct GestureRecognizer: Sendable {
         referenceScale += (pose.scale - referenceScale) * 0.02
         let raw = pose.anchor
         let anchor = filter.filter(CGPoint(x: raw.x / referenceScale, y: raw.y / referenceScale), at: t)
+        // Unfiltered fingertips: the filter would blunt exactly the fast motion a flick is.
+        let tips = pose.fingertipCenter ?? raw
+        let flickPoint = CGPoint(x: tips.x / referenceScale, y: tips.y / referenceScale)
         let speed = lastAnchor.map { anchor.distance(to: $0) } ?? 0
         lastAnchor = anchor
 
@@ -164,14 +180,14 @@ public struct GestureRecognizer: Sendable {
             if t - stateSince >= Self.engageDwell { state = .hovering }
 
         case .hovering:
-            if pose.isFist {
+            if pose.isFist || pose.isAnchorGrip {
                 state = .clutched
+                anchorArmed = false
             } else if indexFrames >= 2 {
                 let rewind = min(max(t - (closingSince ?? t - 0.1), Self.rewindRange.lowerBound), Self.rewindRange.upperBound)
                 let point = backdatedCursor(at: t - rewind)
                 mapper.cursor = point
-                clicks = lastUp.map { t - $0.0 <= doubleClickInterval && point.distance(to: $0.1) <= Self.doubleClickRadius }
-                    == true ? clicks + 1 : 1
+                clicks = nextClickCount(at: point, time: t)
                 events.append(.down(point, clicks: clicks))
                 state = .pressing
                 stateSince = t
@@ -180,7 +196,7 @@ public struct GestureRecognizer: Sendable {
                 state = .rightPending
                 stateSince = t
                 pressAnchor = anchor
-            } else if let direction = detectFlick(anchor: anchor, dIndex: dIndex, dMiddle: dMiddle, at: t) {
+            } else if let direction = detectFlick(point: flickPoint, dIndex: dIndex, dMiddle: dMiddle, at: t) {
                 // The fast motion already nudged the cursor; put it back.
                 if let start = recentAnchors.first {
                     mapper.cursor = backdatedCursor(at: start.0)
@@ -242,20 +258,41 @@ public struct GestureRecognizer: Sendable {
 
         case .clutched:
             mapper.track(anchor, at: t)
-            if !pose.isFist { state = .hovering }
+            if pose.isAnchorGrip, dIndex > profile.pinchExit { anchorArmed = true }
+            if anchorArmed, indexFrames >= 2 {
+                clicks = nextClickCount(at: mapper.cursor, time: t)
+                events.append(.down(mapper.cursor, clicks: clicks))
+                state = .anchoredPressing
+                stateSince = t
+                anchorArmed = false
+            } else if !pose.isFist, !pose.isAnchorGrip {
+                state = .hovering
+            }
+
+        case .anchoredPressing:
+            mapper.track(anchor, at: t)
+            if dIndex > profile.pinchExit || t - stateSince > Self.maxHold {
+                events.append(.up(mapper.cursor, clicks: clicks))
+                lastUp = (t, mapper.cursor)
+                state = .clutched
+            }
         }
         return events
     }
 
-    /// A fast, mostly vertical palm movement while not pinching.
-    private mutating func detectFlick(anchor: CGPoint, dIndex: Double, dMiddle: Double, at t: TimeInterval) -> FlickDirection? {
+    private func nextClickCount(at point: CGPoint, time t: TimeInterval) -> Int {
+        lastUp.map { t - $0.0 <= doubleClickInterval && point.distance(to: $0.1) <= Self.doubleClickRadius } == true ? clicks + 1 : 1
+    }
+
+    /// A fast, mostly vertical fingertip movement while not pinching.
+    private mutating func detectFlick(point anchor: CGPoint, dIndex: Double, dMiddle: Double, at t: TimeInterval) -> FlickDirection? {
         recentAnchors.append((t, anchor))
         recentAnchors.removeAll { t - $0.0 > Self.flickWindow }
         guard profile.flickEnabled, dIndex > profile.pinchExit, dMiddle > profile.pinchExit,
               let start = recentAnchors.first, t - start.0 >= 0.05
         else { return nil }
         let dy = Double(anchor.y - start.1.y), dx = Double(anchor.x - start.1.x)
-        guard abs(dy) >= profile.flickDistance, abs(dy) > 2.5 * abs(dx) else { return nil }
+        guard abs(dy) >= profile.flickDistance, abs(dy) > 2 * abs(dx) else { return nil }
         let direction: FlickDirection = dy > 0 ? .up : .down
         if let last = lastFlick {
             let wait = last.direction == direction ? Self.flickRepeatDelay : Self.flickReverseDelay
@@ -297,7 +334,7 @@ public struct GestureRecognizer: Sendable {
 
     private func releaseEvents() -> [GestureEvent] {
         switch state {
-        case .pressing, .dragging: [.up(mapper.cursor, clicks: clicks)]
+        case .pressing, .dragging, .anchoredPressing: [.up(mapper.cursor, clicks: clicks)]
         case .scrolling: [.scroll(dx: 0, dy: 0, phase: .ended)]
         default: []
         }

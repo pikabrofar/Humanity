@@ -13,8 +13,9 @@ leaves your Mac.
 | Pinch thumb + index | Click (two quick pinches double-click). Hold and move to drag. |
 | Pinch thumb + middle | Right-click. Hold and move to scroll. |
 | Make a fist | Hold the pointer still while you reposition your hand (clutch) |
+| Curl middle, ring and little fingers, then pinch thumb + index | **Anchored click:** the pointer locks in place, so the click lands exactly there |
 | Flick your hand up / down | Next / previous item: Shorts, TikTok, Reels, feeds, pages, slides. Sends a scroll burst or ↓/↑ keys (Settings → Flick) |
-| Spread your hand and hold still for 1 s | Pause or resume |
+| Spread your hand and hold still for 1.5 s | Pause or resume (⌃⌥⌘H also resumes) |
 | **⌃⌥⌘H** | Turn hand control on or off from anywhere (kill switch) |
 
 Touching the real mouse or trackpad pauses hand input for 1.5 s, so the two

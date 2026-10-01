@@ -40,10 +40,16 @@ private struct ControlCard: View {
                 .background((on ? Color.green : Color.accentColor).gradient, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
             VStack(alignment: .leading, spacing: 2) {
                 Text(on ? "Hand control is on" : "Hand control is off").font(.headline)
-                Text(model.canControl ? "Press ⌃⌥⌘H anytime to turn it on or off."
-                                      : "ManOS needs Accessibility permission to move the pointer.")
-                    .foregroundStyle(.secondary)
-                    .font(.callout)
+                if let reason = model.engine.blockedReason {
+                    Label(reason, systemImage: "exclamationmark.triangle.fill")
+                        .foregroundStyle(.orange)
+                        .font(.callout)
+                } else {
+                    Text(model.canControl ? "Press ⌃⌥⌘H anytime to turn it on or off."
+                                          : "ManOS needs Accessibility permission to move the pointer.")
+                        .foregroundStyle(.secondary)
+                        .font(.callout)
+                }
             }
             Spacer()
             Button(on ? "Turn Off" : "Turn On") { model.toggleControl() }
@@ -134,7 +140,8 @@ private struct GestureCard: View {
         case .dragging: "Dragging"
         case .rightPending: "Right click?"
         case .scrolling: "Scrolling"
-        case .clutched: "Clutch (cursor held)"
+        case .clutched: "Anchored (pointer held)"
+        case .anchoredPressing: "Anchored click"
         }
     }
 
@@ -149,6 +156,7 @@ private struct GestureCard: View {
         case .rightPending: "hand.tap"
         case .scrolling: "arrow.up.and.down.circle"
         case .clutched: "hand.raised.fingers.spread"
+        case .anchoredPressing: "hand.tap.fill"
         }
     }
 }
@@ -202,8 +210,11 @@ private struct GestureGuide: View {
                     row("hand.raised.fingers.spread", "Make a fist", "Hold the pointer while you reposition")
                 }
                 GridRow {
+                    row("hand.point.up.left.and.text", "Curl 3 fingers, pinch thumb + index", "Click without moving the pointer")
+                }
+                GridRow {
                     row("chevron.up.2", "Flick up / down", "Next / previous video, page or slide")
-                    row("pause.circle", "Spread hand, hold still 1 s", "Pause or resume")
+                    row("pause.circle", "Spread hand, hold still 1.5 s", "Pause or resume")
                 }
                 GridRow {
                     row("keyboard", "⌃⌥⌘H", "Turn hand control on or off")

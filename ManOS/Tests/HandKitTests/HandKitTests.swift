@@ -7,7 +7,7 @@ import Testing
 /// the thumb–middle distance, in palm units.
 func hand(at anchor: CGPoint = CGPoint(x: 0.9, y: 0.5), scale: Double = 0.1,
           pinch: Double = 1.2, middle: Double = 1.2, fist: Bool = false, open: Bool = false,
-          t: TimeInterval) -> HandPose {
+          grip: Bool = false, tipsUp: Double = 0, t: TimeInterval) -> HandPose {
     let s = CGFloat(scale)
     func at(_ dx: CGFloat, _ dy: CGFloat) -> CGPoint { CGPoint(x: anchor.x + dx * s, y: anchor.y + dy * s) }
     // Palm triangle with unit-ish sides around the anchor.
@@ -19,7 +19,8 @@ func hand(at anchor: CGPoint = CGPoint(x: 0.9, y: 0.5), scale: Double = 0.1,
     ]
     for (pip, tip, x) in fingers {
         j[pip] = at(x, 0.7)
-        j[tip] = fist ? at(x * 0.5, 0.0) : at(x * (open ? 1.6 : 1), 1.3)
+        let curled = fist || (grip && tip != .indexTip)
+        j[tip] = curled ? at(x * 0.5, 0.0) : at(x * (open ? 1.6 : 1), 1.3 + CGFloat(tipsUp))
     }
     // Thumb tip placed at the requested distance from the index / middle tips.
     let indexTip = j[.indexTip]!
@@ -168,6 +169,46 @@ func run(_ r: inout GestureRecognizer, from start: Double, frames: Int, pose: (D
         #expect(p.pinchEnter == 0.22 && p.flickEnabled)
     }
 
+    @Test func anchoredGripClicksWithoutMovingThePointer() {
+        var r = recognizer()
+        _ = run(&r, from: 0, frames: 12, pose: { hand(t: $0) })
+        // Curl middle, ring and little fingers: pointer anchored, index still out.
+        let anchoredMoves = run(&r, from: 0.4, frames: 10, pose: { t in
+            hand(at: CGPoint(x: 0.9 + (t - 0.4) * 0.3, y: 0.5), grip: true, t: t)
+        })
+        #expect(r.state == .clutched)
+        #expect(!anchoredMoves.contains { if case .move = $0 { true } else { false } })
+        let held = r.mapper.cursor
+        let click = run(&r, from: 0.8, frames: 4, pose: { hand(at: CGPoint(x: 1.0, y: 0.5), pinch: 0.1, grip: true, t: $0) })
+            + run(&r, from: 0.95, frames: 3, pose: { hand(at: CGPoint(x: 1.0, y: 0.5), grip: true, t: $0) })
+        #expect(click.contains(GestureEvent.down(held, clicks: 1)))
+        #expect(click.contains(GestureEvent.up(held, clicks: 1)))
+        #expect(r.state == .clutched)
+    }
+
+    @Test func fullFistWithThumbOnIndexDoesNotClick() {
+        var r = recognizer()
+        _ = run(&r, from: 0, frames: 12, pose: { hand(t: $0) })
+        let events = run(&r, from: 0.4, frames: 15, pose: { hand(pinch: 0.1, fist: true, t: $0) })
+        #expect(!events.contains { if case .down = $0 { true } else { false } })
+    }
+
+    @Test func wristFlickDetectedFromFingertips() {
+        var r = recognizer()
+        _ = run(&r, from: 0, frames: 12, pose: { hand(t: $0) })
+        // Palm stays put; only the fingers swing up (a wrist flick).
+        let events = run(&r, from: 0.4, frames: 6, pose: { t in hand(tipsUp: min(t - 0.4, 0.13) / 0.13 * 1.6, t: t) })
+        #expect(events.contains(GestureEvent.flick(.up)))
+    }
+
+    @Test func cursorStaysOnRealDisplays() {
+        var m = PointerMapper(bounds: CGRect(x: 0, y: 0, width: 3360, height: 1380), cursor: .zero)
+        m.displays = [CGRect(x: 0, y: 0, width: 1440, height: 900), CGRect(x: 1440, y: 300, width: 1920, height: 1080)]
+        #expect(m.clamp(CGPoint(x: 1500, y: 100)) == CGPoint(x: 1439, y: 100)) // gap above display 2
+        #expect(m.clamp(CGPoint(x: 2000, y: 600)) == CGPoint(x: 2000, y: 600))  // on display 2
+        #expect(m.clamp(CGPoint(x: 100, y: 1200)) == CGPoint(x: 100, y: 899))   // below display 1
+    }
+
     @Test func lostHandReleasesButton() {
         var r = recognizer()
         _ = run(&r, from: 0, frames: 12, pose: { hand(t: $0) })
@@ -205,12 +246,12 @@ func run(_ r: inout GestureRecognizer, from start: Double, frames: Int, pose: (D
     @Test func stillOpenPalmTogglesPause() {
         var r = recognizer()
         _ = run(&r, from: 0, frames: 12, pose: { hand(t: $0) })
-        let events = run(&r, from: 0.4, frames: 40, pose: { hand(open: true, t: $0) })
+        let events = run(&r, from: 0.4, frames: 55, pose: { hand(open: true, t: $0) })
         #expect(events.contains(GestureEvent.paused(true)))
         #expect(r.isPaused)
         // A moving open palm doesn't toggle it back.
-        _ = run(&r, from: 1.8, frames: 5, pose: { hand(t: $0) })
-        let moving = run(&r, from: 2.0, frames: 40, pose: { t in hand(at: CGPoint(x: 0.9 + (t - 2) * 0.5, y: 0.5), open: true, t: t) })
+        _ = run(&r, from: 2.3, frames: 5, pose: { hand(t: $0) })
+        let moving = run(&r, from: 2.5, frames: 55, pose: { t in hand(at: CGPoint(x: 0.9 + (t - 2) * 0.5, y: 0.5), open: true, t: t) })
         #expect(!moving.contains(GestureEvent.paused(false)))
     }
 

@@ -62,6 +62,12 @@ final class AppModel {
     var isEnabled: Bool { engine.isEnabled }
 
     func toggleControl() {
+        // Paused looks like "broken" from the outside; the hotkey resumes first.
+        if engine.isEnabled, engine.isPaused {
+            engine.resume()
+            NSSound(named: "Tink")?.play()
+            return
+        }
         setControl(!engine.isEnabled)
     }
 

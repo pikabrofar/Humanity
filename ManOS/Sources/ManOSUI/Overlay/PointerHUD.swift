@@ -38,7 +38,7 @@ struct PointerHUD: View {
     private var color: Color {
         if engine.isPaused { return .gray }
         switch engine.gesture {
-        case .pressing, .dragging: return .green
+        case .pressing, .dragging, .anchoredPressing: return .green
         case .scrolling, .rightPending: return .orange
         case .clutched: return .yellow
         default: return .accentColor

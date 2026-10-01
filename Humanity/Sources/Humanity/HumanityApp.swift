@@ -337,12 +337,13 @@ struct ControlsList: View {
         ]),
         ("ManOS", "hand.raised", [
             ("⌃⌥⌘H", "Turn hand control on or off (kill switch)"),
-            ("Move palm", "Move the pointer"),
+            ("Open hand, move palm", "Move the pointer"),
             ("Thumb + index pinch", "Click · hold and move to drag"),
             ("Thumb + middle pinch", "Right-click · hold and move to scroll"),
             ("Fist", "Hold the pointer while repositioning"),
+            ("Curl 3 fingers + pinch", "Anchored click: the pointer can't drift"),
             ("Flick up / down", "Next / previous video, page or slide"),
-            ("Spread hand, still 1 s", "Pause or resume"),
+            ("Spread hand, still 1.5 s", "Pause · ⌃⌥⌘H also resumes"),
         ]),
         ("Murmur", "waveform", [
             ("Hold ⌃⌥⌘D", "Talk, release to insert the text"),
@@ -404,6 +405,7 @@ struct TutorialView: View {
              tips: ["Pinch thumb + index to click, hold to drag.",
                     "Pinch thumb + middle to right-click or scroll.",
                     "Flick up for the next short video or page, down for the previous.",
+                    "For pinpoint clicks, curl your middle, ring and little fingers (the pointer locks), then pinch.",
                     "Make a fist to reposition. ⌃⌥⌘H turns it off instantly.",
                     "Rest your elbow on the desk; small movements are enough."]),
         Page(symbol: "waveform", tint: .orange, title: "Murmur · Voice",

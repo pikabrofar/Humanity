@@ -86,11 +86,31 @@ final class HandEngine {
 
     /// Union of all displays in global coordinates (origin top-left of the main display).
     static var displayBounds: CGRect {
+        displayFrames.reduce(CGRect.null) { $0.union($1) }
+    }
+
+    static var displayFrames: [CGRect] {
         var count: UInt32 = 0
         CGGetActiveDisplayList(0, nil, &count)
         var ids = [CGDirectDisplayID](repeating: 0, count: Int(count))
         CGGetActiveDisplayList(count, &ids, &count)
-        return ids.map(CGDisplayBounds).reduce(CGRect.null) { $0.union($1) }
+        return ids.map(CGDisplayBounds)
+    }
+
+    /// Why the pointer isn't moving right now, if it should be. Shown in the UI
+    /// so "it tracks but the mouse doesn't follow" always has a visible reason.
+    var blockedReason: String? {
+        guard isEnabled else { return nil }
+        if !Permissions.canControl { return "Accessibility isn't granted to this app, so macOS ignores the pointer events." }
+        if isPaused { return "Paused. Spread your hand and hold still 1.5 s, or press ⌃⌥⌘H, to resume." }
+        if yieldingToMouse { return "Your mouse or trackpad moved. Hand control resumes in a moment." }
+        if activeHand == nil { return "No hand in view." }
+        return nil
+    }
+
+    func resume() {
+        recognizer.resume()
+        isPaused = false
     }
 
     var captureSession: AVCaptureSession { camera.session }
@@ -134,6 +154,7 @@ final class HandEngine {
         imageSize = result.imageSize
         hands = result.hands
         recognizer.mapper.bounds = Self.displayBounds
+        recognizer.mapper.displays = Self.displayFrames
 
         let hand = pickHand(result.hands)
         activeHand = hand
@@ -146,6 +167,9 @@ final class HandEngine {
             mouseYieldUntil = now + 1.5
             recognizer.setCursor(real)
             injector.releaseAll()
+            // Start comparing from where the pointer really is, so a position macOS
+            // adjusted can't look like mouse movement on every frame.
+            injector.resetPosition(to: real)
         }
         yieldingToMouse = now < mouseYieldUntil
         if yieldingToMouse {

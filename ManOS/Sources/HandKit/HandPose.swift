@@ -70,6 +70,24 @@ public struct HandPose: Sendable, Equatable {
         return tips.filter { joints[$0].map { $0.distance(to: anchor) < 0.9 * scale } ?? false }.count >= 3
     }
 
+    /// Mean of the index, middle and ring fingertips. A wrist flick moves these
+    /// far more than the palm center (the wrist barely moves).
+    public var fingertipCenter: CGPoint? {
+        let tips = [Joint.indexTip, .middleTip, .ringTip].compactMap { joints[$0] }
+        guard tips.count >= 2 else { return nil }
+        return CGPoint(x: tips.map(\.x).reduce(0, +) / CGFloat(tips.count),
+                       y: tips.map(\.y).reduce(0, +) / CGFloat(tips.count))
+    }
+
+    /// Middle, ring and little fingers curled while the index stays out: the
+    /// pointer is anchored, and thumb + index remain free to pinch-click.
+    public var isAnchorGrip: Bool {
+        let curled = [Joint.middleTip, .ringTip, .littleTip]
+            .filter { joints[$0].map { $0.distance(to: anchor) < 0.9 * scale } ?? false }.count
+        guard curled == 3, let index = joints[.indexTip] else { return false }
+        return index.distance(to: anchor) > 1.0 * scale
+    }
+
     /// All fingers extended *and spread*, thumb out. A relaxed pointing hand is
     /// also flat and extended, so spread is what makes this a deliberate signal.
     public var isOpenPalm: Bool {
