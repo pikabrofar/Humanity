@@ -100,10 +100,11 @@ struct PrimaryButtonStyle: ButtonStyle {
     var large = false
 
     func makeBody(configuration: Configuration) -> some View {
-        Body(configuration: configuration, large: large)
+        PrimaryButton(configuration: configuration, large: large)
     }
 
-    private struct Body: View {
+    // Not named `Body`: that would collide with ButtonStyle's associated type.
+    private struct PrimaryButton: View {
         let configuration: ButtonStyleConfiguration
         let large: Bool
         @Environment(\.isEnabled) private var isEnabled
@@ -124,10 +125,10 @@ struct PrimaryButtonStyle: ButtonStyle {
 /// Low-key capsule on a faint wash.
 struct QuietButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
-        Body(configuration: configuration)
+        QuietButton(configuration: configuration)
     }
 
-    private struct Body: View {
+    private struct QuietButton: View {
         let configuration: ButtonStyleConfiguration
         @Environment(\.isEnabled) private var isEnabled
         @State private var hovering = false
