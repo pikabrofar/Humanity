@@ -81,7 +81,7 @@ final class Suite {
     init() {
         gaze = OjosModule(camera: camera)
         hands = ManosModule(camera: camera)
-        // Both on: look to aim, pinch to click (research/19, Gaze + Pinch).
+        // Both on: look to aim, pinch to click (sentidoS-a1 research/19, Gaze + Pinch).
         hands.pointerSource = { [gaze] in gaze.isActive ? gaze.gazePoint : nil }
         // Development: `open Sentidos.app --args -Sentidos.start voice.library`
         if let start = UserDefaults.standard.string(forKey: "Sentidos.start") { selection = start }
