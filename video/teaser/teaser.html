@@ -1,0 +1,354 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<link rel="stylesheet" href="fonts/fonts.css">
+<style>
+:root { --sans: "Instrument Sans", Helvetica, Arial, sans-serif; --mono: "Fragment Mono", ui-monospace, monospace;
+  --ojos: #3d9cff; --manos: #c97af7; --bocas: #ffa31a; --brand: #f58841; --ink: #1b0d04; --fg: #f5f5f7; --fg2: #a1a1a6; }
+html, body { margin: 0; background: #000; color: var(--fg); width: 540px; height: 960px; overflow: hidden; font-family: var(--sans); }
+.scene { position: absolute; inset: 0; display: none; will-change: transform, opacity, filter; }
+.scene canvas { position: absolute; inset: 0; width: 540px; height: 960px; }
+.abs { position: absolute; left: 0; right: 0; text-align: center; white-space: nowrap; }
+.cap { top: 700px; font: 600 104px/1 var(--sans); letter-spacing: -.05em; }
+.lab { top: 150px; font: 400 13px/1 var(--mono); letter-spacing: .16em; text-transform: uppercase; color: var(--fg2); }
+.line { top: 420px; font: 600 72px/1 var(--sans); letter-spacing: -.045em; }
+.line s { text-decoration: none; position: relative; }
+.line s::after { content: ""; position: absolute; left: -3%; right: -3%; top: 55%; height: 7px; border-radius: 4px; background: #ff453a; transform-origin: left; transform: scaleX(var(--k, 0)); }
+.typed { top: 505px; font: 600 36px/1.2 var(--sans); letter-spacing: -.02em; }
+.typed span { display: inline-block; opacity: 0; }
+.glyph { position: absolute; left: 50%; top: 50%; width: 250px; height: 250px; margin: -125px 0 0 -125px; }
+.head { font: 600 50px/1.02 var(--sans); letter-spacing: -.04em; }
+/* 3D icon */
+.world { position: absolute; inset: 0; perspective: 1100px; perspective-origin: 270px 360px; }
+#icon { position: absolute; left: 155px; top: 245px; width: 230px; height: 230px; transform-style: preserve-3d; }
+.slab, .face { position: absolute; inset: 0; border-radius: 52px; }
+.slab { background: linear-gradient(#a8452f, #5d1240); }
+.face { background: linear-gradient(#f8954a, #c3554d 50%, #8a1f57); box-shadow: inset 0 0 0 1px rgba(255,255,255,.16), inset 0 2px 0 rgba(255,255,255,.25); overflow: hidden; }
+.shine { position: absolute; inset: -40% -60%; background: linear-gradient(105deg, transparent 40%, rgba(255,255,255,.5) 50%, transparent 60%); }
+.disc { position: absolute; width: 96.6px; height: 96.6px; margin: -48.3px 0 0 -48.3px; transform-style: preserve-3d; }
+.disc > * { position: absolute; inset: 0; border-radius: 50%; }
+.disc .milk { background: rgba(255,255,255,.56); }
+.disc .col { display: grid; place-items: center; box-shadow: 0 0 0 1.5px rgba(255,255,255,.35) inset, 0 18px 40px rgba(0,0,0,.45); }
+.disc .col svg { width: 46%; height: 46%; color: #fff; }
+#word { top: 520px; font: 600 80px/1 var(--sans); letter-spacing: -.055em; }
+#word .m { display: inline-block; overflow: hidden; padding: .06em .015em .14em; margin: -.06em -.015em -.14em; vertical-align: bottom; }
+#word .c { display: inline-block; }
+#word b { color: var(--brand); font-weight: inherit; }
+#tag { top: 642px; font: 600 29px/1.22 var(--sans); letter-spacing: -.02em; }
+#tag span { display: inline-block; opacity: 0; }
+#chips { top: 642px; display: flex; justify-content: center; gap: 8px; }
+.chip { font: 400 12px/1 var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--fg2); border: 1px solid rgba(255,255,255,.26); border-radius: 99px; padding: 9px 13px; }
+#url { top: 692px; left: 50%; right: auto; display: flex; align-items: center; gap: 10px; background: var(--brand); color: var(--ink); font: 600 21px/1 var(--sans); letter-spacing: -.01em; padding: 16px 24px; border-radius: 99px; box-shadow: 0 0 70px rgba(245,136,65,.5); }
+#url svg { width: 19px; height: 19px; }
+#bio { top: 770px; font: 500 17px/1.3 var(--sans); color: var(--fg2); }
+#bio b { color: var(--fg); font-weight: 600; }
+/* the Mac */
+.mac { position: absolute; left: 50px; top: 150px; width: 440px; transform-style: preserve-3d; }
+.lid { position: relative; width: 440px; height: 286px; border-radius: 18px 18px 6px 6px; background: #0b0b0c; box-shadow: inset 0 0 0 1.5px #3a3a3e; transform-origin: 50% 100%; transform-style: preserve-3d; }
+.lid .back { position: absolute; inset: 0; border-radius: inherit; background: linear-gradient(135deg, #c9cbd0, #8d9097); transform: translateZ(-2px) rotateY(180deg); backface-visibility: hidden; }
+.lid .front { position: absolute; inset: 0; border-radius: inherit; backface-visibility: hidden; background: #0b0b0c; box-shadow: inset 0 0 0 1.5px #3a3a3e; }
+.screen { position: absolute; left: 11px; top: 11px; right: 11px; bottom: 13px; border-radius: 9px; overflow: hidden;
+  background: radial-gradient(60% 70% at 30% 75%, #b8573f 0%, transparent 70%), radial-gradient(70% 60% at 85% 20%, #d07a3c 0%, transparent 70%), linear-gradient(160deg, #3a1530, #1a0a1c 60%, #2b0f22); }
+.notch { position: absolute; left: 50%; top: 0; width: 58px; height: 11px; margin-left: -29px; background: #0b0b0c; border-radius: 0 0 6px 6px; z-index: 3; }
+.mb { position: absolute; left: 0; right: 0; top: 0; height: 15px; background: rgba(30,12,20,.55); backdrop-filter: blur(6px); display: flex; align-items: center; gap: 9px; padding: 0 8px; font: 500 7.5px/1 var(--sans); color: #fff; }
+.mb b { font-weight: 700; }
+.mb .r { margin-left: auto; display: flex; gap: 7px; align-items: center; }
+.mb .slot { width: 13px; height: 11px; border-radius: 3px; display: grid; place-items: center; }
+.mb .slot svg { width: 9px; height: 9px; color: #fff; }
+.panel { position: absolute; right: 54px; top: 20px; width: 168px; padding: 10px; border-radius: 12px; background: rgba(40,40,44,.82); box-shadow: 0 10px 30px rgba(0,0,0,.5), inset 0 0 0 .8px rgba(255,255,255,.14); transform-origin: 80% 0; }
+.tiles { display: flex; justify-content: space-between; }
+.tile { width: 50px; text-align: center; font: 600 8px/1.2 var(--sans); }
+.tile .btn { width: 30px; height: 30px; margin: 0 auto 4px; border-radius: 50%; background: rgba(255,255,255,.12); display: grid; place-items: center; }
+.tile .btn svg { width: 15px; height: 15px; color: #fff; }
+.tile small { display: block; font: 500 7px/1.3 var(--sans); color: #a1a1a6; }
+.pbar { margin-top: 9px; height: 18px; border-radius: 9px; background: rgba(255,255,255,.1); font: 500 7.5px/18px var(--sans); text-align: center; }
+.base { position: absolute; left: -36px; right: -36px; top: 286px; height: 260px; transform-origin: 50% 0; transform: rotateX(88deg); border-radius: 6px 6px 20px 20px; background: linear-gradient(#d4d6db, #a9acb2); box-shadow: inset 0 0 0 1px rgba(255,255,255,.4); }
+.base i { position: absolute; left: 30px; right: 30px; top: 18px; height: 120px; border-radius: 6px; background: repeating-linear-gradient(90deg, #26272a 0 22px, #a9acb2 22px 24px), #26272a; opacity: .9; }
+.lip { position: absolute; left: -36px; right: -36px; top: 286px; height: 9px; border-radius: 0 0 14px 14px; background: linear-gradient(#cfd1d6, #86898f); }
+.lip::after { content: ""; position: absolute; left: 50%; top: 0; width: 70px; height: 4px; margin-left: -35px; border-radius: 0 0 6px 6px; background: #8d9097; }
+</style></head>
+<body>
+<svg width="0" height="0" style="position:absolute"><defs id="defs"></defs></svg>
+
+<div class="scene" id="sEyes"><canvas width="1080" height="1920"></canvas><div class="abs lab" data-fit>01 · eyes</div><div class="abs cap" data-fit style="color:var(--ojos)">Look.</div></div>
+<div class="scene" id="sHands"><canvas width="1080" height="1920"></canvas><div class="abs lab" data-fit>02 · hands</div><div class="abs cap" data-fit style="color:var(--manos)">Pinch.</div></div>
+<div class="scene" id="sVoice"><canvas width="1080" height="1920"></canvas><div class="abs lab" data-fit>03 · voice</div><div class="abs typed" data-fit></div><div class="abs cap" data-fit style="color:var(--bocas)">Speak.</div></div>
+<div class="scene" id="sTrio"><svg class="glyph" viewBox="0 0 120 120"><use href="#app-ojos"/></svg></div>
+<div class="scene" id="sNo1"><div class="abs line" data-fit><s>No mouse.</s></div></div>
+<div class="scene" id="sNo2"><div class="abs line" data-fit><s>No trackpad.</s></div></div>
+<div class="scene" id="sYou"><div class="abs line" data-fit style="color:var(--brand)">Just you.</div></div>
+<div class="scene" id="sLogo">
+  <div class="world"><div id="icon"></div></div>
+  <div class="abs" id="word" data-fit></div>
+  <div class="abs" id="tag" data-fit></div>
+  <div class="abs" id="chips" data-fit><span class="chip">Free</span><span class="chip">Open source</span><span class="chip">macOS 14+</span></div>
+  <div class="abs" id="url" data-fit><svg viewBox="0 0 24 24"><use href="#g-down"/></svg>pikabrofar.github.io/sentidoS</div>
+  <div class="abs" id="bio" data-fit>Download free · <b>link in bio</b></div>
+</div>
+<div class="scene" id="sMac">
+  <div class="world" style="perspective-origin:270px 300px">
+    <div class="mac" id="mac">
+      <div class="lid"><div class="back"></div><div class="front"></div>
+        <div class="screen"><div class="notch"></div>
+          <div class="mb"><b>Field Notes</b><span>File</span><span>Edit</span><span>View</span><span>Window</span>
+            <span class="r"><span class="slot" id="slot"><svg viewBox="0 0 120 120"><use href="#app-sentidos"/></svg></span><span>Thu 10:24</span></span></div>
+          <div class="panel" id="panel"><div class="tiles">
+            <div class="tile" data-c="#3d9cff"><div class="btn"><svg viewBox="0 0 24 24"><use href="#g-eye"/></svg></div>ojoS<small><span>Off</span></small></div>
+            <div class="tile" data-c="#c97af7"><div class="btn"><svg viewBox="0 0 24 24"><use href="#g-hand"/></svg></div>manoS<small><span>Off</span></small></div>
+            <div class="tile" data-c="#ffa31a"><div class="btn"><svg viewBox="0 0 24 24"><use href="#g-wave"/></svg></div>bocaS<small><span>Off</span></small></div>
+          </div><div class="pbar">Open sentidoS</div></div>
+        </div>
+      </div>
+      <div class="lip"></div>
+    </div>
+  </div>
+  <div class="abs head" id="macHead" data-fit style="top:530px">Lives in your<br><span style="color:var(--brand)">menu bar.</span></div>
+</div>
+
+<script>
+// ---------------------------------------------------------------- timeline (frames at 30 fps)
+// Reading time is budgeted at 200 wpm: 9 frames a word, plus 8 to find the text.
+const T = {
+  eyes: [0, 54], hands: [54, 108], voice: [108, 174], trio: [174, 198],
+  no1: [198, 226], no2: [226, 254], you: [254, 282], logo: [282, 372], mac: [372, 468], tag: [468, 566], cta: [566, 686],
+};
+const TOTAL = 686, X = 8; // X: overlap where one scene moves out while the next moves in
+const EV = [];
+const ev = (f, type, o = {}) => EV.push(Object.assign({ f, type }, o));
+
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+const clamp = (v, a = 0, b = 1) => Math.min(b, Math.max(a, v));
+const seg = (f, a, b) => clamp((f - a) / (b - a));
+const lerp = (a, b, t) => a + (b - a) * t;
+const o3 = t => 1 - (1 - t) ** 3, o5 = t => 1 - (1 - t) ** 5, io = t => t < .5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2;
+const back = t => { const c = 1.6; return 1 + (c + 1) * (t - 1) ** 3 + c * (t - 1) ** 2; };
+const C = { ojos: '#3d9cff', manos: '#c97af7', bocas: '#ffa31a', brand: '#f58841' };
+const ctx = id => { const g = $(`#${id} canvas`).getContext('2d'); g.setTransform(2, 0, 0, 2, 0, 0); return g; };
+function slam(el, l, l0, o = {}) {
+  const k = o5(seg(l, l0, l0 + (o.dur || 5)));
+  const s = (1 + (o.from ?? .6) * (1 - k)) * (1 + (o.push ?? .05) * seg(l, l0, l0 + 40));
+  el.style.opacity = l < l0 ? 0 : clamp(k * 1.6);
+  el.style.filter = k < 1 ? `blur(${(1 - k) * 14}px)` : '';
+  el.style.transform = `scale(${s})` + (o.rot ? ` rotate(${o.rot}deg)` : '');
+}
+function label(sc, l, l0) { const lb = $('.lab', sc), k = o3(seg(l, l0 - 6, l0 + 2)); lb.style.opacity = k; lb.style.transform = `translateY(${(1 - k) * 10}px)`; }
+
+// ---------------------------------------------------------------- eyes
+const GRID = [0, 1, 2].flatMap(r => [0, 1, 2].map(c => ({ x: 120 + c * 150, y: 300 + r * 130 })));
+const PATH = [4, 0, 2, 8, 6, 4];
+function eyes(l, sc) {
+  const g = ctx('sEyes'); g.clearRect(0, 0, 540, 960);
+  GRID.forEach((p, i) => { const v = o3(seg(l, i, 5 + i)); g.fillStyle = `rgba(61,156,255,${.55 * v})`; g.beginPath(); g.arc(p.x, p.y, 3, 0, 7); g.fill(); });
+  let k = 0; for (let i = 1; i < PATH.length; i++) if (l >= 8 * i) k = i;
+  const from = GRID[PATH[Math.max(0, k - 1)]], to = GRID[PATH[k]], m = k ? o5(seg(l, 8 * k, 8 * k + 4)) : 1;
+  const x = lerp(from.x, to.x, m), y = lerp(from.y, to.y, m), pulse = 1 + .35 * (1 - o3(seg(l, 8 * k, 8 * k + 6))), ap = o5(seg(l, 0, 3));
+  g.strokeStyle = `rgba(255,255,255,${ap})`; g.lineWidth = 2.5; g.beginPath(); g.arc(x, y, 19 * pulse * ap, 0, 7); g.stroke();
+  g.fillStyle = `rgba(255,255,255,${ap})`; g.beginPath(); g.arc(x, y, 5, 0, 7); g.fill();
+  const eo = io(seg(l, 6, 20));
+  if (eo > 0) {
+    const cx = 270, cy = 430, w = 230, h = 150 * eo;
+    g.save(); g.beginPath();
+    g.moveTo(cx - w, cy); g.bezierCurveTo(cx - w * .5, cy - h * 1.3, cx + w * .5, cy - h * 1.3, cx + w, cy);
+    g.bezierCurveTo(cx + w * .5, cy + h * 1.3, cx - w * .5, cy + h * 1.3, cx - w, cy); g.closePath();
+    g.strokeStyle = `rgba(255,255,255,${eo})`; g.lineWidth = 5; g.lineJoin = 'round'; g.stroke(); g.clip();
+    const ix = cx + (x - cx) * .45, iy = cy + (y - cy) * .35, gr = g.createRadialGradient(ix, iy, 0, ix, iy, 78);
+    gr.addColorStop(0, '#ffd27a'); gr.addColorStop(.45, '#e3a03a'); gr.addColorStop(.8, '#a5541a'); gr.addColorStop(1, 'rgba(59,29,8,0)');
+    g.globalAlpha = eo; g.fillStyle = gr; g.beginPath(); g.arc(ix, iy, 78, 0, 7); g.fill();
+    g.fillStyle = '#05060d'; g.beginPath(); g.arc(ix, iy, 28, 0, 7); g.fill();
+    g.fillStyle = 'rgba(255,255,255,.75)'; g.beginPath(); g.arc(ix + 20, iy - 20, 8, 0, 7); g.fill();
+    g.restore();
+  }
+  slam($('.cap', sc), l, 14, { from: .8, dur: 4 }); label(sc, l, 14);
+}
+
+// ---------------------------------------------------------------- hands: 21 joints
+const D = Math.PI / 180;
+const FING = [{ b: [-30, -98], l: [44, 27, 21], a: -12 }, { b: [-6, -106], l: [48, 31, 23], a: -2 }, { b: [18, -100], l: [44, 28, 21], a: 8 }, { b: [38, -86], l: [34, 21, 18], a: 19 }];
+function handPose(pin) {
+  const fingers = FING.map((F, i) => {
+    // seen from the front, a curling finger mostly shortens; the index also leans toward the thumb
+    const k = i === 0 ? pin : i === 1 ? pin * .25 : 0;
+    let ang = F.a * D, x = F.b[0], y = F.b[1]; const pts = [[x, y]];
+    F.l.forEach((L, j) => { ang -= [8, 16, 20][j] * D * k; const fl = 1 - [.25, .6, .75][j] * k; x += Math.sin(ang) * L * fl; y -= Math.cos(ang) * L * fl; pts.push([x, y]); });
+    return pts;
+  });
+  let tx = -26, ty = -30, ta = -52 * D; const th = [[tx, ty]];
+  [36, 29, 24].forEach(L => { ta += 8 * D; tx += Math.sin(ta) * L; ty -= Math.cos(ta) * L; th.push([tx, ty]); });
+  const it = fingers[0][3], tt = th[3], dx = (it[0] - 4 - tt[0]) * pin, dy = (it[1] + 4 - tt[1]) * pin;
+  th.forEach((p, j) => { p[0] += dx * j / 3; p[1] += dy * j / 3; });
+  return { w: [0, 0], th, f: fingers };
+}
+function hands(l, sc) {
+  const g = ctx('sHands'); g.clearRect(0, 0, 540, 960);
+  const pin = clamp(io(seg(l, 18, 27)) - io(seg(l, 34, 40)) + io(seg(l, 42, 46)) - io(seg(l, 47, 51)));
+  const H = handPose(pin), ap = o5(seg(l, 0, 8)), ox = 300 + Math.sin(l / 9) * 6, oy = 700 - (1 - ap) * 40, s = 1.85;
+  const P = p => [ox + p[0] * s, oy + p[1] * s];
+  g.globalAlpha = ap;
+  const bones = []; const chain = (arr, from) => { let prev = from; arr.forEach(p => { bones.push([prev, p]); prev = p; }); };
+  chain(H.th, H.w); H.f.forEach(c => chain(c, H.w)); bones.push([H.f[0][0], H.f[1][0]], [H.f[1][0], H.f[2][0]], [H.f[2][0], H.f[3][0]]);
+  g.lineCap = 'round'; g.strokeStyle = 'rgba(255,255,255,.7)'; g.lineWidth = 2.4;
+  bones.forEach(([a, b]) => { const A = P(a), B = P(b); g.beginPath(); g.moveTo(A[0], A[1]); g.lineTo(B[0], B[1]); g.stroke(); });
+  const tips = [H.th[3], H.f[0][3]], act = pin > .7;
+  [H.w, ...H.th, ...H.f.flat()].forEach(j => {
+    const p = P(j), on = act && tips.includes(j), r = tips.includes(j) ? 6 : 4.5;
+    g.fillStyle = '#000'; g.beginPath(); g.arc(p[0], p[1], r + 2.5, 0, 7); g.fill();
+    g.fillStyle = on ? C.manos : '#fff'; g.beginPath(); g.arc(p[0], p[1], r, 0, 7); g.fill();
+    if (on) { g.strokeStyle = C.manos; g.lineWidth = 1.5; g.beginPath(); g.arc(p[0], p[1], r + 9, 0, 7); g.stroke(); }
+  });
+  const bx = 270, by = 255;
+  g.fillStyle = act ? '#9b5cf0' : 'rgba(255,255,255,.1)'; g.strokeStyle = 'rgba(255,255,255,.3)'; g.lineWidth = 1.5;
+  g.beginPath(); g.roundRect(bx - 74, by - 26, 148, 52, 26); g.fill(); g.stroke();
+  g.fillStyle = '#fff'; g.font = '600 22px "Instrument Sans"'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(act || l > 27 ? 'Clicked' : 'Click me', bx, by + 1);
+  [27, 46].forEach(t0 => { const r = seg(l, t0, t0 + 12); if (r > 0 && r < 1) { g.strokeStyle = `rgba(201,122,247,${1 - r})`; g.lineWidth = 3; g.beginPath(); g.roundRect(bx - 74 - r * 40, by - 26 - r * 40, 148 + r * 80, 52 + r * 80, 26 + r * 40); g.stroke(); } });
+  g.globalAlpha = 1;
+  slam($('.cap', sc), l, 6, { from: .8, dur: 4 }); label(sc, l, 6);
+}
+
+// ---------------------------------------------------------------- voice
+const WORDS = ['move', 'the', 'launch', 'to', 'Thursday'];
+function voice(l, sc) {
+  const g = ctx('sVoice'); g.clearRect(0, 0, 540, 960);
+  const ap = o5(seg(l, 0, 8)), pw = 230, ph = 64, px = 270 - pw / 2, py = 380;
+  g.globalAlpha = ap; g.fillStyle = '#1c1c1e'; g.strokeStyle = 'rgba(255,255,255,.16)'; g.lineWidth = 1.5;
+  g.beginPath(); g.roundRect(px, py, pw, ph, 32); g.fill(); g.stroke();
+  for (let i = 0; i < 11; i++) {
+    const talk = l > 10 && l < 58 ? 1 : .12, h = 6 + 34 * talk * Math.abs(Math.sin(l * .55 + i * 1.7) * Math.sin(l * .23 + i * .9));
+    g.fillStyle = C.bocas; g.beginPath(); g.roundRect(px + 26 + i * 10, py + ph / 2 - h / 2, 5, h, 3); g.fill();
+  }
+  g.fillStyle = '#a1a1a6'; g.font = '400 13px "Fragment Mono"'; g.textAlign = 'left'; g.textBaseline = 'middle'; g.fillText('LISTENING', px + 140, py + ph / 2 + 1);
+  g.globalAlpha = 1;
+  const tp = $('.typed', sc); if (!tp.children.length) tp.innerHTML = WORDS.map(w => `<span>${w}</span>`).join(' ');
+  [...tp.children].forEach((s, i) => { const k = o3(seg(l, 12 + i * 9, 16 + i * 9)); s.style.opacity = k; s.style.transform = `translateY(${(1 - k) * 10}px)`; });
+  slam($('.cap', sc), l, 4, { from: .8, dur: 4 }); label(sc, l, 4);
+}
+
+// ---------------------------------------------------------------- 3D icon
+const icon = $('#icon');
+const shade = hex => { const n = parseInt(hex.slice(1), 16); return `rgb(${(n >> 16) * .42 | 0},${((n >> 8) & 255) * .42 | 0},${(n & 255) * .42 | 0})`; };
+icon.innerHTML = Array.from({ length: 7 }, (_, i) => `<div class="slab" style="transform:translateZ(${-(i + 1) * 3}px);filter:brightness(${.85 - i * .06})"></div>`).join('')
+  + '<div class="face"><div class="shine" id="shine"></div></div>'
+  + [['ojos', 'g-eye', 0, -52.9], ['manos', 'g-hand', -25.3, 17.4], ['bocas', 'g-wave', 25.3, 17.4]].map(([m, gl, x, y]) =>
+    `<div class="disc" id="d-${m}" data-x="${x}" data-y="${y}"><div class="milk"></div><div class="col" style="background:radial-gradient(circle at 35% 30%, ${C[m]}, ${shade(C[m])})"><svg viewBox="0 0 24 24"><use href="#${gl}"/></svg></div></div>`).join('');
+const DISCS = ['ojos', 'manos', 'bocas'].map((m, i) => ({ el: $('#d-' + m), x: +$('#d-' + m).dataset.x, y: +$('#d-' + m).dataset.y, i,
+  from: [[-120, -560, 300], [-560, 120, 200], [560, 60, 260]][i], spread: [[0, -118], [-92, 48], [92, 48]][i] }));
+function logo(l) {
+  const rise = o5(seg(l, 0, 22)), settle = back(seg(l, 32, 52)), idle = Math.max(0, l - 52);
+  const tiltX = lerp(58, 0, settle) + Math.sin(idle / 22) * 4 * seg(idle, 0, 20);
+  const tiltY = Math.sin(idle / 31) * 7 * seg(idle, 0, 20), tiltZ = lerp(-14, 0, settle);
+  const y = lerp(520, 0, rise) - Math.sin(idle / 25) * 4 * seg(idle, 0, 20);
+  icon.style.transform = `translateY(${y}px) rotateX(${tiltX}deg) rotateY(${tiltY}deg) rotateZ(${tiltZ}deg) scale(${lerp(.75, 1, rise)})`;
+  icon.style.opacity = clamp(rise * 2);
+  DISCS.forEach(d => {
+    const fl = o5(seg(l, 4 + d.i * 5, 24 + d.i * 5)), drop = io(seg(l, 28, 33));
+    const x = lerp(lerp(d.from[0], d.spread[0], fl), d.x, drop), yy = lerp(lerp(d.from[1], d.spread[1], fl), d.y, drop);
+    const z = lerp(lerp(d.from[2], 110, fl), 2, drop), spin = (1 - fl) * (d.i % 2 ? -540 : 540);
+    d.el.style.left = (115 + x) + 'px'; d.el.style.top = (115 + yy) + 'px';
+    d.el.style.transform = `translateZ(${z}px) rotateZ(${spin}deg)`; d.el.style.opacity = clamp(fl * 3);
+    const m = o3(seg(l, 31, 40)); $('.col', d.el).style.opacity = 1 - m; $('.milk', d.el).style.opacity = m;
+  });
+  $('#shine').style.transform = `translateX(${lerp(-70, 70, io(seg(l, 46, 66)))}%)`;
+  const word = $('#word');
+  if (!word.children.length) word.innerHTML = [...'sentido'].map(c => `<span class="m"><span class="c">${c}</span></span>`).join('') + '<span class="m"><b class="c">S</b></span>';
+  $$('.c', word).forEach((c, i) => { const k = o5(seg(l, 58 + i * 2.2, 74 + i * 2.2)); c.style.transform = `translateY(${(1 - k) * 112}%)`; });
+}
+const TAG = [['Control'], ['your'], ['Mac'], ['with'], ['your'], ['<br>'], ['eyes,', C.ojos], ['hands', C.manos], ['and'], ['voice.', C.bocas]];
+function finale(f) {
+  const tg = $('#tag');
+  if (!tg.children.length) tg.innerHTML = TAG.map(([w, c]) => w === '<br>' ? '<br>' : `<span style="${c ? `color:${c}` : ''}">${w}</span>`).join(' ');
+  const l = f - T.tag[0], out = io(seg(f, T.cta[0] - 6, T.cta[0] + 4));
+  $$('span', tg).forEach((s, i) => { const k = o3(seg(l, 6 + i * 3, 13 + i * 3)); s.style.opacity = k * (1 - out); s.style.transform = `translateY(${(1 - k) * 14 - out * 24}px)`; s.style.filter = k < 1 ? `blur(${(1 - k) * 6}px)` : ''; });
+  const c = f - T.cta[0];
+  [['#chips', 4], ['#url', 10], ['#bio', 18]].forEach(([s, d]) => {
+    const el = $(s), k = o5(seg(c, d, d + 12)), pulse = s === '#url' ? 1 + .06 * Math.sin(Math.PI * seg(c, 44, 52)) : 1;
+    el.style.opacity = k; el.style.filter = k < 1 ? `blur(${(1 - k) * 8}px)` : '';
+    el.style.transform = `${s === '#url' ? 'translateX(-50%) ' : ''}translateY(${(1 - k) * 26}px) scale(${pulse})`;
+  });
+}
+
+// ---------------------------------------------------------------- the Mac
+function mac(l, sc) {
+  // rise in with a yaw, then park at the top with the headline under it
+  const r = o5(seg(l, 0, 26)), park = io(seg(l, 8, 40));
+  const yaw = lerp(-58, -12, r) + 8 * park + Math.sin(l / 30) * 2, pitch = lerp(28, 9, r);
+  $('#mac').style.opacity = o3(seg(l, 0, 7));
+  $('#mac').style.transform = `translateY(${lerp(560, 0, r)}px) rotateX(${pitch}deg) rotateY(${yaw}deg) scale(${lerp(.62, .88, r)})`;
+  const hd = $('#macHead'), k = o5(seg(l, 16, 28));
+  hd.style.opacity = k; hd.style.transform = `translateY(${(1 - k) * 30}px)`; hd.style.filter = k < 1 ? `blur(${(1 - k) * 8}px)` : '';
+  const op = o5(seg(l, 30, 38)), panel = $('#panel');
+  panel.style.opacity = op; panel.style.transform = `translateY(${(1 - op) * -6}px) scale(${.92 + .08 * op})`;
+  $('#slot').style.background = op > .3 ? 'rgba(255,255,255,.3)' : 'transparent';
+  $$('.tile', sc).forEach((t, i) => {
+    const on = o3(seg(l, 46 + i * 9, 50 + i * 9)), btn = $('.btn', t);
+    btn.style.background = on > .5 ? t.dataset.c : 'rgba(255,255,255,.12)';
+    btn.style.transform = `scale(${1 + Math.sin(on * Math.PI) * .18})`;
+    $('small span', t).textContent = on > .5 ? ['Tracking', 'Active', 'Listening'][i] : 'Off';
+  });
+}
+
+// ---------------------------------------------------------------- scenes and the moves between them
+const S = [
+  { id: 'sEyes', r: T.eyes, draw: eyes, out: 'push' },
+  { id: 'sHands', r: T.hands, draw: hands, in: 'push', out: 'push' },
+  { id: 'sVoice', r: T.voice, draw: voice, in: 'push', out: 'push' },
+  { id: 'sTrio', r: T.trio, in: 'push', draw: (l, sc) => { const i = Math.min(2, Math.floor(l / 8)), u = $('use', sc); u.setAttribute('href', ['#app-ojos', '#app-manos', '#app-bocas'][i]); slam($('svg', sc), l, i * 8, { from: .5, dur: 3, push: .12, rot: [-6, 4, -3][i] }); } },
+  ...[['sNo1', T.no1], ['sNo2', T.no2], ['sYou', T.you]].map(([id, r]) => ({ id, r, out: id === 'sYou' ? 'zoom' : null,
+    draw: (l, sc) => { const el = $('.line', sc); slam(el, l, 0); const st = $('s', el); if (st) st.style.setProperty('--k', o5(seg(l, 8, 13))); } })),
+  { id: 'sLogo', r: T.logo, draw: logo, out: 'lift' },
+  { id: 'sMac', r: T.mac, draw: mac, out: 'push' },
+  { id: 'sLogo', r: [T.tag[0], TOTAL], draw: l => logo(140 + l), in: 'return' },
+];
+function moveOut(kind, e) {   // e: 0..1 through the overlap
+  if (kind === 'push') return [`scale(${1 + .22 * e * e})`, 1 - e, 10 * e];
+  if (kind === 'zoom') return [`scale(${1 + 2 * e * e})`, 1 - e, 18 * e];
+  if (kind === 'lift') return [`translateY(${-260 * io(e)}px) scale(${1 - .55 * io(e)})`, 1 - e, 4 * e];
+  return ['', 1, 0];
+}
+function moveIn(kind, e) {
+  if (kind === 'push') return [`scale(${.86 + .14 * o3(e)})`, o3(e), 8 * (1 - e)];
+  if (kind === 'return') return [`translateY(${-120 * (1 - o5(e))}px) scale(${.6 + .4 * o5(e)})`, o3(e), 6 * (1 - e)];
+  return ['', 1, 0];
+}
+window.draw = f => {
+  $$('.scene').forEach(s => (s.style.display = 'none'));
+  for (const s of S) {
+    const [a, b] = s.r, end = b + (s.out ? X : 0);
+    if (f < a || f >= end) continue;
+    const sc = $('#' + s.id); sc.style.display = 'block';
+    s.draw(f - a, sc);
+    if (s.id === 'sLogo') { $('#tag').style.display = $('#chips').style.display = $('#url').style.display = $('#bio').style.display = f >= T.tag[0] ? '' : 'none'; if (f >= T.tag[0]) finale(f); }
+    let [tf, op, bl] = ['', 1, 0];
+    if (s.in && f < a + X) [tf, op, bl] = moveIn(s.in, (f - a) / X);
+    if (s.out && f >= b) [tf, op, bl] = moveOut(s.out, (f - b + 1) / X);
+    sc.style.transform = tf; sc.style.opacity = op; sc.style.filter = bl > .05 ? `blur(${bl}px)` : '';
+  }
+};
+
+// text that must stay inside the frame, checked on frames where nothing is mid-move
+window.overflow = () => $$('[data-fit]').filter(e => e.offsetParent && getComputedStyle(e).opacity > .98 && !e.style.filter && !e.closest('.scene').style.filter)
+  .flatMap(e => {
+    const r = document.createRange(); r.selectNodeContents(e);
+    const rects = [...r.getClientRects()].filter(q => q.width > 0);
+    if (!rects.length) return [];
+    const L = Math.min(...rects.map(q => q.left)), R = Math.max(...rects.map(q => q.right));
+    return L < 24 || R > 516 ? [{ id: e.id || e.className || e.textContent.slice(0, 16), l: Math.round(L), r: Math.round(R) }] : [];
+  });
+
+// ---------------------------------------------------------------- events for sound and vfx
+ev(2, 'tick', { p: 2000 }); [8, 16, 24, 32, 40].forEach((f, i) => ev(f, 'tick', { p: 2200 + i * 260, pan: (GRID[PATH[i + 1]].x - 270) / 270 }));
+ev(6, 'swell'); ev(14, 'slam', { hit: .5 });
+S.filter(s => s.out).forEach(s => ev(s.r[1] - 3, s.out === 'lift' ? 'whooshUp' : 'whoosh', { zb: s.out !== 'lift' ? 1 : 0 }));
+ev(T.hands[0] + 6, 'slam', { hit: .5 }); ev(T.hands[0] + 27, 'pinch'); ev(T.hands[0] + 46, 'pinch');
+ev(T.voice[0] + 2, 'mic'); ev(T.voice[0] + 4, 'slam', { hit: .5 }); WORDS.forEach((w, i) => ev(T.voice[0] + 12 + i * 9, 'word', { n: w.length }));
+[0, 8, 16].forEach((d, i) => ev(T.trio[0] + d, 'glitch', { hit: .8, pan: [-.4, 0, .4][i] }));
+ev(T.no1[0], 'slam', { hit: .7, shake: 1 }); ev(T.no1[0] + 8, 'strike'); ev(T.no2[0], 'slam', { hit: .7, shake: 1 }); ev(T.no2[0] + 8, 'strike');
+ev(T.you[0], 'slam', { hit: .8, flash: '#f58841' }); ev(T.you[0] + 4, 'riser', { len: T.logo[0] + 32 - T.you[0] - 4 });
+[4, 9, 14].forEach((d, i) => ev(T.logo[0] + d, 'fly', { pan: [-.3, -.8, .8][i] }));
+ev(T.logo[0] + 32, 'impact', { hit: 1, flash: '#ffffff', shake: .6 }); ev(T.logo[0] + 46, 'shine');
+for (let i = 0; i < 8; i++) ev(T.logo[0] + 58 + Math.round(i * 2.2), 'letter', { i });
+ev(T.mac[0], 'whoosh', { zb: 0 }); ev(T.mac[0] + 30, 'click'); [0, 1, 2].forEach(i => ev(T.mac[0] + 46 + i * 9, 'toggle', { i }));
+ev(T.tag[0], 'whoosh', { zb: 0 });
+[6, 7, 9].forEach((w, i) => ev(T.tag[0] + 6 + (w - 1) * 3, 'pop', { p: 900 + i * 180 }));
+ev(T.cta[0] + 4, 'pop', { p: 800 }); ev(T.cta[0] + 10, 'chime', { hit: .3 }); ev(T.cta[0] + 18, 'pop', { p: 1000 }); ev(T.cta[0] + 44, 'pop', { p: 700 });
+window.EV = EV.sort((a, b) => a.f - b.f); window.TOTAL = TOTAL;
+</script>
+</body></html>

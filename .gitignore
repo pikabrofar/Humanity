@@ -9,3 +9,7 @@ video/launch/frames/
 video/launch/*.mp4
 video/launch/*.wav
 video/launch/shots.json
+video/teaser/frames/
+video/teaser/*.mp4
+video/teaser/*.wav
+video/teaser/events.json
