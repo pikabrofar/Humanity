@@ -1,0 +1,72 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fragment+Mono&family=Instrument+Sans:wdth,wght@75..100,400..700&display=swap">
+<style>
+:root { --sans: "Instrument Sans", Helvetica, Arial, sans-serif; --mono: "Fragment Mono", ui-monospace, monospace; --ojos: #3d9cff; --manos: #c97af7; --bocas: #ffa31a; --brand: #f58841; }
+html, body { margin: 0; background: #000; color: #f5f5f7; width: 540px; height: 960px; overflow: hidden; }
+.card { position: absolute; inset: 0; display: none; }
+.glow { position: absolute; inset: -20%; opacity: 0; }
+.grid { position: absolute; inset: 0; background-image: linear-gradient(rgba(255,255,255,.05) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.05) 1px, transparent 1px); background-size: 45px 45px; background-position: center; -webkit-mask: radial-gradient(closest-side, #000, transparent); mask: radial-gradient(closest-side, #000, transparent); }
+.line { position: absolute; left: 0; right: 0; text-align: center; font: 600 76px/1 var(--sans); letter-spacing: -.045em; white-space: nowrap; will-change: transform, filter, opacity; }
+.no s { text-decoration: none; position: relative; }
+.no s::after { content: ""; position: absolute; left: -4%; right: -4%; top: 55%; height: 7px; background: #ff453a; border-radius: 4px; transform-origin: left; transform: scaleX(var(--k, 0)); }
+.lab { position: absolute; left: 0; right: 0; text-align: center; font: 400 13px/1 var(--mono); letter-spacing: .14em; text-transform: uppercase; color: #a1a1a6; }
+.big { position: absolute; left: 0; right: 0; top: 50%; text-align: center; font: 600 150px/1 var(--sans); letter-spacing: -.055em; transform-origin: 50% 50%; }
+</style></head>
+<body>
+<div class="card" id="hook">
+  <div class="grid"></div>
+  <div class="line no" id="h1" style="top:430px"><s>No mouse.</s></div>
+  <div class="line no" id="h2" style="top:430px"><s>No trackpad.</s></div>
+  <div class="line" id="h3" style="top:330px;color:var(--ojos)">Your eyes.</div>
+  <div class="line" id="h4" style="top:430px;color:var(--manos)">Your hands.</div>
+  <div class="line" id="h5" style="top:530px;color:var(--bocas)">Your voice.</div>
+</div>
+<div class="card" id="smash">
+  <div class="glow" id="sg"></div>
+  <div class="big" id="sw">Look.</div>
+  <div class="lab" id="sl" style="top:610px">ojoS · eye tracking</div>
+</div>
+<script>
+const $ = s => document.querySelector(s);
+const clamp = (v, a = 0, b = 1) => Math.min(b, Math.max(a, v));
+const seg = (f, a, b) => clamp((f - a) / (b - a));
+const o5 = t => 1 - (1 - t) ** 5;
+function slam(el, f, f0, opts = {}) {
+  // a hard landing: scale down from big with blur, then a slow push
+  const k = o5(seg(f, f0, f0 + (opts.dur || 5)));
+  const push = (opts.push || .04) * seg(f, f0, f0 + 30);
+  const s = (1 + (opts.from || .5) * (1 - k)) * (1 + push);
+  el.style.opacity = f < f0 ? 0 : clamp(k * 1.6);
+  el.style.filter = `blur(${(1 - k) * 14}px)`;
+  el.style.transform = `translateY(${opts.y || 0}px) scale(${s})`;
+}
+const SM = {
+  look: ['Look.', 'var(--ojos)', 'ojoS · eye tracking', '#3d9cff'],
+  pinch: ['Pinch.', 'var(--manos)', 'manoS · hand gestures', '#c97af7'],
+  speak: ['Speak.', 'var(--bocas)', 'bocaS · voice', '#ffa31a'],
+};
+window.draw = (card, f) => {
+  document.querySelectorAll('.card').forEach(c => (c.style.display = 'none'));
+  if (card === 'hook') {
+    $('#hook').style.display = 'block';
+    const h = ['#h1', '#h2', '#h3', '#h4', '#h5'].map($);
+    slam(h[0], f, 0); if (f >= 15) h[0].style.opacity = 0;
+    h[0].querySelector('s').style.setProperty('--k', o5(seg(f, 6, 11)));
+    slam(h[1], f, 15); if (f >= 30) h[1].style.opacity = 0;
+    h[1].querySelector('s').style.setProperty('--k', o5(seg(f, 21, 26)));
+    [30, 35, 40].forEach((f0, i) => slam(h[2 + i], f, f0, { from: .35 }));
+    // exit: everything rushes toward the camera
+    if (f >= 53) { const e = seg(f, 53, 59); h.slice(2).forEach(el => { el.style.transform += ` scale(${1 + e * e * 2.2})`; el.style.opacity = 1 - e; el.style.filter = `blur(${e * 20}px)`; }); }
+    $('#hook .grid').style.opacity = .6 + .4 * Math.sin(f / 6);
+  } else {
+    const [w, col, lab, hex] = SM[card];
+    $('#smash').style.display = 'block';
+    $('#sw').textContent = w; $('#sw').style.color = col; $('#sl').textContent = lab;
+    slam($('#sw'), f, 0, { from: .9, dur: 4, push: .1, y: -75 });
+    const l = o5(seg(f, 3, 9)); $('#sl').style.opacity = l; $('#sl').style.transform = `translateY(${(1 - l) * 14}px)`;
+    const g = $('#sg'); g.style.background = `radial-gradient(closest-side at 50% 50%, ${hex}55, transparent)`; g.style.opacity = o5(seg(f, 0, 4)) * (1 - .4 * seg(f, 4, 15));
+  }
+};
+</script>
+</body></html>

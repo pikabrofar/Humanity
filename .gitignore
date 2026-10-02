@@ -4,3 +4,8 @@ build/
 .swiftpm/
 xcuserdata/
 dist/
+video/launch/vendor/
+video/launch/frames/
+video/launch/*.mp4
+video/launch/*.wav
+video/launch/shots.json
