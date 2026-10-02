@@ -1,6 +1,6 @@
 """Builds the launch film's audio from events.json (written by render.js):
 stems  score.wav, sfx.wav, amb.wav
-mixes  mix_full.wav (score + sfx + ambience) and mix_nomusic.wav (sfx + ambience)
+mixes  mix_full_raw.wav (score + sfx + ambience) and mix_nomusic_raw.wav (sfx + ambience)
 Loudness is set afterwards by master.py (see ../README.md)."""
 import json, math, os, sys
 import numpy as np
