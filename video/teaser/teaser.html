@@ -35,12 +35,15 @@ html, body { margin: 0; background: #000; color: var(--fg); width: 540px; height
 #word b { color: var(--brand); font-weight: inherit; }
 #tag { top: 642px; font: 600 29px/1.22 var(--sans); letter-spacing: -.02em; }
 #tag span { display: inline-block; opacity: 0; }
-#chips { top: 642px; display: flex; justify-content: center; gap: 8px; }
+#soon { top: 566px; font: 600 64px/1 var(--sans); letter-spacing: -.045em; }
+#soon b { color: var(--brand); font-weight: inherit; }
 .chip { font: 400 12px/1 var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--fg2); border: 1px solid rgba(255,255,255,.26); border-radius: 99px; padding: 9px 13px; }
-#url { top: 692px; left: 50%; right: auto; display: flex; align-items: center; gap: 10px; background: var(--brand); color: var(--ink); font: 600 21px/1 var(--sans); letter-spacing: -.01em; padding: 16px 24px; border-radius: 99px; box-shadow: 0 0 70px rgba(245,136,65,.5); }
-#url svg { width: 19px; height: 19px; }
-#bio { top: 770px; font: 500 17px/1.3 var(--sans); color: var(--fg2); }
-#bio b { color: var(--fg); font-weight: 600; }
+#follow { top: 660px; left: 50%; right: auto; display: flex; align-items: center; gap: 11px; background: var(--brand); color: var(--ink); font: 600 22px/1 var(--sans); letter-spacing: -.01em; padding: 15px 26px 15px 16px; border-radius: 99px; box-shadow: 0 0 70px rgba(245,136,65,.5); }
+#follow i { width: 26px; height: 26px; border-radius: 50%; background: var(--ink); position: relative; }
+#follow i::before, #follow i::after { content: ""; position: absolute; left: 50%; top: 50%; width: 12px; height: 2.5px; margin: -1.25px 0 0 -6px; border-radius: 2px; background: var(--brand); }
+#follow i::after { transform: rotate(90deg); }
+#first { top: 736px; font: 500 18px/1.3 var(--sans); color: var(--fg2); }
+#first b { color: var(--fg); font-weight: 600; }
 /* the Mac */
 .mac { position: absolute; left: 50px; top: 150px; width: 440px; transform-style: preserve-3d; }
 .lid { position: relative; width: 440px; height: 286px; border-radius: 18px 18px 6px 6px; background: #0b0b0c; box-shadow: inset 0 0 0 1.5px #3a3a3e; transform-origin: 50% 100%; transform-style: preserve-3d; }
@@ -80,9 +83,9 @@ html, body { margin: 0; background: #000; color: var(--fg); width: 540px; height
   <div class="world"><div id="icon"></div></div>
   <div class="abs" id="word" data-fit></div>
   <div class="abs" id="tag" data-fit></div>
-  <div class="abs" id="chips" data-fit><span class="chip">Free</span><span class="chip">Open source</span><span class="chip">macOS 14+</span></div>
-  <div class="abs" id="url" data-fit><svg viewBox="0 0 24 24"><use href="#g-down"/></svg>pikabrofar.github.io/sentidoS</div>
-  <div class="abs" id="bio" data-fit>Download free · <b>link in bio</b></div>
+  <div class="abs" id="soon" data-fit>Coming <b>soon.</b></div>
+  <div class="abs" id="follow" data-fit><i></i>Follow for the drop</div>
+  <div class="abs" id="first" data-fit>Be the <b>first</b> to try it on your Mac.</div>
 </div>
 <div class="scene" id="sMac">
   <div class="world" style="perspective-origin:270px 300px">
@@ -109,9 +112,9 @@ html, body { margin: 0; background: #000; color: var(--fg); width: 540px; height
 // Reading time is budgeted at 200 wpm: 9 frames a word, plus 8 to find the text.
 const T = {
   eyes: [0, 54], hands: [54, 108], voice: [108, 174], trio: [174, 198],
-  no1: [198, 226], no2: [226, 254], you: [254, 282], logo: [282, 372], mac: [372, 468], tag: [468, 566], cta: [566, 686],
+  no1: [198, 226], no2: [226, 254], you: [254, 282], logo: [282, 372], mac: [372, 468], tag: [468, 566], cta: [566, 716],
 };
-const TOTAL = 686, X = 8; // X: overlap where one scene moves out while the next moves in
+const TOTAL = 716, X = 8; // X: overlap where one scene moves out while the next moves in
 const EV = [];
 const ev = (f, type, o = {}) => EV.push(Object.assign({ f, type }, o));
 
@@ -258,10 +261,15 @@ function finale(f) {
   const l = f - T.tag[0], out = io(seg(f, T.cta[0] - 6, T.cta[0] + 4));
   $$('span', tg).forEach((s, i) => { const k = o3(seg(l, 6 + i * 3, 13 + i * 3)); s.style.opacity = k * (1 - out); s.style.transform = `translateY(${(1 - k) * 14 - out * 24}px)`; s.style.filter = k < 1 ? `blur(${(1 - k) * 6}px)` : ''; });
   const c = f - T.cta[0];
-  [['#chips', 4], ['#url', 10], ['#bio', 18]].forEach(([s, d]) => {
-    const el = $(s), k = o5(seg(c, d, d + 12)), pulse = s === '#url' ? 1 + .06 * Math.sin(Math.PI * seg(c, 44, 52)) : 1;
+  // the logo makes room, then the teaser's ask: no link, just a follow
+  const up = -88 * io(seg(c, 0, 14));
+  $('#sLogo .world').style.transform = `translateY(${up}px)`; $('#word').style.transform = `translateY(${up}px)`;
+  slam($('#soon'), c, 6, { from: .7, dur: 4, push: .03 });
+  [['#follow', 24], ['#first', 34]].forEach(([s, d]) => {
+    const el = $(s), k = o5(seg(c, d, d + 12));
+    const pulse = s === '#follow' ? 1 + .07 * (Math.sin(Math.PI * seg(c, 72, 80)) + Math.sin(Math.PI * seg(c, 112, 120))) : 1;
     el.style.opacity = k; el.style.filter = k < 1 ? `blur(${(1 - k) * 8}px)` : '';
-    el.style.transform = `${s === '#url' ? 'translateX(-50%) ' : ''}translateY(${(1 - k) * 26}px) scale(${pulse})`;
+    el.style.transform = `${s === '#follow' ? 'translateX(-50%) ' : ''}translateY(${(1 - k) * 26}px) scale(${pulse})`;
   });
 }
 
@@ -315,7 +323,7 @@ window.draw = f => {
     if (f < a || f >= end) continue;
     const sc = $('#' + s.id); sc.style.display = 'block';
     s.draw(f - a, sc);
-    if (s.id === 'sLogo') { $('#tag').style.display = $('#chips').style.display = $('#url').style.display = $('#bio').style.display = f >= T.tag[0] ? '' : 'none'; if (f >= T.tag[0]) finale(f); }
+    if (s.id === 'sLogo') { ['#tag', '#soon', '#follow', '#first'].forEach(q => ($(q).style.display = f >= T.tag[0] ? '' : 'none')); if (f >= T.tag[0]) finale(f); }
     let [tf, op, bl] = ['', 1, 0];
     if (s.in && f < a + X) [tf, op, bl] = moveIn(s.in, (f - a) / X);
     if (s.out && f >= b) [tf, op, bl] = moveOut(s.out, (f - b + 1) / X);
@@ -348,7 +356,8 @@ for (let i = 0; i < 8; i++) ev(T.logo[0] + 58 + Math.round(i * 2.2), 'letter', {
 ev(T.mac[0], 'whoosh', { zb: 0 }); ev(T.mac[0] + 30, 'click'); [0, 1, 2].forEach(i => ev(T.mac[0] + 46 + i * 9, 'toggle', { i }));
 ev(T.tag[0], 'whoosh', { zb: 0 });
 [6, 7, 9].forEach((w, i) => ev(T.tag[0] + 6 + (w - 1) * 3, 'pop', { p: 900 + i * 180 }));
-ev(T.cta[0] + 4, 'pop', { p: 800 }); ev(T.cta[0] + 10, 'chime', { hit: .3 }); ev(T.cta[0] + 18, 'pop', { p: 1000 }); ev(T.cta[0] + 44, 'pop', { p: 700 });
+ev(T.cta[0], 'whooshUp'); ev(T.cta[0] + 6, 'slam', { hit: .75, flash: '#f58841' }); ev(T.cta[0] + 8, 'chime');
+ev(T.cta[0] + 24, 'pop', { p: 900 }); ev(T.cta[0] + 34, 'pop', { p: 1100 }); ev(T.cta[0] + 72, 'pop', { p: 750 }); ev(T.cta[0] + 112, 'pop', { p: 750 });
 window.EV = EV.sort((a, b) => a.f - b.f); window.TOTAL = TOTAL;
 </script>
 </body></html>

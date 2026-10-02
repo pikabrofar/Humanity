@@ -2,7 +2,7 @@
 
 Original motion design (not a screen recording), built as one HTML page whose `draw(frame)` is
 deterministic: hook (eyes → hands → voice, "No mouse. No trackpad. Just you."), the icon assembling
-in 3D, a Mac that rises in and parks with its menu bar panel switching on, then the payoff and the link.
+in 3D, a Mac that rises in and parks with its menu bar panel switching on, then "Coming soon." and a follow prompt (no links: this is a teaser).
 Text holds are budgeted at 200 wpm, and every frame is checked for text running outside the frame.
 There is no music track, so a sound can be added in TikTok / Reels / Shorts.
 
