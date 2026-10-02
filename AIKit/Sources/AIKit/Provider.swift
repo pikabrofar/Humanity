@@ -20,7 +20,7 @@ public struct Provider: Identifiable, Hashable, Sendable {
     /// Starting point only; users pick current models from `LLMClient.listModels()`.
     public let defaultModel: String
     public let keyURL: URL
-    /// One line on what the provider does with the text, from its terms (see sentidoS-a1: legal/research/13).
+    /// One line on what the provider does with the text, from its terms (see legal/research/13).
     public let dataUse: String
     /// Chunk size for long transcripts. Cloud models take far more, but free
     /// tiers cap tokens per minute; Ollama silently truncates past its small
