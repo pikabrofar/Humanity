@@ -1,6 +1,6 @@
 # DRAFT — requires attorney review
 
-> **Status:** working draft prepared from a code audit of Humanity v1.0.0 (git commit `e098368`) on 2026-10-01. It is not legal advice and must not be published until counsel has reviewed it. The working tree had uncommitted changes in progress during the audit; those aren't reflected here. Before publishing, re-verify every "Current behavior" and "[DEPENDS ON FIX]" statement against the code that actually ships.
+> **Status:** working draft prepared from a code audit of sentidoS v1.0.0 (git commit `e098368`) on 2026-10-01. It is not legal advice and must not be published until counsel has reviewed it. The working tree had uncommitted changes in progress during the audit; those aren't reflected here. Before publishing, re-verify every "Current behavior" and "[DEPENDS ON FIX]" statement against the code that actually ships.
 >
 > **Markers used:**
 > - **[JURISDICTION-DEPENDENT]**: wording or obligations that vary by country or state; counsel decides.
@@ -18,29 +18,29 @@ Evidence is `path:line` from the repo root. Full traces are in `legal/PRIVACY-RE
 ### A1. Who we are and what this covers
 | # | Statement | Evidence |
 |---|---|---|
-| 1.1 | The policy covers the Humanity app and the standalone OculOS, ManOS and Murmur apps (modules OculOS, ManOS, Murmur, MeetingKit, AIKit, LicenseKit), version [PLACEHOLDER]. | `Humanity/Package.swift:8-14` |
+| 1.1 | The policy covers the sentidoS app and the standalone ojoS, manoS and bocaS apps (modules ojoS, manoS, bocaS, MeetingKit, AIKit, LicenseKit), version [PLACEHOLDER]. | `sentidoS/Package.swift:8-14` |
 | 1.2 | The source code is public under the MIT license, so anyone can verify these statements. | `LICENSE`; `README.md:62-64` |
 | 1.3 | Operator: [LEGAL ENTITY NAME], [MAILING ADDRESS]; contact [CONTACT EMAIL]. | [PLACEHOLDER] |
 
 ### A2. Data the apps process on your Mac (and whether the developer receives any of it)
 | # | Statement | Evidence |
 |---|---|---|
-| 2.1 | We operate no servers that receive app data. The app code sends data only to Gumroad (license checks), to an AI provider you choose with your own key, to Hugging Face (model downloads) and, through macOS, to Apple (speech model downloads). | `LicenseKit/Sources/LicenseKit/License.swift:12,62-79`; `AIKit/Sources/AIKit/Provider.swift:46-68`; `MeetingKit/Sources/MeetingKit/Diarizer.swift:24-30`; `Murmur/Sources/MurmurUI/Engine/Transcriber.swift:70-73` |
-| 2.2 | Camera video is analyzed frame by frame in memory and isn't saved or sent by the app. | `OculOS/Sources/GazeKit/CameraCapture.swift:192-202`; `OculOS/Sources/GazeKit/FaceFeatureExtractor.swift:44-105`; `ManOS/Sources/ManOSUI/Engine/HandEngine.swift:267-289` |
-| 2.3 | OculOS saves the following in `calibration.json`:<br>• eye and head measurements (pupil position, eye openness, head angles, face position and size);<br>• tiny 10 × 6-pixel grayscale eye patches;<br>• your display's name and size;<br>• up to 400 of these samples captured when you click the mouse ("Learn from clicks", on by default). | `OculOS/Sources/GazeKit/GazeFeatures.swift:20-37`; `OculOS/Sources/GazeKit/EyePatch.swift:7-9`; `OculOS/Sources/OculOSUI/Engine/Persistence.swift:6-19,110-124`; `OculOS/Sources/OculOSUI/AppModel.swift:57-59,103-125` |
-| 2.4 | OculOS gaze recordings, which you start yourself, save gaze coordinates over time. If you turn on the optional setting, they also save a screenshot of the whole display, which can show anything that was on screen. | `OculOS/Sources/OculOSUI/Recording/RecordingStore.swift:6-16,54-61`; `OculOS/Sources/OculOSUI/Recording/ScreenshotCapture.swift:8-19`; `OculOS/Sources/OculOSUI/AppModel.swift:54-56,265-268` |
-| 2.5 | ManOS tracks your hands in memory and saves only pinch thresholds, handedness and settings, in macOS preferences. | `ManOS/Sources/ManOSUI/Engine/Persistence.swift:5-29`; `ManOS/Sources/HandKit/HandProfile.swift:4-33` |
-| 2.6 | Murmur uses the microphone only while you dictate or record a note. Speech is recognized on your Mac; on older macOS, recognition refuses to run unless it can stay on-device. | `Murmur/Sources/MurmurUI/AppModel.swift:135-191`; `Transcriber.swift:29-34,197-202` |
-| 2.7 | **Current behavior:** with "Keep dictations in the Library" on (the default), Murmur saves each dictation's text, its audio, the name of the app you dictated into, and any cleaned-up text. **[DEPENDS ON FIX P1-1]:** audio is saved only if you turn on "Keep dictation audio". | `Murmur/Sources/MurmurUI/AppModel.swift:75-77,168-170,261-282`; `Murmur/Sources/MurmurKit/Recording.swift:4-37` |
+| 2.1 | We operate no servers that receive app data. The app code sends data only to Gumroad (license checks), to an AI provider you choose with your own key, to Hugging Face (model downloads) and, through macOS, to Apple (speech model downloads). | `LicenseKit/Sources/LicenseKit/License.swift:12,62-79`; `AIKit/Sources/AIKit/Provider.swift:46-68`; `MeetingKit/Sources/MeetingKit/Diarizer.swift:24-30`; `bocaS/Sources/MurmurUI/Engine/Transcriber.swift:70-73` |
+| 2.2 | Camera video is analyzed frame by frame in memory and isn't saved or sent by the app. | `ojoS/Sources/GazeKit/CameraCapture.swift:192-202`; `ojoS/Sources/GazeKit/FaceFeatureExtractor.swift:44-105`; `manoS/Sources/ManOSUI/Engine/HandEngine.swift:267-289` |
+| 2.3 | ojoS saves the following in `calibration.json`:<br>• eye and head measurements (pupil position, eye openness, head angles, face position and size);<br>• tiny 10 × 6-pixel grayscale eye patches;<br>• your display's name and size;<br>• up to 400 of these samples captured when you click the mouse ("Learn from clicks", on by default). | `ojoS/Sources/GazeKit/GazeFeatures.swift:20-37`; `ojoS/Sources/GazeKit/EyePatch.swift:7-9`; `ojoS/Sources/OculOSUI/Engine/Persistence.swift:6-19,110-124`; `ojoS/Sources/OculOSUI/AppModel.swift:57-59,103-125` |
+| 2.4 | ojoS gaze recordings, which you start yourself, save gaze coordinates over time. If you turn on the optional setting, they also save a screenshot of the whole display, which can show anything that was on screen. | `ojoS/Sources/OculOSUI/Recording/RecordingStore.swift:6-16,54-61`; `ojoS/Sources/OculOSUI/Recording/ScreenshotCapture.swift:8-19`; `ojoS/Sources/OculOSUI/AppModel.swift:54-56,265-268` |
+| 2.5 | manoS tracks your hands in memory and saves only pinch thresholds, handedness and settings, in macOS preferences. | `manoS/Sources/ManOSUI/Engine/Persistence.swift:5-29`; `manoS/Sources/HandKit/HandProfile.swift:4-33` |
+| 2.6 | bocaS uses the microphone only while you dictate or record a note. Speech is recognized on your Mac; on older macOS, recognition refuses to run unless it can stay on-device. | `bocaS/Sources/MurmurUI/AppModel.swift:135-191`; `Transcriber.swift:29-34,197-202` |
+| 2.7 | **Current behavior:** with "Keep dictations in the Library" on (the default), bocaS saves each dictation's text, its audio, the name of the app you dictated into, and any cleaned-up text. **[DEPENDS ON FIX P1-1]:** audio is saved only if you turn on "Keep dictation audio". | `bocaS/Sources/MurmurUI/AppModel.swift:75-77,168-170,261-282`; `bocaS/Sources/MurmurKit/Recording.swift:4-37` |
 | 2.8 | Notes are always saved with their audio and transcript, plus a summary and action items. | `AppModel.swift:168,279-287` |
-| 2.9 | When macOS reports a secure (password) input field, Murmur doesn't clean up, save or send the dictation. It types the text into the field, and deletes the audio. This depends on macOS reporting secure input and may not detect every password field. | `AppModel.swift:153,246-249,277-278`; `Murmur/Sources/MurmurUI/Engine/TextInserter.swift:53` |
-| 2.10 | Meetings (inside Murmur) record two audio tracks when you press Record: your microphone, and either the call app you pick or all system audio. After the call they create, on your Mac, a word-by-word transcript, a "who spoke when" analysis, and a numeric voice signature (voice embedding) for each remote speaker. All of this is stored with the meeting. | `MeetingKit/Sources/MeetingKit/MeetingRecorder.swift:68-104`; `MeetingKit/Sources/MeetingKit/Meeting.swift:5-25,104-133`; `MeetingKit/Sources/MeetingKit/Transcript.swift:31-41` |
-| 2.11 | **Current behavior:** if you type a name for a speaker, Murmur saves a voice profile: the name plus up to 20 voice embeddings. It then recognizes that voice automatically in later meetings. **[DEPENDS ON FIX P0-3]:** this happens only if you turn on "Remember this voice" and confirm that the person agreed. | `Meeting.swift:53-67`; `MeetingKit/Sources/MeetingKit/VoiceProfileStore.swift:6-19,82-103` |
-| 2.12 | Clipboard. To paste dictation, Murmur briefly saves your current clipboard in memory, pastes, then restores it after half a second (you can turn this off). The activation window checks the clipboard once for a license key when it opens. Neither saves nor sends clipboard contents. | `TextInserter.swift:11-36`; `Murmur/Sources/MurmurKit/PasteSequence.swift:59-75`; `LicenseKit/Sources/LicenseKit/ActivationWindow.swift:69-72` |
-| 2.13 | Accessibility. To snap a gaze click to a button, OculOS reads the type and position of on-screen controls near the gaze point. It doesn't read their text or values. ManOS, OculOS and Murmur post synthetic mouse and keyboard events to control the Mac and insert text. | `OculOS/Sources/GazeKit/GazeClick.swift:80-124`; `ManOS/Sources/ManOSUI/Engine/EventInjector.swift:24-131`; `TextInserter.swift:64-84` |
-| 2.14 | ManOS reads on-screen window sizes (not titles) to scroll by one screen when you flick. | `EventInjector.swift:78-87` |
-| 2.15 | The apps don't monitor keystrokes. They register only their own keyboard shortcuts. OculOS watches mouse-click positions for "Learn from clicks". | `OculOS/Sources/GazeKit/HotKey.swift:18-44`; `OculOS/Sources/OculOSUI/AppModel.swift:103-112` |
-| 2.16 | Settings, custom dictation words and AI routing choices are stored in macOS preferences. AI keys are stored in your login Keychain, not synced to iCloud Keychain. The license key is stored in a file (**[DEPENDS ON FIX P2-4]:** in the Keychain). | `AIKit/Sources/AIKit/KeychainStore.swift:9-19,42-47`; `License.swift:25-37`; `Murmur/Sources/MurmurUI/Engine/Persistence.swift:6-19` |
+| 2.9 | When macOS reports a secure (password) input field, bocaS doesn't clean up, save or send the dictation. It types the text into the field, and deletes the audio. This depends on macOS reporting secure input and may not detect every password field. | `AppModel.swift:153,246-249,277-278`; `bocaS/Sources/MurmurUI/Engine/TextInserter.swift:53` |
+| 2.10 | Meetings (inside bocaS) record two audio tracks when you press Record: your microphone, and either the call app you pick or all system audio. After the call they create, on your Mac, a word-by-word transcript, a "who spoke when" analysis, and a numeric voice signature (voice embedding) for each remote speaker. All of this is stored with the meeting. | `MeetingKit/Sources/MeetingKit/MeetingRecorder.swift:68-104`; `MeetingKit/Sources/MeetingKit/Meeting.swift:5-25,104-133`; `MeetingKit/Sources/MeetingKit/Transcript.swift:31-41` |
+| 2.11 | **Current behavior:** if you type a name for a speaker, bocaS saves a voice profile: the name plus up to 20 voice embeddings. It then recognizes that voice automatically in later meetings. **[DEPENDS ON FIX P0-3]:** this happens only if you turn on "Remember this voice" and confirm that the person agreed. | `Meeting.swift:53-67`; `MeetingKit/Sources/MeetingKit/VoiceProfileStore.swift:6-19,82-103` |
+| 2.12 | Clipboard. To paste dictation, bocaS briefly saves your current clipboard in memory, pastes, then restores it after half a second (you can turn this off). The activation window checks the clipboard once for a license key when it opens. Neither saves nor sends clipboard contents. | `TextInserter.swift:11-36`; `bocaS/Sources/MurmurKit/PasteSequence.swift:59-75`; `LicenseKit/Sources/LicenseKit/ActivationWindow.swift:69-72` |
+| 2.13 | Accessibility. To snap a gaze click to a button, ojoS reads the type and position of on-screen controls near the gaze point. It doesn't read their text or values. manoS, ojoS and bocaS post synthetic mouse and keyboard events to control the Mac and insert text. | `ojoS/Sources/GazeKit/GazeClick.swift:80-124`; `manoS/Sources/ManOSUI/Engine/EventInjector.swift:24-131`; `TextInserter.swift:64-84` |
+| 2.14 | manoS reads on-screen window sizes (not titles) to scroll by one screen when you flick. | `EventInjector.swift:78-87` |
+| 2.15 | The apps don't monitor keystrokes. They register only their own keyboard shortcuts. ojoS watches mouse-click positions for "Learn from clicks". | `ojoS/Sources/GazeKit/HotKey.swift:18-44`; `ojoS/Sources/OculOSUI/AppModel.swift:103-112` |
+| 2.16 | Settings, custom dictation words and AI routing choices are stored in macOS preferences. AI keys are stored in your login Keychain, not synced to iCloud Keychain. The license key is stored in a file (**[DEPENDS ON FIX P2-4]:** in the Keychain). | `AIKit/Sources/AIKit/KeychainStore.swift:9-19,42-47`; `License.swift:25-37`; `bocaS/Sources/MurmurUI/Engine/Persistence.swift:6-19` |
 
 ### A3. Data not collected (only what the code guarantees)
 | # | Statement | Evidence |
@@ -53,9 +53,9 @@ Evidence is `path:line` from the repo root. Full traces are in `legal/PRIVACY-RE
 ### A4. Local and cloud processing
 | # | Statement | Evidence |
 |---|---|---|
-| 4.1 | Every AI task defaults to "On-device": Apple Intelligence where available, otherwise built-in rules. | `AIKit/Sources/AIKit/AISettings.swift:32-36`; `Murmur/Sources/MurmurUI/Engine/Intelligence.swift:36-42` |
-| 4.2 | If you connect a provider with your own API key and choose it for a task, the app sends that task's text to that provider:<br>• dictation text (cleanup);<br>• note and meeting transcripts, including names you gave speakers (summaries).<br>Audio is never sent. | `AIKit/Sources/AIKit/Tasks.swift:33-85,99-114`; `Murmur/Sources/MurmurUI/Views/MeetingsView.swift:83-90` |
-| 4.3 | **Current behavior:** once a provider is chosen for summaries, every new note and meeting is summarized by it automatically. **[DEPENDS ON FIX P1-5]:** the app asks before sending each meeting. | `MeetingsView.swift:60`; `Murmur/Sources/MurmurUI/AppModel.swift:287` |
+| 4.1 | Every AI task defaults to "On-device": Apple Intelligence where available, otherwise built-in rules. | `AIKit/Sources/AIKit/AISettings.swift:32-36`; `bocaS/Sources/MurmurUI/Engine/Intelligence.swift:36-42` |
+| 4.2 | If you connect a provider with your own API key and choose it for a task, the app sends that task's text to that provider:<br>• dictation text (cleanup);<br>• note and meeting transcripts, including names you gave speakers (summaries).<br>Audio is never sent. | `AIKit/Sources/AIKit/Tasks.swift:33-85,99-114`; `bocaS/Sources/MurmurUI/Views/MeetingsView.swift:83-90` |
+| 4.3 | **Current behavior:** once a provider is chosen for summaries, every new note and meeting is summarized by it automatically. **[DEPENDS ON FIX P1-5]:** the app asks before sending each meeting. | `MeetingsView.swift:60`; `bocaS/Sources/MurmurUI/AppModel.swift:287` |
 | 4.4 | Supported providers: Groq, Google Gemini, OpenAI, Anthropic, OpenRouter, Mistral, DeepSeek, Together, xAI, and Ollama (runs locally on your Mac). | `AIKit/Sources/AIKit/Provider.swift:46-68` |
 | 4.5 | The app sends your key to the provider to check it and to list its models. This happens when you press Test or Save and when the AI Providers screen loads models (no content is sent). | `AIKit/Sources/AIKitUI/AIProvidersView.swift:23,60-63,169-192`; `AIKit/Sources/AIKit/LLMClient.swift:57-62` |
 | 4.6 | AI requests use HTTPS (except Ollama on `localhost`). They aren't cached to disk, and the app doesn't log them. | `LLMClient.swift:32-40,106` |
@@ -88,8 +88,8 @@ Evidence is `path:line` from the repo root. Full traces are in `legal/PRIVACY-RE
 |---|---|---|
 | 8.1 | **Current behavior:** data on your Mac is kept until you delete it. There are no automatic deletion periods, except:<br>• learned-click samples (newest 400 kept);<br>• voice profiles (newest 20 samples per person). | `legal/PRIVACY-REQUIREMENTS.md` §7.1 |
 | 8.2 | **[DEPENDS ON FIX P1-4, P1-9, P0-4]:** these default periods apply:<br>• dictation history: 30 days;<br>• meeting audio: 7 days after processing;<br>• unnamed speakers' voice embeddings: 30 days;<br>• voice profiles: 12 months after last recognized;<br>• gaze recordings: 90 days.<br>You can change them in Settings. | — |
-| 8.3 | In-app deletion that exists today:<br>• OculOS Clear Calibration;<br>• delete a gaze recording;<br>• Murmur delete a recording / Delete All Recordings;<br>• delete a meeting (right-click);<br>• delete voice profiles;<br>• remove an AI key. | `OculOS/Sources/OculOSUI/Views/CalibrationPage.swift:100`; `OculOS/Sources/OculOSUI/Views/RecordingsPage.swift:16`; `Murmur/Sources/MurmurUI/Views/LibraryView.swift:182-183`; `Murmur/Sources/MurmurUI/MurmurModule.swift:134,143`; `MeetingsView.swift:161,170`; `MeetingKit/Sources/MeetingUI/VoiceProfilesView.swift:25,41`; `AIProvidersView.swift:136-141` |
-| 8.4 | **Current behavior:** no single "delete everything" button; settings, the hand profile and the license file are removed manually (paths in Part B). **[DEPENDS ON FIX P1-2]:** Settings → Data & Privacy → Delete All Humanity Data. | — |
+| 8.3 | In-app deletion that exists today:<br>• ojoS Clear Calibration;<br>• delete a gaze recording;<br>• bocaS delete a recording / Delete All Recordings;<br>• delete a meeting (right-click);<br>• delete voice profiles;<br>• remove an AI key. | `ojoS/Sources/OculOSUI/Views/CalibrationPage.swift:100`; `ojoS/Sources/OculOSUI/Views/RecordingsPage.swift:16`; `bocaS/Sources/MurmurUI/Views/LibraryView.swift:182-183`; `bocaS/Sources/MurmurUI/MurmurModule.swift:134,143`; `MeetingsView.swift:161,170`; `MeetingKit/Sources/MeetingUI/VoiceProfilesView.swift:25,41`; `AIProvidersView.swift:136-141` |
+| 8.4 | **Current behavior:** no single "delete everything" button; settings, the hand profile and the license file are removed manually (paths in Part B). **[DEPENDS ON FIX P1-2]:** Settings → Data & Privacy → Delete All sentidoS Data. | — |
 | 8.5 | **Current behavior:** deleting a voice profile doesn't remove voice embeddings stored inside past meetings; deleting the meeting does. **[DEPENDS ON FIX P0-4]** | `VoiceProfileStore.swift:124-127`; `Transcript.swift:31-41` |
 | 8.6 | Deleting in the app doesn't delete copies in Time Machine backups, APFS snapshots, other backups, or files you exported. **[DEPENDS ON FIX P1-7]:** you can exclude recordings from Time Machine. | No `isExcludedFromBackup` anywhere |
 | 8.7 | We can't delete data you sent to an AI provider; the provider's own retention rules apply. | Provider terms |
@@ -97,11 +97,11 @@ Evidence is `path:line` from the repo root. Full traces are in `legal/PRIVACY-RE
 ### A9. Permissions
 | # | macOS permission | Used for | Evidence |
 |---|---|---|---|
-| 9.1 | Camera | Eye tracking (OculOS) and hand tracking (ManOS) | `Humanity/Resources/Info.plist:31-32` |
-| 9.2 | Microphone | Dictation, notes, your side of meetings | `Humanity/Resources/Info.plist:35-36` |
-| 9.3 | Speech Recognition | On-device transcription (older macOS) | `Humanity/Resources/Info.plist:39-40` |
-| 9.4 | System audio recording | The other side of a call | `Humanity/Resources/Info.plist:27-28` |
-| 9.5 | Accessibility | Pointer and clicks, pasting and typing text, snapping gaze clicks | `Humanity/Sources/Humanity/Permissions.swift:42` |
+| 9.1 | Camera | Eye tracking (ojoS) and hand tracking (manoS) | `sentidoS/Resources/Info.plist:31-32` |
+| 9.2 | Microphone | Dictation, notes, your side of meetings | `sentidoS/Resources/Info.plist:35-36` |
+| 9.3 | Speech Recognition | On-device transcription (older macOS) | `sentidoS/Resources/Info.plist:39-40` |
+| 9.4 | System audio recording | The other side of a call | `sentidoS/Resources/Info.plist:27-28` |
+| 9.5 | Accessibility | Pointer and clicks, pasting and typing text, snapping gaze clicks | `sentidoS/Sources/sentidoS/Permissions.swift:42` |
 | 9.6 | Screen Recording (optional) | Heatmap screenshots; call-audio fallback | `Permissions.swift:43`; `MeetingKit/Sources/MeetingKit/MeetingRecorder.swift:146-167` |
 
 ### A10. Analytics and crash reporting
@@ -109,7 +109,7 @@ Evidence is `path:line` from the repo root. Full traces are in `legal/PRIVACY-RE
 |---|---|---|
 | 10.1 | No analytics or usage tracking. | §5 of the requirements doc |
 | 10.2 | No crash-reporting service. macOS saves crash reports on your Mac and shares them with Apple only if you allow it in System Settings → Privacy & Security → Analytics & Improvements. We have no mechanism to receive them. If you choose to send us a crash report, we use it only to fix the bug. | No crash SDK in the sources |
-| 10.3 | The only diagnostic the app writes to the macOS log is a dictation-latency number. The speaker-separation library logs technical messages, such as model folder paths, to the macOS log on your Mac. | `Murmur/Sources/MurmurUI/AppModel.swift:33,269`; FluidAudio `Shared/AppLogger.swift` |
+| 10.3 | The only diagnostic the app writes to the macOS log is a dictation-latency number. The speaker-separation library logs technical messages, such as model folder paths, to the macOS log on your Mac. | `bocaS/Sources/MurmurUI/AppModel.swift:33,269`; FluidAudio `Shared/AppLogger.swift` |
 
 ### A11. Children
 | # | Statement |
@@ -138,7 +138,7 @@ Evidence is `path:line` from the repo root. Full traces are in `legal/PRIVACY-RE
 |---|---|---|
 | 14.1 | AI keys are stored in the Keychain and available only while your Mac is unlocked. They're sent only in request headers and removed from error messages. | `KeychainStore.swift:16`; `LLMClient.swift:90-97,117` |
 | 14.2 | Network requests use HTTPS, except a local Ollama server. | `Provider.swift:47-66` |
-| 14.3 | Apps are signed with the hardened runtime. They're **not sandboxed** and **not yet notarized**. | `Humanity/scripts/build-app.sh:45`; `scripts/app.entitlements`; `README.md:26` |
+| 14.3 | Apps are signed with the hardened runtime. They're **not sandboxed** and **not yet notarized**. | `sentidoS/scripts/build-app.sh:45`; `scripts/app.entitlements`; `README.md:26` |
 | 14.4 | **Current behavior:** files on your Mac aren't separately encrypted by the app. Turn on FileVault to encrypt them at rest. Any app running under your macOS account can read them. **[DEPENDS ON FIX P1-7]:** files are restricted to your account (0600/0700). | No `posixPermissions` or encryption anywhere |
 | 14.5 | Report vulnerabilities through GitHub private vulnerability reporting. | `SECURITY.md:6-7` |
 
@@ -161,15 +161,15 @@ Evidence is `path:line` from the repo root. Full traces are in `legal/PRIVACY-RE
 
 > **DRAFT — requires attorney review.** Bracketed items are placeholders or open questions.
 
-# Humanity Privacy Policy
+# sentidoS Privacy Policy
 
 **Effective date:** [EFFECTIVE DATE]
-**Applies to:** Humanity, OculOS, ManOS and Murmur for macOS, version [VERSION] and later
+**Applies to:** sentidoS, ojoS, manoS and bocaS for macOS, version [VERSION] and later
 **Who we are:** [LEGAL ENTITY NAME] ("we", "us"). Contact: [CONTACT EMAIL]
 
 ## The short version
 
-- Humanity watches your eyes and hands through your camera and listens through your microphone **so you can control your Mac**. That processing happens **on your Mac**.
+- sentidoS watches your eyes and hands through your camera and listens through your microphone **so you can control your Mac**. That processing happens **on your Mac**.
 - **We don't run servers that receive your camera images, audio, transcripts, gaze or hand data, or voice data.** The apps have no analytics, ads or tracking. The code is open source, so you can check this.
 - The apps talk to the internet in only four situations:
   - checking your license with **Gumroad**;
@@ -180,33 +180,33 @@ Evidence is `path:line` from the repo root. Full traces are in `legal/PRIVACY-RE
 
 ## 1. What the apps do on your Mac
 
-### Camera (OculOS and ManOS)
+### Camera (ojoS and manoS)
 The apps analyze camera video one frame at a time, in memory, to find your eyes, face position and hands. **Video frames aren't saved and aren't sent anywhere by the app.**
 
-**OculOS (eye tracking) saves calibration data so it can work without recalibrating:**
+**ojoS (eye tracking) saves calibration data so it can work without recalibrating:**
 - measurements of your eyes and head: where your pupils sit within your eyes, how open your eyes are, your head angle, and your face's position and size in the camera image;
 - tiny, 10 × 6-pixel grayscale patches of each eye;
 - your display's name and size.
 
-**Learn from clicks** (on unless you turn it off): each time you click the mouse on the calibrated display, OculOS saves the last fraction of a second of these measurements with the click position. It keeps the newest 400. [DEPENDS ON FIX P2-2: off until you turn it on.]
+**Learn from clicks** (on unless you turn it off): each time you click the mouse on the calibrated display, ojoS saves the last fraction of a second of these measurements with the click position. It keeps the newest 400. [DEPENDS ON FIX P2-2: off until you turn it on.]
 
-**Gaze recordings** (only when you start one, with ⌥⌘R or the menu) save where you looked over time. If you turn on **Capture screenshot as heatmap background**, OculOS also saves one screenshot of your whole display at the start. **That screenshot can include anything on screen, including other people's messages or faces.** Use it with care.
+**Gaze recordings** (only when you start one, with ⌥⌘R or the menu) save where you looked over time. If you turn on **Capture screenshot as heatmap background**, ojoS also saves one screenshot of your whole display at the start. **That screenshot can include anything on screen, including other people's messages or faces.** Use it with care.
 
-**ManOS (hand control)** tracks your hands in memory and saves only your pinch sensitivity, handedness and settings.
+**manoS (hand control)** tracks your hands in memory and saves only your pinch sensitivity, handedness and settings.
 
-### Microphone (Murmur)
-Murmur listens **only while you dictate (⌃⌥⌘D) or record a note or meeting**. Speech is turned into text **on your Mac** using Apple's on-device speech recognition. On older macOS, Murmur refuses to transcribe rather than send audio to Apple's servers.
+### Microphone (bocaS)
+bocaS listens **only while you dictate (⌃⌥⌘D) or record a note or meeting**. Speech is turned into text **on your Mac** using Apple's on-device speech recognition. On older macOS, bocaS refuses to transcribe rather than send audio to Apple's servers.
 
-- **Dictations.** Murmur puts the text where you're typing. While "Keep dictations in the Library" is on (the default), it also saves:
+- **Dictations.** bocaS puts the text where you're typing. While "Keep dictations in the Library" is on (the default), it also saves:
   - the text, and a cleaned-up version;
   - the name of the app you dictated into;
   - **[current version:]** the audio recording. **[DEPENDS ON FIX P1-1:]** the audio only if you turn on "Keep dictation audio".
-- **Password fields.** When macOS reports that you're typing into a password or other secure field, Murmur types the text there and **doesn't** clean it up, save it, keep its audio, or send it anywhere. This relies on macOS identifying the field as secure, which most password fields do, but not every app does. **Don't dictate passwords where you can't confirm the field is secure.**
-- **Notes.** Murmur always keeps the audio, transcript, summary and action items, until you delete them.
+- **Password fields.** When macOS reports that you're typing into a password or other secure field, bocaS types the text there and **doesn't** clean it up, save it, keep its audio, or send it anywhere. This relies on macOS identifying the field as secure, which most password fields do, but not every app does. **Don't dictate passwords where you can't confirm the field is secure.**
+- **Notes.** bocaS always keeps the audio, transcript, summary and action items, until you delete them.
 - **Custom words** you add, such as names, are saved in your settings and used only by the on-device recognizer.
 
-### Meetings (in Murmur)
-When you press **Record**, Murmur records two audio tracks:
+### Meetings (in bocaS)
+When you press **Record**, bocaS records two audio tracks:
 - your microphone;
 - the audio of the call app you choose, or **all sound your Mac plays** if you pick "All system audio".
 
@@ -215,17 +215,17 @@ After the call, on your Mac, it:
 - works out **who spoke when**. To do this it computes a **numeric voice signature (a "voice embedding") for each person on the call**, and stores it with the meeting.
 
 **Voice profiles.**
-- **[Current version:]** if you type a name for a speaker, Murmur saves a **voice profile**: that name plus voice embeddings. It then **recognizes that person automatically** in later meetings.
+- **[Current version:]** if you type a name for a speaker, bocaS saves a **voice profile**: that name plus voice embeddings. It then **recognizes that person automatically** in later meetings.
 - **[DEPENDS ON FIX P0-3:]** a voice profile is saved only if you choose **Remember this voice** and confirm the person agreed. Renaming a speaker without that option saves only the label.
 - Voice embeddings can't be turned back into audio, but they **can identify a person**. Many laws treat them as **biometric data**.
 
 **Recording other people is your responsibility.** In many places, including several U.S. states and many countries, it is illegal to record a conversation unless **everyone** agrees. [JURISDICTION-DEPENDENT; counsel to confirm the examples: California, Florida, Illinois, Maryland, Massachusetts, Pennsylvania, Washington.] Always tell everyone before you record, and get their permission before saving their voice profile. **[Current version:]** the app shows a reminder. **[DEPENDS ON FIX P0-2:]** the app asks you to confirm consent before each recording and saves that confirmation with the meeting.
 
 ### Clipboard, Accessibility and window information
-- **Clipboard.** To paste dictation, Murmur briefly keeps a copy of your clipboard in memory, pastes your text, then puts your clipboard back after half a second. You can turn this off. When the activation window opens, it checks the clipboard once for a license key. Clipboard contents are never saved or sent.
-- If you use Apple's Universal Clipboard, text Murmur places on the clipboard may appear on your other Apple devices. **[DEPENDS ON FIX P2-6:]** Murmur marks it "this Mac only".
-- **Accessibility.** The apps use this permission to move the pointer, click, scroll, press keys and insert text for you. To snap a gaze click to the nearest button, OculOS reads the **type and position** of on-screen controls near where you're looking. **It doesn't read their text or contents.**
-- **Window sizes.** When you flick to the next video or page, ManOS reads the size of the window under the pointer. It doesn't read window titles.
+- **Clipboard.** To paste dictation, bocaS briefly keeps a copy of your clipboard in memory, pastes your text, then puts your clipboard back after half a second. You can turn this off. When the activation window opens, it checks the clipboard once for a license key. Clipboard contents are never saved or sent.
+- If you use Apple's Universal Clipboard, text bocaS places on the clipboard may appear on your other Apple devices. **[DEPENDS ON FIX P2-6:]** bocaS marks it "this Mac only".
+- **Accessibility.** The apps use this permission to move the pointer, click, scroll, press keys and insert text for you. To snap a gaze click to the nearest button, ojoS reads the **type and position** of on-screen controls near where you're looking. **It doesn't read their text or contents.**
+- **Window sizes.** When you flick to the next video or page, manoS reads the size of the window under the pointer. It doesn't read window titles.
 - **Keyboard.** The apps don't record your keystrokes. They respond only to their own shortcuts.
 
 ## 2. When data leaves your Mac
@@ -245,9 +245,9 @@ After the call, on your Mac, it:
 
 ## 3. Buying and licensing
 
-- You buy Humanity on **Gumroad's** website. Gumroad handles your payment and contact details under the [Gumroad Privacy Policy](https://gumroad.com/privacy). We never see your full card number.
+- You buy sentidoS on **Gumroad's** website. Gumroad handles your payment and contact details under the [Gumroad Privacy Policy](https://gumroad.com/privacy). We never see your full card number.
 - As the seller, we receive the order details Gumroad provides to sellers: [PLACEHOLDER: e.g. email address, name, country, purchase date]. We use them to provide licenses, support and refunds, and for legally required records.
-- The app stores your license key on your Mac, in `~/Library/Application Support/Humanity/license.json` [DEPENDS ON FIX P2-4: in your Keychain]. It reads only the "valid / refunded / disputed" part of Gumroad's reply.
+- The app stores your license key on your Mac, in `~/Library/Application Support/sentidoS/license.json` [DEPENDS ON FIX P2-4: in your Keychain]. It reads only the "valid / refunded / disputed" part of Gumroad's reply.
 - **Cookies:** the apps don't use cookies. Gumroad's purchase pages and GitHub's download pages set their own cookies under their own policies. We don't operate another website. [Update if one is added.] [JURISDICTION-DEPENDENT: cookie consent.]
 
 ## 4. Where your data is stored, and for how long
@@ -256,17 +256,17 @@ The apps aren't sandboxed, so their data is in your user Library:
 
 | Data | Location |
 |---|---|
-| OculOS calibration, gaze recordings, screenshots | `~/Library/Application Support/OculOS/` |
-| Murmur dictations and notes (text and audio) | `~/Library/Application Support/Murmur/Recordings/` |
-| Meetings (audio, transcripts, speaker analysis, summaries) | `~/Library/Application Support/Humanity/Meetings/` |
-| Voice profiles | `~/Library/Application Support/Humanity/VoiceProfiles/profiles.json` |
-| License key | `~/Library/Application Support/Humanity/license.json` |
+| ojoS calibration, gaze recordings, screenshots | `~/Library/Application Support/ojoS/` |
+| bocaS dictations and notes (text and audio) | `~/Library/Application Support/bocaS/Recordings/` |
+| Meetings (audio, transcripts, speaker analysis, summaries) | `~/Library/Application Support/sentidoS/Meetings/` |
+| Voice profiles | `~/Library/Application Support/sentidoS/VoiceProfiles/profiles.json` |
+| License key | `~/Library/Application Support/sentidoS/license.json` |
 | Speaker-separation models (not personal) | `~/Library/Application Support/FluidAudio/Models/` |
-| Settings, ManOS hand profile, custom words, AI choices | `~/Library/Preferences/io.github.pikabrofar.humanity.plist` (standalone apps use `…humanity.OculOS`, `…humanity.ManOS`, `…humanity.Murmur`) |
+| Settings, manoS hand profile, custom words, AI choices | `~/Library/Preferences/io.github.pikabrofar.humanity.plist` (standalone apps use `…humanity.ojoS`, `…humanity.manoS`, `…humanity.bocaS`) |
 | AI provider keys | Your login Keychain ("io.github.pikabrofar.humanity.ai") |
 
 **How long:**
-- **[Current version:]** the apps keep data until you delete it. The only automatic limits: OculOS keeps the newest 400 learned clicks, and each voice profile keeps its newest 20 samples.
+- **[Current version:]** the apps keep data until you delete it. The only automatic limits: ojoS keeps the newest 400 learned clicks, and each voice profile keeps its newest 20 samples.
 - **[DEPENDS ON FIX P1-4 / P1-9 / P0-4:]** default periods:
   - dictation history: 30 days;
   - dictation audio: not kept;
@@ -283,27 +283,27 @@ The apps aren't sandboxed, so their data is in your user Library:
 ## 5. Deleting your data
 
 **You can delete in the app:**
-- OculOS → Calibrate → **Clear Calibration** (calibration and learned clicks);
-- OculOS → Recordings → **Delete** (each recording and its screenshot);
-- Murmur → Library → trash icon, or Settings → **Delete All Recordings…** (dictations and notes);
-- Murmur → Meetings → right-click a meeting → **Delete** (its audio, transcript, speaker analysis and summary);
+- ojoS → Calibrate → **Clear Calibration** (calibration and learned clicks);
+- ojoS → Recordings → **Delete** (each recording and its screenshot);
+- bocaS → Library → trash icon, or Settings → **Delete All Recordings…** (dictations and notes);
+- bocaS → Meetings → right-click a meeting → **Delete** (its audio, transcript, speaker analysis and summary);
 - Meetings → **Voice Profiles** → Delete;
 - Settings → AI Providers → **Remove Key**.
 
 **[Current version:]**
 - Deleting a voice profile doesn't remove the voice embeddings stored inside past meetings; delete those meetings to remove them.
 - There's no single "delete everything" button. To remove everything, quit the apps and delete the folders listed above and the preferences file. In Terminal: `defaults delete io.github.pikabrofar.humanity`. Remove the Keychain items in Keychain Access.
-- **[DEPENDS ON FIX P1-2 / P0-4:]** Settings → Data & Privacy → **Delete All Humanity Data**, which also removes voice data from past meetings.
+- **[DEPENDS ON FIX P1-2 / P0-4:]** Settings → Data & Privacy → **Delete All sentidoS Data**, which also removes voice data from past meetings.
 
 **Data you sent to an AI provider** is governed by that provider. Delete it through your account with them.
 
 ## 6. Permissions
 
-macOS asks you to grant these to Humanity (standalone apps ask separately):
+macOS asks you to grant these to sentidoS (standalone apps ask separately):
 
 | Permission | Why |
 |---|---|
-| **Camera** | Eye tracking (OculOS) and hand tracking (ManOS) |
+| **Camera** | Eye tracking (ojoS) and hand tracking (manoS) |
 | **Microphone** | Dictation, notes and your side of meetings |
 | **Speech Recognition** | Apple's on-device transcription |
 | **System audio recording** | The other side of a call, for meetings |
@@ -323,11 +323,11 @@ No system is perfectly secure. [JURISDICTION-DEPENDENT: breach-notification comm
 
 ## 8. Children
 
-Humanity isn't directed to children under 13 [JURISDICTION-DEPENDENT: or under 16 where local law sets a higher age], and we don't knowingly receive personal information from children. If you believe a child has sent us personal information, contact [CONTACT EMAIL] and we'll delete it. Parents should not allow children to use meeting recording or voice profiles.
+sentidoS isn't directed to children under 13 [JURISDICTION-DEPENDENT: or under 16 where local law sets a higher age], and we don't knowingly receive personal information from children. If you believe a child has sent us personal information, contact [CONTACT EMAIL] and we'll delete it. Parents should not allow children to use meeting recording or voice profiles.
 
 ## 9. Your rights
 
-Almost everything Humanity stores is **on your own Mac**. You can see it (Show in Finder), export it and delete it at any time, without asking us.
+Almost everything sentidoS stores is **on your own Mac**. You can see it (Show in Finder), export it and delete it at any time, without asking us.
 
 For the limited data we hold about you, mainly the order and license details Gumroad provides, you can ask us to:
 - give you access or a copy;
@@ -349,7 +349,7 @@ Email [CONTACT EMAIL]. We'll verify your request using your purchase email and r
   - you can appeal a refusal at [CONTACT EMAIL];
   - we don't sell or share personal information;
   - we won't treat you differently for exercising your rights.
-- **Biometric notice (e.g. Illinois, Texas, Washington, Colorado).** Murmur's meeting feature creates voice embeddings, and OculOS creates eye and head measurements. They're created and stored only on your Mac to separate speakers, recognize people you choose to name, and track your gaze. We don't receive, sell, lease, trade or otherwise profit from them. Retention: [schedule in section 4]. [Counsel: whether written-release or consent language is needed, and from whom.]
+- **Biometric notice (e.g. Illinois, Texas, Washington, Colorado).** bocaS's meeting feature creates voice embeddings, and ojoS creates eye and head measurements. They're created and stored only on your Mac to separate speakers, recognize people you choose to name, and track your gaze. We don't receive, sell, lease, trade or otherwise profit from them. Retention: [schedule in section 4]. [Counsel: whether written-release or consent language is needed, and from whom.]
 
 ## 10. International users
 

@@ -1,24 +1,24 @@
-# Humanity: Privacy Requirements (traced from the code)
+# sentidoS: Privacy Requirements (traced from the code)
 
 | | |
 |---|---|
-| Scope | Humanity suite v1.0.0 (`Humanity`, `OculOS`, `ManOS`, `Murmur`, `MeetingKit`, `AIKit`, `LicenseKit`) and the bundled dependency FluidAudio 0.17.4 (`MeetingKit/Package.resolved`) |
+| Scope | sentidoS suite v1.0.0 (`sentidoS`, `ojoS`, `manoS`, `bocaS`, `MeetingKit`, `AIKit`, `LicenseKit`) and the bundled dependency FluidAudio 0.17.4 (`MeetingKit/Package.resolved`) |
 | Date | 2026-10-01 |
 | Prepared by | Privacy engineering / research analysis. **This is not legal advice.** Every legal statement below is a pointer for counsel, not a conclusion. |
 | Method | I read `PRIVACY.md`, `README.md` and `SECURITY.md`, then traced every sensor, file write, network call, log call, clipboard access, Accessibility (AX) call, window-list call and CGEvent post in the source. I searched every Swift source for `URLSession`, `URLRequest`, `FileManager`, `write(to:`, `UserDefaults`, `Logger`/`os_log`/`print`, `NSPasteboard`, `AXUIElement`, `CGWindowList`, `CGEvent`, `addGlobalMonitorForEvents`, `isExcludedFromBackup`, `posixPermissions` and `temporaryDirectory`. Where this document disagrees with the docs, the code wins. |
 | Evidence format | `path:line` relative to the repo root. FluidAudio paths are under `MeetingKit/.build/checkouts/FluidAudio/`. |
-| Baseline | **All line references are against git commit `e098368`** ("Launch prep: Gumroad license keys, 1.0.0, license notices"); I spot-checked them with `git show HEAD:<path>`. While this audit ran, other work modified about 40 files in the working tree without committing. Examples: `PRIVACY.md`, `README.md`, the `Info.plist` files, `LicenseKit`, `AIKit`, `OculOS` and `VoiceProfileStore.swift` (which gained `consentAt`, `lastMatchedAt` and retention), and `scripts/app.entitlements` was deleted. **Those uncommitted changes are not part of this audit.** Some of them start to address findings below. Re-run the §6 claim check and the §9 tests after they land, and in particular check that any new PRIVACY.md wording (such as consent prompts or "Delete All Murmur Data") matches the shipped code. |
+| Baseline | **All line references are against git commit `e098368`** ("Launch prep: Gumroad license keys, 1.0.0, license notices"); I spot-checked them with `git show HEAD:<path>`. While this audit ran, other work modified about 40 files in the working tree without committing. Examples: `PRIVACY.md`, `README.md`, the `Info.plist` files, `LicenseKit`, `AIKit`, `ojoS` and `VoiceProfileStore.swift` (which gained `consentAt`, `lastMatchedAt` and retention), and `scripts/app.entitlements` was deleted. **Those uncommitted changes are not part of this audit.** Some of them start to address findings below. Re-run the §6 claim check and the §9 tests after they land, and in particular check that any new PRIVACY.md wording (such as consent prompts or "Delete All bocaS Data") matches the shipped code. |
 
 ---
 
 ## 0. Top findings (read this first)
 
-1. **Dictation audio is saved to disk by default, contrary to PRIVACY.md.** When "Keep dictations in the Library" is on (the default), each dictation is recorded to `~/Library/Application Support/Murmur/Recordings/<UUID>.m4a` (`Murmur/Sources/MurmurUI/AppModel.swift:75-77,168-170`). PRIVACY.md says Murmur keeps "text, and audio for notes".
+1. **Dictation audio is saved to disk by default, contrary to PRIVACY.md.** When "Keep dictations in the Library" is on (the default), each dictation is recorded to `~/Library/Application Support/bocaS/Recordings/<UUID>.m4a` (`bocaS/Sources/MurmurUI/AppModel.swift:75-77,168-170`). PRIVACY.md says bocaS keeps "text, and audio for notes".
 2. **Every meeting stores a voiceprint of every remote speaker, named or not.** `meeting.json` holds `diarization.centroids`, one 256-float WeSpeaker embedding per speaker cluster (`MeetingKit/Sources/MeetingKit/Transcript.swift:31-41`, `Meeting.swift:131`). They are kept indefinitely and survive deleting the matching voice profile. PRIVACY.md mentions only the "voice profiles" of people you name.
 3. **Naming a speaker creates a voiceprint, with no consent step.** Typing a name in the "Who is this?" popover calls `VoiceProfileStore.enroll` or `refine` (`Meeting.swift:53-67`, `MeetingDetailView.swift:110-118`). Renaming and remembering a voice can't be done separately, and the person whose voice it is is never asked.
-4. **Meeting recording has no consent gate.** The only safeguard is a static caption ("Tell everyone on the call…", `MeetingRecorderControl.swift:66-70`). If no app is playing audio, the source silently falls back to **All system audio** (`MeetingRecorderControl.swift:78-82,93`). The menu bar icon doesn't show that a meeting is being recorded (`Humanity/Sources/Humanity/HumanityApp.swift:548-550`).
+4. **Meeting recording has no consent gate.** The only safeguard is a static caption ("Tell everyone on the call…", `MeetingRecorderControl.swift:66-70`). If no app is playing audio, the source silently falls back to **All system audio** (`MeetingRecorderControl.swift:78-82,93`). The menu bar icon doesn't show that a meeting is being recorded (`sentidoS/Sources/sentidoS/HumanityApp.swift:548-550`).
 5. **Cloud AI runs automatically on meetings and notes once configured.** If the user has picked a provider for "Summaries", every processed meeting and every note goes to that provider without asking again (`MeetingsView.swift:60,90`, `AppModel.swift:287,360`). For meetings, that means other participants' words and the names the user gave them.
-6. **The "password fields are never sent" promise rests on a heuristic.** It holds only when macOS reports secure input (`IsSecureEventInputEnabled()`, `AppModel.swift:153,248`). Even when it works, the spoken password appears in the on-screen HUD while the user speaks (`Murmur/Sources/MurmurUI/Views/HUD.swift:84`).
+6. **The "password fields are never sent" promise rests on a heuristic.** It holds only when macOS reports secure input (`IsSecureEventInputEnabled()`, `AppModel.swift:153,248`). Even when it works, the spoken password appears in the on-screen HUD while the user speaks (`bocaS/Sources/MurmurUI/Views/HUD.swift:84`).
 7. **There's no "delete all data" control, no retention limit and no backup exclusion anywhere.** Time Machine backs up all of it, including raw meeting audio and voiceprints, and APFS local snapshots keep it too. If the app crashes mid-recording, the audio is left as an orphan file the UI never shows and "Delete All" never removes.
 8. **The network surface matches the docs, with small gaps.** The only egress is Gumroad, the AI provider the user picked, Hugging Face (via FluidAudio) and Apple's own model downloads. I found no analytics, telemetry, crash reporting or update checks in the app or in FluidAudio's diarization path. The gaps: the license check runs at launch, not weekly; the AI settings screen fetches model lists automatically; and FluidAudio honors environment variables that can redirect its downloads.
 
@@ -74,29 +74,29 @@ Several labels can apply at once.
 
 ## 3. Storage map (everything the code writes)
 
-The apps are **not sandboxed**: `scripts/app.entitlements:5-10` declares only camera and audio input. So nothing is under `~/Library/Containers`. Every module, whether hosted by Humanity or run as a standalone app, shares these paths.
+The apps are **not sandboxed**: `scripts/app.entitlements:5-10` declares only camera and audio input. So nothing is under `~/Library/Containers`. Every module, whether hosted by sentidoS or run as a standalone app, shares these paths.
 
 | Path | Written by | Contents | Personal? |
 |---|---|---|---|
-| `~/Library/Application Support/OculOS/calibration.json` | `OculOS/Sources/OculOSUI/Engine/Persistence.swift:110-124` | Gaze model, calibration samples, up to 400 learned-click samples, display name and size | Yes, BIOMETRIC-adjacent |
-| `~/Library/Application Support/OculOS/Recordings/<UUID>.json` | `OculOS/Sources/OculOSUI/Recording/RecordingStore.swift:84-89` | Gaze samples (t, x, y), name, date, duration, screen size | Yes |
-| `~/Library/Application Support/OculOS/Recordings/<UUID>.png` | `RecordingStore.swift:56-58,90,93-98` | Full-display screenshot (optional) | Yes, SENSITIVE |
-| `~/Library/Application Support/OculOS/Models/GazeCNN.mlmodelc`, `name.txt` | `Persistence.swift:87-108` | A Core ML model the user loaded | No |
-| `~/Library/Application Support/VisionGaze/` (legacy) | Moved into `OculOS/` at first launch (`Persistence.swift:71-75`) | Old-name data | Yes |
-| `~/Library/Application Support/Murmur/Recordings/<UUID>.json` | `Murmur/Sources/MurmurKit/RecordingStore.swift:13-16,27-33` | Transcript, cleaned text, summary, action items, target app, date, duration | Yes, SENSITIVE |
-| `~/Library/Application Support/Murmur/Recordings/<UUID>.m4a` | `Murmur/Sources/MurmurUI/Engine/AudioRecorder.swift:28` via `AppModel.swift:168-170` | Mic audio of notes **and dictations** | Yes, SENSITIVE, BIOMETRIC-capable |
-| `~/Library/Application Support/Humanity/Meetings/<yyyy-MM-dd HH.mm.ss>/mic.m4a` | `MeetingKit/Sources/MeetingKit/MeetingRecorder.swift:17,81,86` | User's mic, mono AAC 48 kHz | Yes, SENSITIVE |
+| `~/Library/Application Support/ojoS/calibration.json` | `ojoS/Sources/OculOSUI/Engine/Persistence.swift:110-124` | Gaze model, calibration samples, up to 400 learned-click samples, display name and size | Yes, BIOMETRIC-adjacent |
+| `~/Library/Application Support/ojoS/Recordings/<UUID>.json` | `ojoS/Sources/OculOSUI/Recording/RecordingStore.swift:84-89` | Gaze samples (t, x, y), name, date, duration, screen size | Yes |
+| `~/Library/Application Support/ojoS/Recordings/<UUID>.png` | `RecordingStore.swift:56-58,90,93-98` | Full-display screenshot (optional) | Yes, SENSITIVE |
+| `~/Library/Application Support/ojoS/Models/GazeCNN.mlmodelc`, `name.txt` | `Persistence.swift:87-108` | A Core ML model the user loaded | No |
+| `~/Library/Application Support/VisionGaze/` (legacy) | Moved into `ojoS/` at first launch (`Persistence.swift:71-75`) | Old-name data | Yes |
+| `~/Library/Application Support/bocaS/Recordings/<UUID>.json` | `bocaS/Sources/MurmurKit/RecordingStore.swift:13-16,27-33` | Transcript, cleaned text, summary, action items, target app, date, duration | Yes, SENSITIVE |
+| `~/Library/Application Support/bocaS/Recordings/<UUID>.m4a` | `bocaS/Sources/MurmurUI/Engine/AudioRecorder.swift:28` via `AppModel.swift:168-170` | Mic audio of notes **and dictations** | Yes, SENSITIVE, BIOMETRIC-capable |
+| `~/Library/Application Support/sentidoS/Meetings/<yyyy-MM-dd HH.mm.ss>/mic.m4a` | `MeetingKit/Sources/MeetingKit/MeetingRecorder.swift:17,81,86` | User's mic, mono AAC 48 kHz | Yes, SENSITIVE |
 | `…/Meetings/<folder>/system.m4a` | `MeetingRecorder.swift:18,87` | Call app's (or all system) audio, stereo | Yes (3P), SENSITIVE |
 | `…/Meetings/<folder>/recording.json` | `MeetingRecorder.swift:24-25,134` | Title ("<App> call"), start, duration, capture errors | Yes |
 | `…/Meetings/<folder>/meeting.json` | `MeetingKit/Sources/MeetingKit/Meeting.swift:69-71,131`; `MeetingsView.swift:57,76` | Word-level timed transcript of both tracks, diarization segments, **per-speaker voice embeddings**, speaker names, profile IDs | Yes (3P), BIOMETRIC, SENSITIVE |
-| `…/Meetings/<folder>/summary.json` | `Murmur/Sources/MurmurUI/Views/MeetingsView.swift:101,119-121` | Summary, action items, per-speaker points | Yes (3P) |
-| `~/Library/Application Support/Humanity/VoiceProfiles/profiles.json` | `MeetingKit/Sources/MeetingKit/VoiceProfileStore.swift:45-50,136-142` | Name, up to 20 voice embeddings each, last update | Yes (3P), BIOMETRIC |
-| `~/Library/Application Support/Humanity/license.json` | `LicenseKit/Sources/LicenseKit/License.swift:25-37` | License key (plaintext) and last verification time | Yes (pseudonymous) |
+| `…/Meetings/<folder>/summary.json` | `bocaS/Sources/MurmurUI/Views/MeetingsView.swift:101,119-121` | Summary, action items, per-speaker points | Yes (3P) |
+| `~/Library/Application Support/sentidoS/VoiceProfiles/profiles.json` | `MeetingKit/Sources/MeetingKit/VoiceProfileStore.swift:45-50,136-142` | Name, up to 20 voice embeddings each, last update | Yes (3P), BIOMETRIC |
+| `~/Library/Application Support/sentidoS/license.json` | `LicenseKit/Sources/LicenseKit/License.swift:25-37` | License key (plaintext) and last verification time | Yes (pseudonymous) |
 | `~/Library/Application Support/FluidAudio/Models/…` | FluidAudio `Sources/FluidAudio/Shared/MLModelConfigurationUtils.swift:37-42` | Diarization Core ML models downloaded from Hugging Face | No |
-| `~/Library/Preferences/io.github.pikabrofar.humanity.plist` (standalone apps: `…humanity.OculOS`, `…humanity.ManOS`, `…humanity.Murmur`) | `UserDefaults.standard` (§4.16) | Settings, hand profile, custom vocabulary, AI routing | Some |
+| `~/Library/Preferences/io.github.pikabrofar.humanity.plist` (standalone apps: `…humanity.ojoS`, `…humanity.manoS`, `…humanity.bocaS`) | `UserDefaults.standard` (§4.16) | Settings, hand profile, custom vocabulary, AI routing | Some |
 | Login Keychain, generic password, service `io.github.pikabrofar.humanity.ai`, account `<providerID>` | `AIKit/Sources/AIKit/KeychainStore.swift:6-48` | AI provider API keys | Credential |
-| Apple-managed speech assets (system location) | `Murmur/Sources/MurmurUI/Engine/Transcriber.swift:70-73`; `MeetingKit/Sources/MeetingKit/FileTranscriber.swift:46-49` | Apple speech model | No |
-| Any location the user picks in a Save panel | `OculOS/Sources/OculOSUI/AppModel.swift:319-331`; `Murmur/Sources/MurmurUI/Views/LibraryView.swift:201-206`; `MeetingsView.swift:273-283` | CSV gaze samples, heatmap PNG (with screenshot), Markdown transcripts and summaries | Yes |
+| Apple-managed speech assets (system location) | `bocaS/Sources/MurmurUI/Engine/Transcriber.swift:70-73`; `MeetingKit/Sources/MeetingKit/FileTranscriber.swift:46-49` | Apple speech model | No |
+| Any location the user picks in a Save panel | `ojoS/Sources/OculOSUI/AppModel.swift:319-331`; `bocaS/Sources/MurmurUI/Views/LibraryView.swift:201-206`; `MeetingsView.swift:273-283` | CSV gaze samples, heatmap PNG (with screenshot), Markdown transcripts and summaries | Yes |
 | `~/Library/Logs/DiagnosticReports/` | macOS, not app code | Crash reports | Low |
 
 **Not written anywhere:** camera frames, the full 76-point face landmark set, hand landmarks, clipboard contents, AX element data, window lists, AI request and response bodies (`LLMClient.swift:32-40` uses an ephemeral session with `urlCache = nil`) and Gumroad response bodies. I found no temp-file use (`temporaryDirectory` doesn't appear in app sources).
@@ -114,12 +114,12 @@ Each entry lists: **Captured**, **Stored**, **Retention**, **Transmitted**, **Cl
 - **Retention.** Per frame, in memory only.
 - **Transmitted.** No. There's no network code on this path.
 - **Classification.** RAW · PERSONAL (user and 3P bystanders) · SENSITIVE · BIOMETRIC-capable (face and hand geometry can be extracted).
-- **Deletion control.** Not applicable. Turning the camera off: in Humanity it stops when no module needs it. The standalone OculOS starts the camera at launch.
+- **Deletion control.** Not applicable. Turning the camera off: in sentidoS it stops when no module needs it. The standalone ojoS starts the camera at launch.
 - **Evidence.**
-  - Frame handling: `OculOS/Sources/GazeKit/CameraCapture.swift:82-118` (configure), `:112-114` (format, discard late frames), `:192-202` (delegate passes the buffer to handlers and keeps nothing).
-  - Analysis: `OculOS/Sources/GazeKit/FaceFeatureExtractor.swift:44-105`; `OculOS/Sources/GazeKit/GazeNetwork.swift:28-43`; `ManOS/Sources/ManOSUI/Engine/HandEngine.swift:267-289`.
-  - Previews: `OculOS/Sources/OculOSUI/Views/CameraPreview.swift:18`; `ManOS/Sources/ManOSUI/Views/CameraView.swift:18`.
-  - Camera on/off: `Humanity/Sources/Humanity/HumanityApp.swift:102-107` (pause); `OculOS/Sources/OculOSUI/AppModel.swift:88-90` (standalone starts at init).
+  - Frame handling: `ojoS/Sources/GazeKit/CameraCapture.swift:82-118` (configure), `:112-114` (format, discard late frames), `:192-202` (delegate passes the buffer to handlers and keeps nothing).
+  - Analysis: `ojoS/Sources/GazeKit/FaceFeatureExtractor.swift:44-105`; `ojoS/Sources/GazeKit/GazeNetwork.swift:28-43`; `manoS/Sources/ManOSUI/Engine/HandEngine.swift:267-289`.
+  - Previews: `ojoS/Sources/OculOSUI/Views/CameraPreview.swift:18`; `manoS/Sources/ManOSUI/Views/CameraView.swift:18`.
+  - Camera on/off: `sentidoS/Sources/sentidoS/HumanityApp.swift:102-107` (pause); `ojoS/Sources/OculOSUI/AppModel.swift:88-90` (standalone starts at init).
 
 ### 4.2 Face and eye landmarks (and derived gaze features)
 
@@ -137,12 +137,12 @@ Each entry lists: **Captured**, **Stored**, **Retention**, **Transmitted**, **Cl
 - **Retention.** Indefinite. Recalibrating replaces the file and resets learned clicks. Learned clicks are capped at the newest 400.
 - **Transmitted.** No.
 - **Classification.** DERIVED · PERSONAL · BIOMETRIC-adjacent: head pose and eye geometry could be argued to be a "scan of face geometry" (BIPA) or used to uniquely identify a person (GDPR Art. 9); counsel to decide · SENSITIVE (gaze and blink can reveal health or attention traits).
-- **Deletion control.** **Exists, partially.** OculOS → Calibrate → **Clear Calibration** deletes `calibration.json`, including the learned clicks. The button only appears when a calibration exists. There's no control for the legacy `VisionGaze` folder, because it is migrated rather than kept.
+- **Deletion control.** **Exists, partially.** ojoS → Calibrate → **Clear Calibration** deletes `calibration.json`, including the learned clicks. The button only appears when a calibration exists. There's no control for the legacy `VisionGaze` folder, because it is migrated rather than kept.
 - **Evidence.**
-  - Capture and features: `FaceFeatureExtractor.swift:36-41,51-104`; `OculOS/Sources/GazeKit/GazeFeatures.swift:20-37`; `OculOS/Sources/GazeKit/GazeCalibration.swift:5-8,70-80,421-425`.
-  - Storage: `OculOS/Sources/OculOSUI/Engine/Persistence.swift:6-19` (fields and the 400 cap), `:110-124` (file); `OculOS/Sources/OculOSUI/Calibration/CalibrationController.swift:145-155` (the stored samples).
-  - Learned clicks: `OculOS/Sources/OculOSUI/AppModel.swift:57-59` (default on), `:103-125` (global monitor); `OculOS/Sources/OculOSUI/Engine/GazeEngine.swift:226-227,277-298`.
-  - Clear Calibration: `OculOS/Sources/OculOSUI/Views/CalibrationPage.swift:100` → `AppModel.swift:244-247` → `GazeEngine.swift:27-46` → `Persistence.swift:118-123`.
+  - Capture and features: `FaceFeatureExtractor.swift:36-41,51-104`; `ojoS/Sources/GazeKit/GazeFeatures.swift:20-37`; `ojoS/Sources/GazeKit/GazeCalibration.swift:5-8,70-80,421-425`.
+  - Storage: `ojoS/Sources/OculOSUI/Engine/Persistence.swift:6-19` (fields and the 400 cap), `:110-124` (file); `ojoS/Sources/OculOSUI/Calibration/CalibrationController.swift:145-155` (the stored samples).
+  - Learned clicks: `ojoS/Sources/OculOSUI/AppModel.swift:57-59` (default on), `:103-125` (global monitor); `ojoS/Sources/OculOSUI/Engine/GazeEngine.swift:226-227,277-298`.
+  - Clear Calibration: `ojoS/Sources/OculOSUI/Views/CalibrationPage.swift:100` → `AppModel.swift:244-247` → `GazeEngine.swift:27-46` → `Persistence.swift:118-123`.
 
 ### 4.3 Eye patches
 
@@ -152,47 +152,47 @@ Each entry lists: **Captured**, **Stored**, **Retention**, **Transmitted**, **Cl
 - **Transmitted.** No.
 - **Classification.** DERIVED from RAW pixels; strictly, a tiny eye image · PERSONAL · BIOMETRIC-adjacent: CPRA "imagery of the iris" (§ 1798.140(c)). At 10 × 6 with rank equalization, iris recognition is implausible, but counsel should decide.
 - **Deletion control.** Clear Calibration (as §4.2).
-- **Evidence.** `OculOS/Sources/GazeKit/EyePatch.swift:7-9` (size), `:15-68` (sampling), `:71-77` (equalization); `FaceFeatureExtractor.swift:93`; `GazeCalibration.swift:421-425,439-451`.
-- **Doc conflict.** `Humanity/Resources/Info.plist:31-32` and `OculOS/Resources/Info.plist` say "Video is … never stored." PRIVACY.md is more accurate here: it mentions the patches.
+- **Evidence.** `ojoS/Sources/GazeKit/EyePatch.swift:7-9` (size), `:15-68` (sampling), `:71-77` (equalization); `FaceFeatureExtractor.swift:93`; `GazeCalibration.swift:421-425,439-451`.
+- **Doc conflict.** `sentidoS/Resources/Info.plist:31-32` and `ojoS/Resources/Info.plist` say "Video is … never stored." PRIVACY.md is more accurate here: it mentions the patches.
 
 ### 4.4 Gaze coordinates and recordings
 
 - **Captured.**
   - Live: the smoothed gaze point on the calibrated display, normalized 0…1, plus a 24-point trail, in memory.
-  - Recording: started with ⌥⌘R, a global hotkey, or from the UI. Each sample is (t relative to the start, x, y). "Hide OculOS while recording" can hide the app.
-- **Stored.** `OculOS/Recordings/<UUID>.json` holds the name (defaults to the date and time), date, duration, screen size and all samples. A recording is saved only if it has more than 10 samples.
+  - Recording: started with ⌥⌘R, a global hotkey, or from the UI. Each sample is (t relative to the start, x, y). "Hide ojoS while recording" can hide the app.
+- **Stored.** `ojoS/Recordings/<UUID>.json` holds the name (defaults to the date and time), date, duration, screen size and all samples. A recording is saved only if it has more than 10 samples.
 - **Retention.** Indefinite.
 - **Transmitted.** No. Export to CSV or PNG goes to a user-chosen file.
 - **Classification.** DERIVED · PERSONAL · potentially SENSITIVE (attention patterns; some research links gaze dynamics to health conditions) · arguably behavioral-biometric (counsel).
 - **Deletion control.** **Exists.** Recordings → Delete, per recording, removes the JSON and PNG. There's no bulk delete.
 - **Evidence.**
   - Live gaze: `GazeEngine.swift:233-253`.
-  - Recording: `OculOS/Sources/OculOSUI/AppModel.swift:91-93` (hotkey), `:255-290` (start and stop); `RecordingStore.swift:6-16,54-61,84-90`.
-  - Delete: `OculOS/Sources/OculOSUI/Views/RecordingsPage.swift:16` → `RecordingStore.swift:69-74`.
+  - Recording: `ojoS/Sources/OculOSUI/AppModel.swift:91-93` (hotkey), `:255-290` (start and stop); `RecordingStore.swift:6-16,54-61,84-90`.
+  - Delete: `ojoS/Sources/OculOSUI/Views/RecordingsPage.swift:16` → `RecordingStore.swift:69-74`.
   - Export: `AppModel.swift:319-331`.
 
 ### 4.5 Screenshots
 
-- **Captured.** One still of the whole calibrated display at native pixel resolution, taken at the start of a gaze recording. It uses ScreenCaptureKit, leaves the cursor out and excludes only Humanity's own windows. Everything else on screen is included: messages, documents, notifications, video-call participants' faces, and passwords if they're visible.
-- **Stored.** `OculOS/Recordings/<UUID>.png`. The heatmap export composites it into a user-chosen PNG.
+- **Captured.** One still of the whole calibrated display at native pixel resolution, taken at the start of a gaze recording. It uses ScreenCaptureKit, leaves the cursor out and excludes only sentidoS's own windows. Everything else on screen is included: messages, documents, notifications, video-call participants' faces, and passwords if they're visible.
+- **Stored.** `ojoS/Recordings/<UUID>.png`. The heatmap export composites it into a user-chosen PNG.
 - **Retention.** Indefinite, until the recording is deleted.
 - **Transmitted.** No.
 - **Classification.** RAW · PERSONAL (user and 3P) · SENSITIVE · BIOMETRIC-capable if faces are on screen.
 - **Deletion control.** **Exists**, with the recording (`RecordingStore.swift:73`). The setting is **off by default** (`AppModel.swift:54-56`) and needs Screen Recording permission.
-- **Evidence.** `OculOS/Sources/OculOSUI/Recording/ScreenshotCapture.swift:8-19`; `AppModel.swift:265-268`; `RecordingStore.swift:54-61`; `OculOS/Sources/OculOSUI/Views/SettingsView.swift:111-114` (setting text: "Screenshots stay on this Mac").
+- **Evidence.** `ojoS/Sources/OculOSUI/Recording/ScreenshotCapture.swift:8-19`; `AppModel.swift:265-268`; `RecordingStore.swift:54-61`; `ojoS/Sources/OculOSUI/Views/SettingsView.swift:111-114` (setting text: "Screenshots stay on this Mac").
 
 ### 4.6 Hand landmarks and hand calibration
 
 - **Captured.** Vision hand pose for up to 2 hands per frame: 21 joints with chirality. These drive the pointer and gestures. During Quick Setup, about 45 frames of relaxed index-pinch distance and 3 pinch minima are collected.
 - **Stored.**
   - Landmarks: not stored.
-  - Hand profile (`HandProfile`: pinch enter and exit thresholds in palm units, sensitivity, scroll speed, invert, flick settings): stored as JSON in **UserDefaults** key `ManOS.profile`. The handedness flag is stored as `ManOS.leftHanded`.
-  - **No `ManOS/` folder is ever created**, contrary to PRIVACY.md.
+  - Hand profile (`HandProfile`: pinch enter and exit thresholds in palm units, sensitivity, scroll speed, invert, flick settings): stored as JSON in **UserDefaults** key `manoS.profile`. The handedness flag is stored as `manoS.leftHanded`.
+  - **No `manoS/` folder is ever created**, contrary to PRIVACY.md.
 - **Retention.** Indefinite. Recalibrating overwrites it.
 - **Transmitted.** No.
 - **Classification.** Landmarks: RAW/DERIVED, BIOMETRIC-capable ("scan of hand geometry"), but transient. Profile: DERIVED, PERSONAL, low sensitivity (a few scalars, though derived from hand geometry; counsel).
 - **Deletion control.** **None in the app.** There's no reset; only `defaults delete` removes it.
-- **Evidence.** `ManOS/Sources/ManOSUI/Engine/HandEngine.swift:20-22,45-53,178,267-289`; `ManOS/Sources/ManOSUI/Views/SetupView.swift:159-201`; `ManOS/Sources/HandKit/HandProfile.swift:4-33,58-64`; `ManOS/Sources/ManOSUI/Engine/Persistence.swift:5-29`.
+- **Evidence.** `manoS/Sources/ManOSUI/Engine/HandEngine.swift:20-22,45-53,178,267-289`; `manoS/Sources/ManOSUI/Views/SetupView.swift:159-201`; `manoS/Sources/HandKit/HandProfile.swift:4-33,58-64`; `manoS/Sources/ManOSUI/Engine/Persistence.swift:5-29`.
 
 ### 4.7 Mic audio (dictation)
 
@@ -201,16 +201,16 @@ Each entry lists: **Captured**, **Stored**, **Retention**, **Transmitted**, **Cl
   - What: `AVAudioEngine` input tap, in the device's format, converted to 48 kHz mono AAC. Buffers go to the on-device recognizer.
   - Which recognizer: SpeechAnalyzer on macOS 26, or `SFSpeechRecognizer` with `requiresOnDeviceRecognition = true`, which **refuses to run** if on-device recognition is unavailable.
 - **Stored.** **Yes, by default.**
-  - `saveAudio = (keepHistory && !secure) || kind == .note`, and `keepHistory` defaults to `true`, so dictation audio is written to `Murmur/Recordings/<UUID>.m4a` while you speak.
+  - `saveAudio = (keepHistory && !secure) || kind == .note`, and `keepHistory` defaults to `true`, so dictation audio is written to `bocaS/Recordings/<UUID>.m4a` while you speak.
   - Deleted when: the session is cancelled, the transcript comes back empty, an error occurs, the app quits normally during a dictation, or secure input was detected at start **or** end.
 - **Retention.** Indefinite while history is on. **A crash or force-quit mid-dictation leaves an orphan `.m4a` with no JSON.** `loadAll()` lists only `.json` files, so the orphan never appears in the Library, and "Delete All" iterates only listed recordings, so it never deletes it.
 - **Transmitted.** No. There's no code path that uploads audio.
 - **Classification.** RAW · PERSONAL · SENSITIVE · BIOMETRIC-capable (CPRA § 1798.140(c) counts voice recordings from which a voiceprint can be extracted) · may include 3P voices.
 - **Deletion control.** **Exists.** Library → trash, per item, with confirmation; Settings → History → **Delete All Recordings…**; turning off "Keep dictations in the Library" stops future saves but doesn't purge existing ones.
 - **Evidence.**
-  - Recording and save logic: `Murmur/Sources/MurmurUI/Engine/AudioRecorder.swift:16-50,68-76`; `Murmur/Sources/MurmurUI/AppModel.swift:75-77,153-154,157-158,168-173,221-227,277-282,299-320,331-337`.
-  - Recognizers: `Murmur/Sources/MurmurUI/Engine/Transcriber.swift:29-34,66-76,197-202`.
-  - Store and delete: `Murmur/Sources/MurmurKit/RecordingStore.swift:36-48`; `AppModel.swift:396-406`; `Murmur/Sources/MurmurUI/MurmurModule.swift:126,134,142-145`.
+  - Recording and save logic: `bocaS/Sources/MurmurUI/Engine/AudioRecorder.swift:16-50,68-76`; `bocaS/Sources/MurmurUI/AppModel.swift:75-77,153-154,157-158,168-173,221-227,277-282,299-320,331-337`.
+  - Recognizers: `bocaS/Sources/MurmurUI/Engine/Transcriber.swift:29-34,66-76,197-202`.
+  - Store and delete: `bocaS/Sources/MurmurKit/RecordingStore.swift:36-48`; `AppModel.swift:396-406`; `bocaS/Sources/MurmurUI/MurmurModule.swift:126,134,142-145`.
 
 ### 4.8 Dictation text and history
 
@@ -222,20 +222,20 @@ Each entry lists: **Captured**, **Stored**, **Retention**, **Transmitted**, **Cl
     - else built-in rules.
   - The frontmost app's **localized name** (for example "Notes").
   - Partial transcripts are shown live in a HUD panel on screen.
-- **Stored.** `Murmur/Recordings/<UUID>.json` (pretty-printed) holds the id, `createdAt`, duration, kind, transcript, cleaned text, summary, action items and target app, if `keepHistory` is on. In **secure-input** sessions: no cleanup, no JSON, the audio deleted, and the text **typed** as synthetic keystrokes rather than pasted.
+- **Stored.** `bocaS/Recordings/<UUID>.json` (pretty-printed) holds the id, `createdAt`, duration, kind, transcript, cleaned text, summary, action items and target app, if `keepHistory` is on. In **secure-input** sessions: no cleanup, no JSON, the audio deleted, and the text **typed** as synthetic keystrokes rather than pasted.
 - **Retention.** Indefinite.
 - **Transmitted.** Only if the user has set a cloud provider for "Dictation cleanup": the **raw text** goes to that provider. The 2 s timeout doesn't cancel a request already sent. Custom words go only to Apple's on-device recognizer as contextual strings.
 - **Classification.** DERIVED · PERSONAL · SENSITIVE (anything dictated, including credentials whenever the secure-input heuristic misses).
 - **Deletion control.** **Exists.** Per item, plus Delete All (§4.7).
 - **Evidence.**
-  - Data model: `Murmur/Sources/MurmurKit/Recording.swift:4-37`.
-  - Flow: `AppModel.swift:153-154,159,165,246-282`; `AIKit/Sources/AIKit/Tasks.swift:77-85`; `Murmur/Sources/MurmurUI/Engine/Intelligence.swift:36-42`; `Murmur/Sources/MurmurUI/Engine/TextInserter.swift:45-62`; `Murmur/Sources/MurmurKit/PasteSequence.swift:25-27`.
-  - HUD: `Murmur/Sources/MurmurUI/Views/HUD.swift:84`.
+  - Data model: `bocaS/Sources/MurmurKit/Recording.swift:4-37`.
+  - Flow: `AppModel.swift:153-154,159,165,246-282`; `AIKit/Sources/AIKit/Tasks.swift:77-85`; `bocaS/Sources/MurmurUI/Engine/Intelligence.swift:36-42`; `bocaS/Sources/MurmurUI/Engine/TextInserter.swift:45-62`; `bocaS/Sources/MurmurKit/PasteSequence.swift:25-27`.
+  - HUD: `bocaS/Sources/MurmurUI/Views/HUD.swift:84`.
 
 ### 4.9 Notes audio
 
-- **Captured.** Same pipeline as dictation, started from Murmur → Record a Note.
-- **Stored.** **Always**: `Murmur/Recordings/<UUID>.m4a` plus `.json`. If transcription fails or returns nothing, the audio is kept with an empty transcript so it can be retried.
+- **Captured.** Same pipeline as dictation, started from bocaS → Record a Note.
+- **Stored.** **Always**: `bocaS/Recordings/<UUID>.m4a` plus `.json`. If transcription fails or returns nothing, the audio is kept with an empty transcript so it can be retried.
 - **Retention.** Indefinite.
 - **Transmitted.** The audio isn't. The note's **text** is summarized automatically after saving, and goes to a cloud provider if "Summaries" is set to one. "Summarize Again" re-sends it.
 - **Classification.** RAW · PERSONAL · SENSITIVE · BIOMETRIC-capable · may include 3P (for example a recorded conversation).
@@ -248,11 +248,11 @@ Each entry lists: **Captured**, **Stored**, **Retention**, **Transmitted**, **Cl
   - `mic.m4a`: the user's microphone ("You").
   - `system.m4a`: one of the following.
     - The **selected app's audio**, via a Core Audio process tap (macOS 14.4+).
-    - **All system audio**: a global tap excluding only Humanity, which picks up media, notifications and other apps.
+    - **All system audio**: a global tap excluding only sentidoS, which picks up media, notifications and other apps.
     - The ScreenCaptureKit fallback. Its 2 × 2 video frames are received and ignored.
   - Default source: the first app currently playing audio; **otherwise All system audio, without a warning**.
 - **Stored.**
-  - Folder: `~/Library/Application Support/Humanity/Meetings/<yyyy-MM-dd HH.mm.ss>/` holds `mic.m4a`, `system.m4a` and `recording.json`. `meeting.json` and `summary.json` are added after processing.
+  - Folder: `~/Library/Application Support/sentidoS/Meetings/<yyyy-MM-dd HH.mm.ss>/` holds `mic.m4a`, `system.m4a` and `recording.json`. `meeting.json` and `summary.json` are added after processing.
   - `recording.json` is written **only at stop**. A crash mid-meeting leaves a folder of audio with no JSON, which `unprocessed()` ignores. The UI never lists it, and it can't be deleted in the app.
   - Quitting normally stops and saves the recording, which is then offered for processing.
 - **Retention.** Indefinite. Raw audio is kept after processing.
@@ -263,7 +263,7 @@ Each entry lists: **Captured**, **Stored**, **Retention**, **Transmitted**, **Cl
 - **Evidence.**
   - Recorder: `MeetingKit/Sources/MeetingKit/MeetingRecorder.swift:17-34,68-104,108-143,146-168,193-197`.
   - Capture paths: `MeetingKit/Sources/MeetingKit/Capture/ProcessTapCapture.swift:25-33`; `MeetingKit/Sources/MeetingKit/Capture/ScreenCaptureAudio.swift:12-41,47-48`; `MeetingKit/Sources/MeetingKit/Capture/TrackWriter.swift:31-50`.
-  - UI: `MeetingKit/Sources/MeetingUI/MeetingRecorderControl.swift:22-28,66-70,78-82,93`; `Murmur/Sources/MurmurUI/Views/MeetingsView.swift:104-112,161,170`; `Humanity/Sources/Humanity/HumanityApp.swift:548-550,565-573`.
+  - UI: `MeetingKit/Sources/MeetingUI/MeetingRecorderControl.swift:22-28,66-70,78-82,93`; `bocaS/Sources/MurmurUI/Views/MeetingsView.swift:104-112,161,170`; `sentidoS/Sources/sentidoS/HumanityApp.swift:548-550,565-573`.
 
 ### 4.11 Transcripts
 
@@ -277,7 +277,7 @@ Each entry lists: **Captured**, **Stored**, **Retention**, **Transmitted**, **Cl
 - **Retention.** Indefinite.
 - **Transmitted.** Each processed meeting's plain-text transcript, as "Name: text" lines including **names the user typed for other people**, is summarized automatically after processing. If "Summaries" is set to a cloud provider, it goes there in chunks (map-reduce). On-device fallback: Apple Intelligence, then extractive.
 - **Classification.** DERIVED · PERSONAL (**3P**) · SENSITIVE.
-- **Deletion control.** **Exists, per meeting** (the folder). Murmur items are covered by §4.7.
+- **Deletion control.** **Exists, per meeting** (the folder). bocaS items are covered by §4.7.
 - **Evidence.**
   - Data: `MeetingKit/Sources/MeetingKit/Transcript.swift:4-14`; `Meeting.swift:5-25,104-133`.
   - Recognizers: `MeetingKit/Sources/MeetingKit/FileTranscriber.swift:44-49,86,116`.
@@ -299,7 +299,7 @@ Each entry lists: **Captured**, **Stored**, **Retention**, **Transmitted**, **Cl
 - **Captured.** When the user names a speaker cluster in a meeting, through the "Who is this?" popover or by picking a "Known voice":
   - an existing profile with that name gets the cluster's centroid added;
   - otherwise a new profile is created.
-- **Stored.** `Humanity/VoiceProfiles/profiles.json` holds id, **name**, up to 20 L2-normalized embeddings and `updatedAt`.
+- **Stored.** `sentidoS/VoiceProfiles/profiles.json` holds id, **name**, up to 20 L2-normalized embeddings and `updatedAt`.
 - **Retention.** Indefinite. The embeddings cap is 20, oldest dropped. There's no expiry.
 - **Transmitted.** No.
 - **Classification.** DERIVED · **BIOMETRIC** (voiceprint linked to a name) · PERSONAL (**3P**) · SENSITIVE.
@@ -347,7 +347,7 @@ Each entry lists: **Captured**, **Stored**, **Retention**, **Transmitted**, **Cl
 ### 4.15 License key file
 
 - **Captured.** The Gumroad license key, from typing or pasting, or auto-filled from the clipboard (§4.18).
-- **Stored.** `~/Library/Application Support/Humanity/license.json` holds `{key, verifiedAt}` in **plaintext**. It is shared by all Humanity apps.
+- **Stored.** `~/Library/Application Support/sentidoS/license.json` holds `{key, verifiedAt}` in **plaintext**. It is shared by all sentidoS apps.
 - **Retention.**
   - Kept until Gumroad rejects it at a recheck: invalid, refunded, chargebacked or disputed. Then the file is deleted.
   - The app stays unlocked for 60 days after the last successful check.
@@ -365,15 +365,15 @@ Each entry lists: **Captured**, **Stored**, **Retention**, **Transmitted**, **Cl
 
   | Key | Contents | Classification |
   |---|---|---|
-  | `Humanity.seenTutorial`, `Humanity.gazeOn` | Flags (`HumanityApp.swift:75-82`) | NON-PERSONAL |
-  | `Humanity.start` | Dev launch argument (`:92`) | NON-PERSONAL |
-  | `OculOS.cameraID` | AVCaptureDevice unique ID | Device identifier, low |
-  | `OculOS.pupilRefinement`, `stability`, `responsiveness`, `showCursor`, `cursorStyle`, `cursorSize`, `completedSetup`, `hideWhileRecording`, `captureScreenshot`, `learnFromClicks`, `dwellClick`, `dwellTime`, `snapToTargets` | Settings (`OculOS/Sources/OculOSUI/Engine/Persistence.swift:129-147`) | NON-PERSONAL |
-  | `ManOS.leftHanded` | Handedness | PERSONAL, low |
-  | `ManOS.showHUD`, `completedSetup` | Settings | NON-PERSONAL |
-  | `ManOS.profile` | Hand profile JSON (§4.6) | DERIVED, PERSONAL, low |
-  | `Murmur.completedSetup`, `cleanup`, `useIntelligence`, `keepHistory`, `restoreClipboard` | Settings (`Murmur/Sources/MurmurUI/Engine/Persistence.swift:6-19`) | NON-PERSONAL |
-  | `Murmur.vocabulary` | Free-text custom words, often **people's names** | PERSONAL |
+  | `sentidoS.seenTutorial`, `sentidoS.gazeOn` | Flags (`HumanityApp.swift:75-82`) | NON-PERSONAL |
+  | `sentidoS.start` | Dev launch argument (`:92`) | NON-PERSONAL |
+  | `ojoS.cameraID` | AVCaptureDevice unique ID | Device identifier, low |
+  | `ojoS.pupilRefinement`, `stability`, `responsiveness`, `showCursor`, `cursorStyle`, `cursorSize`, `completedSetup`, `hideWhileRecording`, `captureScreenshot`, `learnFromClicks`, `dwellClick`, `dwellTime`, `snapToTargets` | Settings (`ojoS/Sources/OculOSUI/Engine/Persistence.swift:129-147`) | NON-PERSONAL |
+  | `manoS.leftHanded` | Handedness | PERSONAL, low |
+  | `manoS.showHUD`, `completedSetup` | Settings | NON-PERSONAL |
+  | `manoS.profile` | Hand profile JSON (§4.6) | DERIVED, PERSONAL, low |
+  | `bocaS.completedSetup`, `cleanup`, `useIntelligence`, `keepHistory`, `restoreClipboard` | Settings (`bocaS/Sources/MurmurUI/Engine/Persistence.swift:6-19`) | NON-PERSONAL |
+  | `bocaS.vocabulary` | Free-text custom words, often **people's names** | PERSONAL |
   | `AIKit.settings` | Which provider and model per task | PERSONAL, low (reveals provider use) |
 
 - AppKit and SwiftUI may add framework-managed keys, such as window frames and the last Save-panel directory. Verify with `defaults read io.github.pikabrofar.humanity`.
@@ -383,16 +383,16 @@ Each entry lists: **Captured**, **Stored**, **Retention**, **Transmitted**, **Cl
 
 ### 4.17 Logs (`os_log` / `Logger` / `print`)
 
-- **App code.** There is exactly **one** logger: `Logger(subsystem: "Murmur", category: "latency")`. It logs `"Key release to text inserted: \(ms) ms"`, an integer. **No transcript text, keys, file paths, gaze or face data is logged by app code.** There are no `print` or `NSLog` calls.
+- **App code.** There is exactly **one** logger: `Logger(subsystem: "bocaS", category: "latency")`. It logs `"Key release to text inserted: \(ms) ms"`, an integer. **No transcript text, keys, file paths, gaze or face data is logged by app code.** There are no `print` or `NSLog` calls.
 - `LLMClient` deliberately doesn't log, and redacts the key from provider error text. That text, truncated to 300 characters, is **shown in the UI**, not logged.
 - **FluidAudio** (dependency).
   - It uses its own `AppLogger`, subsystem `com.fluidinference`, at info and debug level, writing to the unified log.
   - In release builds, warnings and above also go to stderr (`mirrorsToConsole` defaults to `true`).
   - On the diarization path it logs model directory paths, which contain the macOS user's home directory and therefore the account name, plus timings and counts. I saw no transcript or audio content at these call sites.
-  - Humanity never configures `AppLogger.minimumLevel` or `mirrorsToConsole`.
+  - sentidoS never configures `AppLogger.minimumLevel` or `mirrorsToConsole`.
 - **Apple frameworks** (AVFoundation, Speech, ScreenCaptureKit, Core ML, Vision) write their own unified-log entries. **macOS crash reports** go to `~/Library/Logs/DiagnosticReports`, and to Apple only if the user enabled sharing.
 - **Classification.** NON-PERSONAL, except paths that include the account name (PERSONAL, low).
-- **Evidence.** `Murmur/Sources/MurmurUI/AppModel.swift:7,33,266-270`; `AIKit/Sources/AIKit/LLMClient.swift:106,116-117,165-176`. FluidAudio: `Sources/FluidAudio/Shared/AppLogger.swift:10,25-28,52-61`; `Sources/FluidAudio/Diarizer/Offline/Core/OfflineDiarizerModels.swift:81`; `Sources/FluidAudio/Diarizer/Offline/Core/OfflineDiarizerManager.swift:95`.
+- **Evidence.** `bocaS/Sources/MurmurUI/AppModel.swift:7,33,266-270`; `AIKit/Sources/AIKit/LLMClient.swift:106,116-117,165-176`. FluidAudio: `Sources/FluidAudio/Shared/AppLogger.swift:10,25-28,52-61`; `Sources/FluidAudio/Diarizer/Offline/Core/OfflineDiarizerModels.swift:81`; `Sources/FluidAudio/Diarizer/Offline/Core/OfflineDiarizerManager.swift:95`.
 
 ### 4.18 Clipboard use
 
@@ -409,7 +409,7 @@ Each entry lists: **Captured**, **Stored**, **Retention**, **Transmitted**, **Cl
 - **Stored or transmitted by the app.** No.
 - **Classification.** Clipboard contents: arbitrary, potentially SENSITIVE and PERSONAL, in memory only.
 - **Deletion control.** Not applicable. "Restore the clipboard after pasting" is a toggle.
-- **Evidence.** `Murmur/Sources/MurmurUI/Engine/TextInserter.swift:6-37,45-62`; `Murmur/Sources/MurmurKit/PasteSequence.swift:59-75`; `Murmur/Sources/MurmurUI/AppModel.swift:78-80,266`; `LibraryView.swift:196-199`; `MeetingsView.swift:268-271`; `MeetingDetailView.swift:29-31`; `LicenseKit/Sources/LicenseKit/ActivationWindow.swift:69-72`.
+- **Evidence.** `bocaS/Sources/MurmurUI/Engine/TextInserter.swift:6-37,45-62`; `bocaS/Sources/MurmurKit/PasteSequence.swift:59-75`; `bocaS/Sources/MurmurUI/AppModel.swift:78-80,266`; `LibraryView.swift:196-199`; `MeetingsView.swift:268-271`; `MeetingDetailView.swift:29-31`; `LicenseKit/Sources/LicenseKit/ActivationWindow.swift:69-72`.
 
 ### 4.19 The Accessibility tree (snap-to-target)
 
@@ -419,33 +419,33 @@ Each entry lists: **Captured**, **Stored**, **Retention**, **Transmitted**, **Cl
   - For each hit, it reads **only** `kAXRoleAttribute` and climbs up to 4 levels of `kAXParentAttribute`. For elements with a clickable role, it reads `kAXPositionAttribute` and `kAXSizeAttribute`.
 - **What it doesn't read.** **It never reads titles, values, descriptions, selected text or labels** (`kAXTitle`, `kAXValue` and the like aren't referenced anywhere in the repo).
 - **Stored or transmitted.** No. The element references are discarded after picking the nearest frame center.
-- **Other AX use.** `AXIsProcessTrusted` checks only. Murmur detects password fields through Carbon's `IsSecureEventInputEnabled()`, not through AX.
+- **Other AX use.** `AXIsProcessTrusted` checks only. bocaS detects password fields through Carbon's `IsSecureEventInputEnabled()`, not through AX.
 - **Classification.** NON-PERSONAL (UI geometry and roles). The **permission** itself is broad, so the policy should state the narrow use.
-- **Evidence.** `OculOS/Sources/GazeKit/GazeClick.swift:50-53,61-68,80-101,113-124`; `OculOS/Sources/OculOSUI/AppModel.swift:68-70,94-96,136-170`.
+- **Evidence.** `ojoS/Sources/GazeKit/GazeClick.swift:50-53,61-68,80-101,113-124`; `ojoS/Sources/OculOSUI/AppModel.swift:68-70,94-96,136-170`.
 
-### 4.20 Window info (ManOS flick "auto")
+### 4.20 Window info (manoS flick "auto")
 
 - **What it reads.** On a V-sign flick with `flickAction == .auto` (the default), `CGWindowListCopyWindowInfo([.optionOnScreenOnly, .excludeDesktopElements])` returns every on-screen window's info dictionary. The code reads **only `kCGWindowLayer` and `kCGWindowBounds`**, to find the height of the frontmost normal window under the pointer. It ignores owner names, PIDs and window names; without Screen Recording permission, macOS withholds window names anyway.
 - **Stored or transmitted.** No.
 - **Classification.** NON-PERSONAL.
-- **Evidence.** `ManOS/Sources/ManOSUI/Engine/EventInjector.swift:61-67,78-87`; `ManOS/Sources/HandKit/HandProfile.swift:20,24-33`.
+- **Evidence.** `manoS/Sources/ManOSUI/Engine/EventInjector.swift:61-67,78-87`; `manoS/Sources/HandKit/HandProfile.swift:20,24-33`.
 
 ### 4.21 CGEvent posting (and input observation)
 
 - **Posted.** All posts go to `.cghidEventTap`, so they reach whatever app is frontmost.
-  - **ManOS:** mouse move, drag, left down/up with click count, right click, phased scroll, flick scroll and ↑/↓ keys. Tagged `eventSourceUserData = 0x0C01`.
-  - **OculOS:** move plus left click at the gaze point. Tagged `0x6A2E`.
-  - **Murmur:** ⌘V, or Unicode keystrokes for the dictated text (used in terminals and secure fields), in chunks of up to 20 UTF-16 units, with newlines turned into spaces.
+  - **manoS:** mouse move, drag, left down/up with click count, right click, phased scroll, flick scroll and ↑/↓ keys. Tagged `eventSourceUserData = 0x0C01`.
+  - **ojoS:** move plus left click at the gaze point. Tagged `0x6A2E`.
+  - **bocaS:** ⌘V, or Unicode keystrokes for the dictated text (used in terminals and secure fields), in chunks of up to 20 UTF-16 units, with newlines turned into spaces.
 - **Observed.**
   - The cursor position (`CGEvent(source: nil).location`) and modifier state (`CGEventSource.flagsState`, `NSEvent.modifierFlags`).
-  - OculOS's **global left-mouse-down monitor**, which reads the click location for learn-from-clicks (§4.2).
+  - ojoS's **global left-mouse-down monitor**, which reads the click location for learn-from-clicks (§4.2).
   - Carbon hot keys for the suite's own shortcuts only (⌥⌘R, ⌃⌥⌘G, ⌃⌥⌘H, ⌃⌥⌘D, and Esc during dictation).
   - There's **no keystroke monitoring and no event tap**.
 - **Stored or transmitted.** No.
 - **Classification.** NON-PERSONAL control events. The dictated text inside typed events is PERSONAL in transit to the target app.
 - **Evidence.**
-  - Posting: `ManOS/Sources/ManOSUI/Engine/EventInjector.swift:24-131`; `OculOS/Sources/GazeKit/GazeClick.swift:104-111`; `Murmur/Sources/MurmurUI/Engine/TextInserter.swift:64-95`.
-  - Observing: `ManOS/Sources/ManOSUI/Engine/HandEngine.swift:184,233`; `OculOS/Sources/OculOSUI/AppModel.swift:103-125,153-161`; `OculOS/Sources/GazeKit/HotKey.swift:18-44`; `Murmur/Sources/MurmurUI/Engine/HotKey.swift`; `Murmur/Sources/MurmurUI/AppModel.swift:106-108,157-158`.
+  - Posting: `manoS/Sources/ManOSUI/Engine/EventInjector.swift:24-131`; `ojoS/Sources/GazeKit/GazeClick.swift:104-111`; `bocaS/Sources/MurmurUI/Engine/TextInserter.swift:64-95`.
+  - Observing: `manoS/Sources/ManOSUI/Engine/HandEngine.swift:184,233`; `ojoS/Sources/OculOSUI/AppModel.swift:103-125,153-161`; `ojoS/Sources/GazeKit/HotKey.swift:18-44`; `bocaS/Sources/MurmurUI/Engine/HotKey.swift`; `bocaS/Sources/MurmurUI/AppModel.swift:106-108,157-158`.
 
 ---
 
@@ -458,7 +458,7 @@ Each entry lists: **Captured**, **Stored**, **Retention**, **Transmitted**, **Cl
 | N3 | Hugging Face (`https://huggingface.co` by default) via FluidAudio | Processing a meeting when the models are missing or their pinned revision changed | Model and file requests plus IP and User-Agent; `Authorization: Bearer $HF_TOKEN` **if that environment variable is set**. The host can be redirected by `REGISTRY_URL` or `MODEL_REGISTRY_URL` | `Diarizer.swift:24-30`; FluidAudio `ModelRegistry.swift:32-37`, `Shared/Download/HFClient.swift:26-41`, `Shared/Download/ModelHub.swift:344` |
 | N4 | Apple (OS-managed) | First dictation or file transcription in a language on macOS 26 (`AssetInventory`) | Apple's asset request; audio is not sent | `Transcriber.swift:70-73`; `FileTranscriber.swift:46-49` |
 | N5 | Browser opens a URL (not app networking) | "Buy a License" (`gumroad.com/l/hamkad`); "Get a key" links | Whatever the browser sends | `ActivationWindow.swift:59`; `AIProvidersView.swift:148` |
-| N6 | GitHub, PyPI, github.com/yakhyo | User runs `make cnn-model` themselves | Script downloads | `OculOS/scripts/make-cnn-model.sh:16-24` |
+| N6 | GitHub, PyPI, github.com/yakhyo | User runs `make cnn-model` themselves | Script downloads | `ojoS/scripts/make-cnn-model.sh:16-24` |
 
 **Not found:** analytics, telemetry, crash reporting, update checks, ad SDKs or device fingerprinting. I grepped the app sources, and FluidAudio's diarization and download paths (FluidAudio's TTS downloader isn't used). I also found no remote config.
 
@@ -480,22 +480,22 @@ Each entry lists: **Captured**, **Stored**, **Retention**, **Transmitted**, **Cl
 | C10 | License check "about once a week … Nothing else is sent" (PRIVACY.md:23-25) | **Inaccurate** | It runs at launch when > 7 days have passed, not on a schedule (`ActivationWindow.swift:9-11`; `License.swift:111-114`). `increment_uses_count` is also sent. 60-day offline lockout. |
 | C11 | "Everything is stored under `~/Library/Application Support/`, and you can delete it at any time." (PRIVACY.md:30-31) | **False / incomplete** | UserDefaults are in `~/Library/Preferences`; keys are in the Keychain; FluidAudio models; exports anywhere. There's no in-app delete-all; orphan audio is invisible (§4.7, §4.10); Time Machine and snapshots keep copies. |
 | C12 | "Camera frames are never stored. Each frame is analyzed in memory and discarded." (PRIVACY.md:33-34); "Video is … never stored or transmitted" (Info.plist camera strings) | **True for frames; the plist wording overstates it** | Eye-region pixel patches from frames are stored (§4.3). Suggested plist text: "Video frames are processed on this Mac and never saved or sent. Calibration keeps small eye-feature measurements." |
-| C13 | OculOS saves "eye-feature measurements, a few model parameters and small 10×6-pixel eye patches" (PRIVACY.md:35-37) | **Incomplete** | Also stores head pose, face position and size, timestamps, display name and size, and **up to 400 samples captured from your mouse clicks anywhere on screen** (global monitor, on by default). |
+| C13 | ojoS saves "eye-feature measurements, a few model parameters and small 10×6-pixel eye patches" (PRIVACY.md:35-37) | **Incomplete** | Also stores head pose, face position and size, timestamps, display name and size, and **up to 400 samples captured from your mouse clicks anywhere on screen** (global monitor, on by default). |
 | C14 | Recordings: "gaze coordinates and an optional screenshot" (PRIVACY.md:36-37) | **Supported** | Say that the screenshot is the **whole display** and may contain other people's information. |
-| C15 | "To delete it, use OculOS → Calibrate → Clear Calibration, or delete the folder." (PRIVACY.md:38) | **Partial** | Clear Calibration removes only `calibration.json`. Recordings, screenshots and the loaded CNN are deleted separately; settings remain. |
-| C16 | "ManOS (`ManOS/`) saves your pinch thresholds and settings. Nothing else." (PRIVACY.md:39) | **Wrong location** | It's in UserDefaults (`ManOS/Sources/ManOSUI/Engine/Persistence.swift:19-29`). "Nothing else" is supported. |
-| C17 | Murmur saves "text, and audio for notes" (PRIVACY.md:40-41) | **False** | **Dictation audio is saved by default** (`AppModel.swift:75-77,168`). It also stores the target app name, cleaned text, summaries and action items. |
+| C15 | "To delete it, use ojoS → Calibrate → Clear Calibration, or delete the folder." (PRIVACY.md:38) | **Partial** | Clear Calibration removes only `calibration.json`. Recordings, screenshots and the loaded CNN are deleted separately; settings remain. |
+| C16 | "manoS (`manoS/`) saves your pinch thresholds and settings. Nothing else." (PRIVACY.md:39) | **Wrong location** | It's in UserDefaults (`manoS/Sources/ManOSUI/Engine/Persistence.swift:19-29`). "Nothing else" is supported. |
+| C17 | bocaS saves "text, and audio for notes" (PRIVACY.md:40-41) | **False** | **Dictation audio is saved by default** (`AppModel.swift:75-77,168`). It also stores the target app name, cleaned text, summaries and action items. |
 | C18 | Meetings save "mic and call audio, the transcript and its summary" (PRIVACY.md:42-43) | **Incomplete** | Also **voice embeddings of every remote speaker**, word timings and metadata. "Call audio" can be all system audio. No bulk delete; deletion is via the context menu. |
 | C19 | Voice profiles "for each person you name … Delete profiles in Meetings → Voice Profiles" (PRIVACY.md:44-46) | **Partial** | Naming is the consent-less enrollment trigger, and recognition is automatic. Deleting a profile leaves the embeddings in `meeting.json`. |
 | C20 | "Tell people when you record a meeting, and follow your local consent laws." (PRIVACY.md:48-49) | **Advice only** | The app doesn't enforce or record consent (`MeetingRecorderControl.swift:66-70`). |
-| C21 | "All permissions are granted to Humanity once." (PRIVACY.md:53) | **Partial** | Standalone apps have separate grants (`Permissions.swift:172`). |
+| C21 | "All permissions are granted to sentidoS once." (PRIVACY.md:53) | **Partial** | Standalone apps have separate grants (`Permissions.swift:172`). |
 | C22 | Accessibility use list (PRIVACY.md:59-60) | **Supported** | Also synthesized typing and arrow keys. Add "reads only on-screen element roles and positions, never their text". Disclose the global mouse-click monitor (needs no permission). |
 | C23 | Screen Recording for heatmaps and "call audio on older macOS" (PRIVACY.md:61-62) | **Imprecise** | ScreenCaptureKit is also the fallback when a process tap fails on new macOS (`MeetingRecorder.swift:146-167`). |
 | C24 | "all network code is in `AIKit/`, `LicenseKit/` and MeetingKit's `Diarizer.swift`" (PRIVACY.md:64-66) | **Imprecise** | The download code is in the FluidAudio dependency. Apple downloads are triggered from `Transcriber.swift` and `FileTranscriber.swift`. |
 | C25 | "Camera and audio are processed on-device with Apple's frameworks … no account" (README.md:4-6) | **Imprecise** | Diarization uses third-party FluidAudio models. Activation requires a Gumroad purchase, and Gumroad holds the buyer's details. |
 | C26 | "See PRIVACY.md for exactly what is stored" (README.md:29) | **Overstated** | See C11–C19. |
-| C27 | `NSSpeechRecognitionUsageDescription`: "Nothing is sent to Apple or anyone else." (`Humanity/Resources/Info.plist:39-40`; `Murmur/Resources/Info.plist:33-34`) | **Misleading when cloud AI is set** | Recognition is local, but the resulting text may go to the user's AI provider. Reword: "Speech is recognized on this Mac; audio is never sent." |
-| C28 | Murmur Settings: "Everything is stored only in Application Support on this Mac." (`Murmur/Sources/MurmurUI/MurmurModule.swift:127`) | **Overstated** | Backups and cloud summaries; vocabulary is in Preferences. |
+| C27 | `NSSpeechRecognitionUsageDescription`: "Nothing is sent to Apple or anyone else." (`sentidoS/Resources/Info.plist:39-40`; `bocaS/Resources/Info.plist:33-34`) | **Misleading when cloud AI is set** | Recognition is local, but the resulting text may go to the user's AI provider. Reword: "Speech is recognized on this Mac; audio is never sent." |
+| C28 | bocaS Settings: "Everything is stored only in Application Support on this Mac." (`bocaS/Sources/MurmurUI/MurmurModule.swift:127`) | **Overstated** | Backups and cloud summaries; vocabulary is in Preferences. |
 | C29 | `VoiceProfileStore.swift:4-5`: "none is kept" | **Inaccurate in context** | Meeting audio is kept (§4.10). |
 | C30 | Tutorial: "Camera and audio stay on this Mac." (`HumanityApp.swift:416`) | **Supported** for app code | Backups copy them (§7). |
 | C31 | SECURITY.md: "declare only the camera and microphone entitlements" | **True** | Consequence to disclose: no App Sandbox, so data isn't containerized and any process running as the user can read it. |
@@ -510,12 +510,12 @@ Each entry lists: **Captured**, **Stored**, **Retention**, **Transmitted**, **Cl
 
 ### 7.2 Deletion
 - There's **no suite-wide "delete all data"**. Existing controls:
-  - Murmur: Delete All Recordings, which misses orphans, meetings and voice profiles.
-  - OculOS: Clear Calibration and per-recording delete.
+  - bocaS: Delete All Recordings, which misses orphans, meetings and voice profiles.
+  - ojoS: Clear Calibration and per-recording delete.
   - Meetings: per-meeting delete through the context menu, with no confirmation and no bulk option.
   - Voice Profiles: delete.
   - AI: Remove Key.
-- **No control at all for:** UserDefaults (including `Murmur.vocabulary` and `ManOS.profile`), `license.json`, FluidAudio models, orphaned dictation audio, orphaned meeting folders, or `meeting.json` embeddings without deleting the meeting.
+- **No control at all for:** UserDefaults (including `bocaS.vocabulary` and `manoS.profile`), `license.json`, FluidAudio models, orphaned dictation audio, orphaned meeting folders, or `meeting.json` embeddings without deleting the meeting.
 - Turning off "Keep dictations in the Library" doesn't purge what's already saved.
 
 ### 7.3 Orphans (deletion controls can't reach them)
@@ -526,7 +526,7 @@ Each entry lists: **Captured**, **Stored**, **Retention**, **Transmitted**, **Cl
 - **Time Machine** backs up `~/Library` by default. Nothing sets `URLResourceValues.isExcludedFromBackup` (https://developer.apple.com/documentation/foundation/urlresourcevalues/isexcludedfrombackup). So raw meeting audio, dictation audio, screenshots, voiceprints and calibration data are copied to every backup disk, and **APFS local snapshots** keep deleted files for a while. **Deleting in the app doesn't delete backups.** Third-party backup tools and Migration Assistant copy them too.
 - **iCloud Drive "Desktop & Documents"** syncs only `~/Desktop` and `~/Documents`, not `~/Library/Application Support`, so app stores are **not** iCloud-synced. **User exports** saved to the Desktop or Documents, such as transcripts, CSVs and heatmap PNGs with screenshots, **will** sync when that feature is on.
 - **Universal Clipboard** may carry dictated text and copied transcripts to other devices (§4.18).
-- **Spotlight** indexing of `~/Library/Application Support` JSON should be checked (`mdfind -onlyin ~/Library/Application\ Support/Murmur "<word you dictated>"`). If they're indexed, consider `.noindex` directory names.
+- **Spotlight** indexing of `~/Library/Application Support` JSON should be checked (`mdfind -onlyin ~/Library/Application\ Support/bocaS "<word you dictated>"`). If they're indexed, consider `.noindex` directory names.
 - Because the apps aren't sandboxed, nothing is containerized, and **any process running as the user can read these files** without a TCC prompt.
 
 ### 7.5 File permissions and encryption at rest
@@ -613,7 +613,7 @@ Run the retention sweep at launch and every 24 hours while the app runs. Show th
 
 ### 8.8 One "Data & Privacy" screen in every app
 - An inventory with paths, sizes and counts, and "Show in Finder" for each store.
-- "Delete all Humanity data on this Mac". It covers every path in §3, Keychain items, UserDefaults domains and, optionally, the license and FluidAudio models. It should also offer to open Time Machine settings, because backups aren't touched.
+- "Delete all sentidoS data on this Mac". It covers every path in §3, Keychain items, UserDefaults domains and, optionally, the license and FluidAudio models. It should also offer to open Time Machine settings, because backups aren't touched.
 - "Export my data" as a zip.
 
 ---
@@ -625,12 +625,12 @@ P0 means legal exposure or a public claim that's false today. P1 means a signifi
 ### P0
 
 **P0-1. Make every public statement match the code.**
-- *Files:* `PRIVACY.md`; `README.md:4-6,29`; `Humanity/Resources/Info.plist:28,32,36,40`; `OculOS/Resources/Info.plist`; `ManOS/Resources/Info.plist:28`; `Murmur/Resources/Info.plist:26,30,34`; `Humanity/Sources/Humanity/Permissions.swift:37-45` (add the OculOS gaze click to the Accessibility reason); `Murmur/Sources/MurmurUI/MurmurModule.swift:127`; `MeetingKit/Sources/MeetingKit/VoiceProfileStore.swift:4-5`.
+- *Files:* `PRIVACY.md`; `README.md:4-6,29`; `sentidoS/Resources/Info.plist:28,32,36,40`; `ojoS/Resources/Info.plist`; `manoS/Resources/Info.plist:28`; `bocaS/Resources/Info.plist:26,30,34`; `sentidoS/Sources/sentidoS/Permissions.swift:37-45` (add the ojoS gaze click to the Accessibility reason); `bocaS/Sources/MurmurUI/MurmurModule.swift:127`; `MeetingKit/Sources/MeetingKit/VoiceProfileStore.swift:4-5`.
 - *Fix:* Apply every correction in §6, C3–C29. At minimum:
   - dictation audio is stored;
   - every remote speaker's voiceprint is stored per meeting;
   - learned clicks;
-  - the ManOS location;
+  - the manoS location;
   - the license recheck timing;
   - the password-field heuristic;
   - backups.
@@ -659,7 +659,7 @@ P0 means legal exposure or a public claim that's false today. P1 means a signifi
   - `processor does not match profiles when recognition is off`.
 
 **P0-4. Stop keeping unenrolled speakers' embeddings, and scrub embeddings on profile delete.**
-- *Files:* `MeetingKit/Sources/MeetingKit/Meeting.swift:104-133`; `MeetingKit/Sources/MeetingKit/Transcript.swift:31-41`; `MeetingKit/Sources/MeetingKit/VoiceProfileStore.swift:124-127`; `Murmur/Sources/MurmurUI/Views/MeetingsView.swift:35-47`.
+- *Files:* `MeetingKit/Sources/MeetingKit/Meeting.swift:104-133`; `MeetingKit/Sources/MeetingKit/Transcript.swift:31-41`; `MeetingKit/Sources/MeetingKit/VoiceProfileStore.swift:124-127`; `bocaS/Sources/MurmurUI/Views/MeetingsView.swift:35-47`.
 - *Fix:*
   - Move `centroids` out of `meeting.json` into `pending-voices.json` with `expiresAt = processedAt + 30 days`. Delete that file when it expires or when every cluster is named or dismissed.
   - Add a one-time migration in `MeetingsModel.reload()` that strips `centroids` from existing `meeting.json` files, or moves them to pending files with expiry.
@@ -669,37 +669,37 @@ P0 means legal exposure or a public claim that's false today. P1 means a signifi
 ### P1
 
 **P1-1. Dictation audio off by default.**
-- *Files:* `Murmur/Sources/MurmurUI/AppModel.swift:75-77,168`; `Murmur/Sources/MurmurUI/Engine/Persistence.swift:8`; `Murmur/Sources/MurmurUI/MurmurModule.swift:124-128`.
+- *Files:* `bocaS/Sources/MurmurUI/AppModel.swift:75-77,168`; `bocaS/Sources/MurmurUI/Engine/Persistence.swift:8`; `bocaS/Sources/MurmurUI/MurmurModule.swift:124-128`.
 - *Fix:* Add a new key `keepDictationAudio` (default `false`), and use `saveAudio = kind == .note || (keepHistory && keepDictationAudio && !secure)`.
 - *Test:* Extract the decision into `MurmurKit` (`static func shouldSaveAudio(kind:keepHistory:keepAudio:secure:)`) and unit-test it. Manually: dictate with default settings and check that no `<id>.m4a` exists.
 
-**P1-2. Suite-wide "Delete all Humanity data" and a data inventory.**
-- *Files:* new `Humanity/Sources/Humanity/DataControls.swift`, added to the `Settings` TabView (`HumanityApp.swift:46-53`) and the sidebar; the same view in the standalone apps.
+**P1-2. Suite-wide "Delete all sentidoS data" and a data inventory.**
+- *Files:* new `sentidoS/Sources/sentidoS/DataControls.swift`, added to the `Settings` TabView (`HumanityApp.swift:46-53`) and the sidebar; the same view in the standalone apps.
 - *Fix:* Delete every path in §3, call `KeychainStore.delete` for each `Provider.all`, and call `UserDefaults.standard.removePersistentDomain(forName: Bundle.main.bundleIdentifier!)`. Offer the license file and FluidAudio models as options, show sizes and paths, and say that Time Machine copies aren't removed.
 - *Test:* An integration test with an injectable base directory: populate fixtures, run, and assert the directory is empty. Manually:
-  - `ls ~/Library/Application\ Support/{OculOS,Murmur,Humanity}` shows nothing;
+  - `ls ~/Library/Application\ Support/{ojoS,bocaS,sentidoS}` shows nothing;
   - `defaults read io.github.pikabrofar.humanity` reports that the domain doesn't exist;
   - `security find-generic-password -s io.github.pikabrofar.humanity.ai` finds nothing.
 
 **P1-3. Orphan recovery and cleanup.**
-- *Files:* `Murmur/Sources/MurmurKit/RecordingStore.swift:36-48`; `Murmur/Sources/MurmurUI/AppModel.swift:103-104,402-406`; `MeetingKit/Sources/MeetingKit/MeetingRecorder.swift:24-34,82,134`.
+- *Files:* `bocaS/Sources/MurmurKit/RecordingStore.swift:36-48`; `bocaS/Sources/MurmurUI/AppModel.swift:103-104,402-406`; `MeetingKit/Sources/MeetingKit/MeetingRecorder.swift:24-34,82,134`.
 - *Fix:*
   - Add `RecordingStore.orphanedAudio()`, which finds `.m4a` files with no matching `.json`. At launch, delete orphaned dictation audio, or list it as "Recovered audio". `deleteAll()` also removes every file in the directory.
   - Write `recording.json` at `start` (duration 0) and update it at stop. Make `unprocessed()` also list folders that contain `.m4a` files but no JSON.
 - *Test:* Put a stray `.m4a` in a temp store directory, and check that `orphanedAudio()` returns it and `deleteAll` removes it. Kill the app with `kill -9` mid-meeting, relaunch, and check that the meeting appears under Recent.
 
 **P1-4. Retention engine with defaults.**
-- *Files:* new `Murmur/Sources/MurmurKit/Retention.swift` and `MeetingKit/Sources/MeetingKit/Retention.swift`; called from `Murmur/Sources/MurmurUI/AppModel.swift:103` and `MeetingsView.swift:33`; settings in `MurmurModule.swift`; OculOS `RecordingStore.swift:45-52`.
+- *Files:* new `bocaS/Sources/MurmurKit/Retention.swift` and `MeetingKit/Sources/MeetingKit/Retention.swift`; called from `bocaS/Sources/MurmurUI/AppModel.swift:103` and `MeetingsView.swift:33`; settings in `MurmurModule.swift`; ojoS `RecordingStore.swift:45-52`.
 - *Fix:* Apply the §8.3 defaults, injecting the clock for tests.
 - *Test:* Fixtures with `createdAt` 31, 8 and 91 days old: after the sweep, only the expected files remain. Also test that "Keep audio" pins survive.
 
 **P1-5. Confirm before sending meeting transcripts and notes to a cloud provider.**
-- *Files:* `Murmur/Sources/MurmurUI/Views/MeetingsView.swift:60,81-102`; `Murmur/Sources/MurmurUI/AppModel.swift:287,355-375`; `AIKit/Sources/AIKit/Tasks.swift:39-42` (expose `isCloud(for:)`).
+- *Files:* `bocaS/Sources/MurmurUI/Views/MeetingsView.swift:60,81-102`; `bocaS/Sources/MurmurUI/AppModel.swift:287,355-375`; `AIKit/Sources/AIKit/Tasks.swift:39-42` (expose `isCloud(for:)`).
 - *Fix:* If the summaries route is a cloud provider, don't auto-summarize. Show "Summarize with <Provider>" (with a third-party notice for meetings) and an "On this Mac" option.
 - *Test:* Register a `URLProtocol` stub that records requests, process a fixture meeting with a provider configured, and assert zero requests until the user confirms.
 
 **P1-6. Password-field protection beyond the heuristic, and no HUD echo.**
-- *Files:* `Murmur/Sources/MurmurUI/AppModel.swift:153,248`; `Murmur/Sources/MurmurUI/Views/HUD.swift:84`.
+- *Files:* `bocaS/Sources/MurmurUI/AppModel.swift:153,248`; `bocaS/Sources/MurmurUI/Views/HUD.swift:84`.
 - *Fix:*
   - Also treat input as secure when the focused element's AX subrole is `kAXSecureTextFieldSubrole`. This reads one attribute of the focused element only; disclose it.
   - In secure sessions, show "•••" in the HUD instead of `partial`.
@@ -707,12 +707,12 @@ P0 means legal exposure or a public claim that's false today. P1 means a signifi
 - *Test:* A small test app with an `NSSecureTextField`: dictate into it, then assert no JSON or m4a for the session, no request recorded by the `URLProtocol` stub, and that the HUD shows the masked string.
 
 **P1-7. File permissions and backup exclusion.**
-- *Files:* `OculOS/Sources/OculOSUI/Engine/Persistence.swift:67-85`; `Murmur/Sources/MurmurKit/RecordingStore.swift:23-25`; `MeetingKit/Sources/MeetingKit/MeetingRecorder.swift:82`; `MeetingKit/Sources/MeetingKit/VoiceProfileStore.swift:136-137`; `LicenseKit/Sources/LicenseKit/License.swift:33-37`.
-- *Fix:* Add a shared helper `SecureStore.makeDirectory(_:)` that creates directories with `[.posixPermissions: 0o700]` and sets files to 0600 after writing. Add a "Back up recordings with Time Machine" setting; when it's off, set `isExcludedFromBackup = true` on `Murmur/Recordings`, `Humanity/Meetings` and `Humanity/VoiceProfiles`.
-- *Test:* `stat -f %Lp` returns `700` for directories and `600` for files. `tmutil isexcluded ~/Library/Application\ Support/Humanity/Meetings` reports `[Excluded]`.
+- *Files:* `ojoS/Sources/OculOSUI/Engine/Persistence.swift:67-85`; `bocaS/Sources/MurmurKit/RecordingStore.swift:23-25`; `MeetingKit/Sources/MeetingKit/MeetingRecorder.swift:82`; `MeetingKit/Sources/MeetingKit/VoiceProfileStore.swift:136-137`; `LicenseKit/Sources/LicenseKit/License.swift:33-37`.
+- *Fix:* Add a shared helper `SecureStore.makeDirectory(_:)` that creates directories with `[.posixPermissions: 0o700]` and sets files to 0600 after writing. Add a "Back up recordings with Time Machine" setting; when it's off, set `isExcludedFromBackup = true` on `bocaS/Recordings`, `sentidoS/Meetings` and `sentidoS/VoiceProfiles`.
+- *Test:* `stat -f %Lp` returns `700` for directories and `600` for files. `tmutil isexcluded ~/Library/Application\ Support/sentidoS/Meetings` reports `[Excluded]`.
 
 **P1-8. Meeting recording indicator.**
-- *Files:* `Humanity/Sources/Humanity/HumanityApp.swift:548-550`; `Murmur/Sources/MurmurUI/MurmurModule.swift:23` (expose `isRecordingMeeting`).
+- *Files:* `sentidoS/Sources/sentidoS/HumanityApp.swift:548-550`; `bocaS/Sources/MurmurUI/MurmurModule.swift:23` (expose `isRecordingMeeting`).
 - *Fix:* Show a distinct menu-bar symbol while `MeetingRecorder.isRecording` is true, and add a Stop item to the quick panel.
 - *Test:* Start a recording, close the window, and check that the menu-bar icon has changed and Stop works.
 
@@ -724,17 +724,17 @@ P0 means legal exposure or a public claim that's false today. P1 means a signifi
 ### P2
 
 **P2-1. Minimize the stored eye patches.**
-- *Files:* `OculOS/Sources/OculOSUI/Calibration/CalibrationController.swift:145-155`; `OculOS/Sources/OculOSUI/Engine/GazeEngine.swift:283-284`; `OculOS/Sources/OculOSUI/Engine/Persistence.swift:6-19`.
+- *Files:* `ojoS/Sources/OculOSUI/Calibration/CalibrationController.swift:145-155`; `ojoS/Sources/OculOSUI/Engine/GazeEngine.swift:283-284`; `ojoS/Sources/OculOSUI/Engine/Persistence.swift:6-19`.
 - *Fix:* Persist samples with `appearance = []`, except a capped, quantized subset needed for refits, or keep only the `AppearanceModel`.
 - *Test:* `calibration.json` has no `appearance` arrays longer than the cap. The existing `GazeKitTests` calibration accuracy stays within tolerance.
 
 **P2-2. Learn-from-clicks: disclosure and choice.**
-- *Files:* `OculOS/Sources/OculOSUI/Views/SettingsView.swift:59-66`; `OculOS/Sources/OculOSUI/AppModel.swift:57-59`.
+- *Files:* `ojoS/Sources/OculOSUI/Views/SettingsView.swift:59-66`; `ojoS/Sources/OculOSUI/AppModel.swift:57-59`.
 - *Fix:* Change the caption to "Records your face and eye measurements at each mouse click on this display." Ask during setup instead of defaulting to on.
 - *Test:* On a fresh defaults domain the setting reads false, or a prompt appears before the first click is learned.
 
 **P2-3. Screenshot safeguards.**
-- *Files:* `OculOS/Sources/OculOSUI/Views/SettingsView.swift:110-114`; `OculOS/Sources/OculOSUI/Recording/ScreenshotCapture.swift:8-19`.
+- *Files:* `ojoS/Sources/OculOSUI/Views/SettingsView.swift:110-114`; `ojoS/Sources/OculOSUI/Recording/ScreenshotCapture.swift:8-19`.
 - *Fix:* Warn that the screenshot captures the entire display, including other people's information, when the setting is enabled. Add downscale and blur options and 90-day retention (P1-4).
 - *Test:* Enabling shows the warning. The saved PNG matches the chosen scale.
 
@@ -752,17 +752,17 @@ P0 means legal exposure or a public claim that's false today. P1 means a signifi
 - *Test:* Opening AI Providers makes no request (`URLProtocol` stub). Each provider row shows its privacy link.
 
 **P2-6. Clipboard hardening.**
-- *Files:* `Murmur/Sources/MurmurUI/Engine/TextInserter.swift:18-36`; `Murmur/Sources/MurmurUI/Views/LibraryView.swift:196-199`; `Murmur/Sources/MurmurUI/Views/MeetingsView.swift:268-271`; `MeetingKit/Sources/MeetingUI/MeetingDetailView.swift:29-31`.
+- *Files:* `bocaS/Sources/MurmurUI/Engine/TextInserter.swift:18-36`; `bocaS/Sources/MurmurUI/Views/LibraryView.swift:196-199`; `bocaS/Sources/MurmurUI/Views/MeetingsView.swift:268-271`; `MeetingKit/Sources/MeetingUI/MeetingDetailView.swift:29-31`.
 - *Fix:* Call `board.prepareForNewContents(with: .currentHostOnly)` before writing. Add `org.nspasteboard.ConcealedType` for dictation writes.
 - *Test:* A unit test through the `Clipboard` protocol asserting the types written. Manually, with Handoff on, check that dictated text doesn't appear on a second device.
 
-**P2-7. ManOS reset and per-module "Delete data".**
-- *Files:* `ManOS/Sources/ManOSUI/Views/SetupView.swift`; `ManOS/Sources/ManOSUI/Engine/Persistence.swift`; `OculOS/Sources/OculOSUI/Views/SettingsView.swift`.
-- *Fix:* "Reset hand profile" removes `ManOS.profile` and `ManOS.leftHanded`. "Delete all OculOS data" removes calibration, recordings and models.
-- *Test:* After a reset, `defaults read io.github.pikabrofar.humanity ManOS.profile` fails.
+**P2-7. manoS reset and per-module "Delete data".**
+- *Files:* `manoS/Sources/ManOSUI/Views/SetupView.swift`; `manoS/Sources/ManOSUI/Engine/Persistence.swift`; `ojoS/Sources/OculOSUI/Views/SettingsView.swift`.
+- *Fix:* "Reset hand profile" removes `manoS.profile` and `manoS.leftHanded`. "Delete all ojoS data" removes calibration, recordings and models.
+- *Test:* After a reset, `defaults read io.github.pikabrofar.humanity manoS.profile` fails.
 
 **P2-8. Meeting delete UX.**
-- *Files:* `Murmur/Sources/MurmurUI/Views/MeetingsView.swift:160-171`.
+- *Files:* `bocaS/Sources/MurmurUI/Views/MeetingsView.swift:160-171`.
 - *Fix:* Add a confirmation dialog, a Delete button on the meeting page, and "Delete all meetings".
 - *Test:* A UI check that deleting removes the folder (`ls` it afterwards).
 
@@ -780,25 +780,25 @@ P0 means legal exposure or a public claim that's false today. P1 means a signifi
 
 **P3-3. CI guard on network and logging surface.**
 - *Files:* `.github/workflows/ci.yml`.
-- *Fix:* Fail the build if `URLSession`, `Logger(`, `os_log`, `print(` or `NSLog` appear outside an allowlist (`AIKit/Sources/AIKit/LLMClient.swift`, `LicenseKit/Sources/LicenseKit/License.swift`, `Murmur/Sources/MurmurUI/AppModel.swift:33`).
+- *Fix:* Fail the build if `URLSession`, `Logger(`, `os_log`, `print(` or `NSLog` appear outside an allowlist (`AIKit/Sources/AIKit/LLMClient.swift`, `LicenseKit/Sources/LicenseKit/License.swift`, `bocaS/Sources/MurmurUI/AppModel.swift:33`).
 - *Test:* Add a dummy `URLSession` call on a test branch and confirm CI fails.
 
 **P3-4. No-write test for the camera path.**
-- *Files:* `OculOS/Tests/GazeKitTests/GazeKitTests.swift`.
+- *Files:* `ojoS/Tests/GazeKitTests/GazeKitTests.swift`.
 - *Fix:* Run `FaceFeatureExtractor.analyze` on a synthetic pixel buffer in a sandboxed temp HOME and assert no files were created.
 - *Test:* The test itself.
 
-**P3-5. Standalone OculOS camera-on-launch.**
-- *Files:* `OculOS/Sources/OculOSUI/AppModel.swift:88-90`.
-- *Fix:* Start the camera only when the user opens Live or Calibrate, or turns tracking on, matching Humanity's behavior.
-- *Test:* Launch standalone OculOS; the camera indicator stays off until tracking is enabled.
+**P3-5. Standalone ojoS camera-on-launch.**
+- *Files:* `ojoS/Sources/OculOSUI/AppModel.swift:88-90`.
+- *Fix:* Start the camera only when the user opens Live or Calibrate, or turns tracking on, matching sentidoS's behavior.
+- *Test:* Launch standalone ojoS; the camera indicator stays off until tracking is enabled.
 
 **P3-6. Spotlight check.**
 - *Fix:* Run `mdfind` against a known dictated word. If it's indexed, rename the stores to `*.noindex`, with a migration.
 - *Test:* The `mdfind` query returns nothing.
 
 **P3-7. Signing note.**
-- *Files:* `Humanity/scripts/build-app.sh:46-52`; `SECURITY.md`.
+- *Files:* `sentidoS/scripts/build-app.sh:46-52`; `SECURITY.md`.
 - *Fix:* Keep the warning that local builds pin the designated requirement to the bundle ID, so a different binary with the same ID could inherit camera, mic and Accessibility grants. Consider refusing to run a local build from `/Applications`.
 - *Test:* Documentation review.
 

@@ -1,4 +1,4 @@
-# Humanity: Legal and Compliance Research Map
+# sentidoS: Legal and Compliance Research Map
 
 > **This is not legal advice.** An engineer wrote it as research, not a lawyer. Nothing here says the product is "compliant" or "safe". It maps which laws may touch the product, why, and what to change or ask about. Every row marked **Attorney review: YES** needs a licensed attorney before anyone relies on it.
 >
@@ -13,14 +13,14 @@
 
 | Data | Where it lives | Leaves the Mac? | Code |
 |---|---|---|---|
-| Camera frames | Memory only, discarded per frame | No | `OculOS/Sources/GazeKit/CameraCapture.swift` |
-| OculOS calibration: eye-feature numbers, model parameters, **10×6-pixel eye patches** (tiny image crops of the eye) | `~/Library/Application Support/OculOS/` | No | `GazeCalibration.swift`, `EyePatch.swift` |
+| Camera frames | Memory only, discarded per frame | No | `ojoS/Sources/GazeKit/CameraCapture.swift` |
+| ojoS calibration: eye-feature numbers, model parameters, **10×6-pixel eye patches** (tiny image crops of the eye) | `~/Library/Application Support/ojoS/` | No | `GazeCalibration.swift`, `EyePatch.swift` |
 | Gaze recordings (coordinates) and optional screen screenshot | Same | No | `OculOSUI/AppModel.swift` |
-| Hand pose (ManOS) | Memory only; only pinch thresholds stored | No | `ManOS/` |
-| Dictation text; audio if history is on and no secure field was focused; voice-note audio | `Murmur/Recordings/` | No | `MurmurUI/AppModel.swift:153-168` |
-| **Meetings**: mic track, other app's audio track (Core Audio tap / ScreenCaptureKit), transcript, summary | `Humanity/Meetings/` | No (summary text can go to a cloud LLM, see AIKit row) | `MeetingKit/` |
-| **Voice profiles**: up to 20 × 256-float speaker embeddings per *named person* | `Humanity/VoiceProfiles/profiles.json` | No | `VoiceProfileStore.swift` |
-| License | `Humanity/license.json` (key and last-verified date) | Key, product ID and `increment_uses_count` go to `api.gumroad.com` at activation and weekly | `LicenseKit/License.swift` |
+| Hand pose (manoS) | Memory only; only pinch thresholds stored | No | `manoS/` |
+| Dictation text; audio if history is on and no secure field was focused; voice-note audio | `bocaS/Recordings/` | No | `MurmurUI/AppModel.swift:153-168` |
+| **Meetings**: mic track, other app's audio track (Core Audio tap / ScreenCaptureKit), transcript, summary | `sentidoS/Meetings/` | No (summary text can go to a cloud LLM, see AIKit row) | `MeetingKit/` |
+| **Voice profiles**: up to 20 × 256-float speaker embeddings per *named person* | `sentidoS/VoiceProfiles/profiles.json` | No | `VoiceProfileStore.swift` |
+| License | `sentidoS/license.json` (key and last-verified date) | Key, product ID and `increment_uses_count` go to `api.gumroad.com` at activation and weekly | `LicenseKit/License.swift` |
 | AIKit (opt-in, user's own key) | Keychain | **Transcript text and speaker names** go to the user-chosen LLM provider for that task; default is on-device; skipped for password fields | `AIKit/` |
 | Diarization models | Downloaded once from Hugging Face via FluidAudio (exposes IP; no hash pinning) | Download only | `Diarizer.swift` and FluidAudio `ModelHub` |
 | Telemetry, analytics, crash reports, update checks | None found | n/a | grep of all `URLSession` users |
@@ -194,7 +194,7 @@ Format for each law:
 | IL, MD, MT, NH, PA, CT (phone, civil), MI (ambiguous), OR (in-person), NV (phone) | 720 ILCS 5/14-2; Md. Cts. & Jud. Proc. 10-402; MCA 45-8-213; RSA 570-A:2; 18 Pa.C.S. 5703-5704; C.G.S. 52-570d; MCL 750.539c; ORS 165.540 | Mixed all-party rules | **U**: official pages not fetched (ilga.gov blocked; PA redirect) |
 
 **CIPA vendor cases:**
-- *Brewer v. Otter.ai* / *In re Otter.ai Privacy Litigation* (N.D. Cal. No. 5:25-cv-06911): a partial dismissal ruling was reportedly issued Aug. 13, 2026, with some CIPA, ECPA and BIPA claims surviving (**V2/U**). It concerns a *cloud* recorder that receives the audio. Humanity's local-only design is the key distinction.
+- *Brewer v. Otter.ai* / *In re Otter.ai Privacy Litigation* (N.D. Cal. No. 5:25-cv-06911): a partial dismissal ruling was reportedly issued Aug. 13, 2026, with some CIPA, ECPA and BIPA claims surviving (**V2/U**). It concerns a *cloud* recorder that receives the audio. sentidoS's local-only design is the key distinction.
 - *Javier v. Assurance IQ* and *Graham v. Noom* (the "capability" test for whether a vendor is a third-party eavesdropper): **U**.
 - CA **SB 690** (2025-26) reportedly narrowed to pen-register claims; signature status **U**.
 
@@ -438,7 +438,7 @@ The developer's only personal data is Gumroad customer data. Volume thresholds w
 ### 2.21 Accessibility: ADA and related
 
 - **Applies?** **Generally no, to the software as a product.**
-  - ADA Title II covers state and local governments. DOJ's 2024 web and mobile-app rule binds public entities; ada.gov reports an interim final rule (Apr. 20, 2026) moving the large-entity deadline to Apr. 26, 2027 (V on ada.gov; FR citation U). It matters only if universities or agencies buy Humanity and impose accessibility contract terms.
+  - ADA Title II covers state and local governments. DOJ's 2024 web and mobile-app rule binds public entities; ada.gov reports an interim final rule (Apr. 20, 2026) moving the large-entity deadline to Apr. 26, 2027 (V on ada.gov; FR citation U). It matters only if universities or agencies buy sentidoS and impose accessibility contract terms.
   - Title III's reach to websites and apps is split across circuits (*Robles v. Domino's*, 9th Cir. 2019; *Gil v. Winn-Dixie*, 11th Cir., vacated). No authority was found applying it to downloadable software sold as such (**U**).
   - Section 508 binds federal procurement only (**U**).
 - **Trigger:** T (procurement contracts).
@@ -463,7 +463,7 @@ The developer's only personal data is Gumroad customer data. Volume thresholds w
 **EAR:**
 - Published software is not subject to the EAR (15 CFR 734.3(b)(3), 734.7(a)(4): posting on public Internet sites). **Current §734.7 has no "price not exceeding cost of reproduction" test.** That language was removed in 2016, so a paid license doesn't by itself defeat "published" status (V, eCFR current as of 2026-09-29).
 - Publicly available encryption source code is not subject to the EAR; notice to BIS/NSA is required only for "non-standard cryptography" (742.15(b), as revised by 86 FR 16482, Mar. 29, 2021; V).
-- Humanity uses only OS-provided TLS. Whether calling OS crypto makes it an "encryption item" at all: **U**.
+- sentidoS uses only OS-provided TLS. Whether calling OS crypto makes it an "encryption item" at all: **U**.
 - **Fallback:** if treated as subject to the EAR, it is 5D992.c mass market (740.17(b)(1)). After 2021 the annual self-classification report covers only mass-market components and "executable software", not ordinary apps (740.17(e)(3); V). Keep an internal self-classification memo anyway; the Note to 740.17(b) ties "publicly available" status to classification.
 - **Russia/Belarus (746.8):** 5D992.c items need a license except for listed corporate and diplomatic end users. There is **no consumer mass-market exception** (V). This matters only if the binary is treated as subject to the EAR.
 
@@ -533,12 +533,12 @@ Method:
 
 | Name | Notable LIVE USPTO marks found (serial, owner, class) | Conflict view |
 |---|---|---|
-| **OculOS** | No live OCULOS marks (the 5 hits are dead or unrelated). **OCULUS:** 86757871 Meta Platforms, IC 9 "Virtual reality software; VR computer hardware…"; 86757882 Meta, IC 28 VR headsets; **85909459 Oculus Optikgeräte GmbH, IC 9/10/42, physical and optical (ophthalmic) apparatus**; 86362507 J. R. Systems, IC 9/42 software | **HIGH.** One letter from OCULUS, near-identical sound, and related goods (head/eye tracking software; ophthalmic eye devices). Meta enforces actively (**U**). Strongest rename candidate. |
-| **Humanity** | 86131356 **HUMANITY.COM INC.**, IC 42 SaaS; 88918140 Humanity Health Inc., IC 5/9/10/41/42/44 incl. downloadable software; 88732793 tha ltd., IC 9 game programs. 477 total hits. "Humanity Protocol" not checked | **MEDIUM-HIGH.** Identical word in Classes 9/42 for software. The scheduling SaaS mark is in a different field, but Class 42 overlap matters. |
-| **Murmur** | 87240988 Daniel Akira Max, IC 9/45 downloadable mobile applications; 99682054 (pending) IC 42 game software; EMURMUR 86640605 IC 9 medical exam systems; MURMMOR 99801504 (pending) IC 9/42 app. Mumble's open-source "Murmur" server (common law): **U** | **MEDIUM.** Identical word for downloadable apps (live registration). |
-| **ManOS** | No live Class 9/42 MANOS marks on page 1 of 142 results | **LOW-MEDIUM** (incomplete search; "manOS" may also read as an OS name) |
+| **ojoS** | No live OCULOS marks (the 5 hits are dead or unrelated). **OCULUS:** 86757871 Meta Platforms, IC 9 "Virtual reality software; VR computer hardware…"; 86757882 Meta, IC 28 VR headsets; **85909459 Oculus Optikgeräte GmbH, IC 9/10/42, physical and optical (ophthalmic) apparatus**; 86362507 J. R. Systems, IC 9/42 software | **HIGH.** One letter from OCULUS, near-identical sound, and related goods (head/eye tracking software; ophthalmic eye devices). Meta enforces actively (**U**). Strongest rename candidate. |
+| **sentidoS** | 86131356 **HUMANITY.COM INC.**, IC 42 SaaS; 88918140 sentidoS Health Inc., IC 5/9/10/41/42/44 incl. downloadable software; 88732793 tha ltd., IC 9 game programs. 477 total hits. "sentidoS Protocol" not checked | **MEDIUM-HIGH.** Identical word in Classes 9/42 for software. The scheduling SaaS mark is in a different field, but Class 42 overlap matters. |
+| **bocaS** | 87240988 Daniel Akira Max, IC 9/45 downloadable mobile applications; 99682054 (pending) IC 42 game software; EMURMUR 86640605 IC 9 medical exam systems; MURMMOR 99801504 (pending) IC 9/42 app. Mumble's open-source "bocaS" server (common law): **U** | **MEDIUM.** Identical word for downloadable apps (live registration). |
+| **manoS** | No live Class 9/42 MANOS marks on page 1 of 142 results | **LOW-MEDIUM** (incomplete search; "manOS" may also read as an OS name) |
 
-- **Changes:** pause brand spend on OculOS; get a clearance search before registering or marketing internationally.
+- **Changes:** pause brand spend on ojoS; get a clearance search before registering or marketing internationally.
 - **Docs:** clearance opinion; record of first-use dates.
 - **Source:** https://tmsearch.uspto.gov (V, results as listed); TSDR records not opened.
 - **Confidence:** Low-medium (screening only).
@@ -547,7 +547,7 @@ Method:
 ### 2.27 CFAA, 18 U.S.C. §1030 (input automation)
 
 - **Applies?** **Negligible developer exposure.**
-  - ManOS, Murmur and OculOS synthesize input on the user's *own* Mac with the user's Accessibility grant.
+  - manoS, bocaS and ojoS synthesize input on the user's *own* Mac with the user's Accessibility grant.
   - *Van Buren v. United States*, 593 U.S. 374 (June 3, 2021): "exceeds authorized access" is a "gates-up-or-down inquiry" about access to areas of a computer, not misuse of permitted access (V).
   - A user automating a third-party site against its terms is mainly a contract issue (*hiQ v. LinkedIn*, 9th Cir. 2022: **U**). Mass. G.L. c.266 §120F: **U**.
   - The app already respects Secure Event Input (no paste into password fields), which also helps on §5 unfairness.
@@ -561,7 +561,7 @@ Method:
 
 | Item | Why it matters | Status |
 |---|---|---|
-| **Third-party ML licenses** | Diarization models (pyannote/WeSpeaker via FluidAudio) are CC BY 4.0 and attributed in THIRD_PARTY_NOTICES.md. The optional OculOS CNN script downloads MobileGaze weights; the datasets they were trained on may carry non-commercial terms. They are **not shipped**; users build them. | **U** dataset terms. Don't bundle those weights in a paid build without review. |
+| **Third-party ML licenses** | Diarization models (pyannote/WeSpeaker via FluidAudio) are CC BY 4.0 and attributed in THIRD_PARTY_NOTICES.md. The optional ojoS CNN script downloads MobileGaze weights; the datasets they were trained on may carry non-commercial terms. They are **not shipped**; users build them. | **U** dataset terms. Don't bundle those weights in a paid build without review. |
 | **Cloud LLM transfers of third-party content** | Meeting transcripts and speaker names go to providers the user picks. The user is controller; the developer's duty is accurate disclosure. | Add an in-app note on the AI Providers screen that meeting content includes other people's words. |
 | **Sole-proprietor liability** | 93A, wiretap and §5 claims run against the individual. | Business question: consider an LLC and insurance (attorney). |
 | **Notarization / Gatekeeper** | Not law, but tied to the §5 security posture and CRA readiness. | Planned. |
@@ -577,7 +577,7 @@ Method:
 | 3 | **Privacy claims drift from code** | FTC §5; 93A | CI network-call guard; claims log; fix "only derived numbers" (eye patches); disclose Gumroad response fields and LLM transfer of third-party speech; hash-pin model downloads |
 | 4 | **Architecture change voids the "no possession / no control" position** | G.T. v. Samsung control test; MHMDA "collect"; COPPA | Policy: no telemetry, sync, crash payloads or hosted features touching sensor or voice data without legal review; document the "developer cannot access" design |
 | 5 | **EU/UK launch duties**: CRA reporting already live from Sept. 11, 2026; AI Act high-risk (Dec. 2, 2027); GDPR for customer data; withdrawal-right consent | CRA; AI Act; GDPR/UK GDPR; CRD 16(m) | EU build without cross-meeting voice ID, or a high-risk plan; SBOM and vulnerability process; GDPR notice and Art. 27 memo; confirm Gumroad's withdrawal-waiver capture |
-| 6 | **Trademark conflict**, esp. OculOS vs OCULUS (Meta; Oculus Optikgeräte eye devices) | Lanham Act (not researched in depth) | Clearance search; consider renaming OculOS before marketing spend; check HUMANITY and MURMUR |
+| 6 | **Trademark conflict**, esp. ojoS vs OCULUS (Meta; Oculus Optikgeräte eye devices) | Lanham Act (not researched in depth) | Clearance search; consider renaming ojoS before marketing spend; check HUMANITY and MURMUR |
 | 7 | **MA consumer-law gaps**: no pre-sale refund disclosure; MIT "AS IS" may not bind MA consumers | 93A §9; 940 CMR 3.13(4); c.106 §2-316A | Gumroad refund policy on the product page; EULA/Terms of Sale; key-revocation disclosure |
 | 8 | **WA MHMDA / CO / CT "means"-based coverage** with no volume floor and, in WA, private suits | RCW 19.373; C.R.S. 6-1-1314; CTDPA §42-516 | Publish a consumer health data / biometric statement; keep data inaccessible to the developer; attorney opinion on "controller" status |
 | 9 | **Export and sanctions on direct sales** | EAR 734/742/746.8; OFAC | Self-classification memo; Gumroad country blocks; Terms sanctions clause |
@@ -626,5 +626,5 @@ Method:
 - MD, OR, MT and the other state thresholds.
 - Mass. c.266 §120F; *hiQ*.
 - MA 1099-K threshold; MA DOR registration for in-state marketplace sellers.
-- Common-law "Murmur" (Mumble).
+- Common-law "bocaS" (Mumble).
 - TSDR detail for listed serials.

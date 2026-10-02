@@ -1,6 +1,6 @@
 # DRAFT — requires attorney review; not legal advice
 
-# Humanity Terms of Sale and End User License Agreement (DRAFT v0.1, 2026-10-01)
+# sentidoS Terms of Sale and End User License Agreement (DRAFT v0.1, 2026-10-01)
 
 > **How to read this draft.**
 > - Text outside brackets is proposed customer-facing language.
@@ -16,8 +16,8 @@
 ## 1. Who and what
 
 - These terms are between you and **[SELLER LEGAL NAME / DBA]**, an individual developer in Massachusetts, USA ("we"). They cover:
-  - your purchase of a Humanity license key ("Key") through Gumroad;
-  - your use of the official, pre-built Humanity, OculOS, ManOS and Murmur apps that we distribute ("Official Apps"); and
+  - your purchase of a sentidoS license key ("Key") through Gumroad;
+  - your use of the official, pre-built sentidoS, ojoS, manoS and bocaS apps that we distribute ("Official Apps"); and
   - any support we provide.
 - **Gumroad, Inc.** is the reseller and merchant of record for the payment. Gumroad's own terms govern the payment itself.
 
@@ -27,7 +27,7 @@
 
 ## 2. What the Key is, and how it relates to the open-source code
 
-1. **Open source first.** Humanity's source code is published under the MIT License. **Nothing in these terms limits any right you have under the MIT License or under any third-party license listed in `THIRD_PARTY_NOTICES.md`.** You may build Humanity from source, without a Key, at no charge.
+1. **Open source first.** sentidoS's source code is published under the MIT License. **Nothing in these terms limits any right you have under the MIT License or under any third-party license listed in `THIRD_PARTY_NOTICES.md`.** You may build sentidoS from source, without a Key, at no charge.
 2. **What you pay for.** Your payment ($5 minimum, pay what you want) buys:
    - a Key that unlocks the Official Apps on your Macs;
    - the convenience of our builds;
@@ -57,7 +57,7 @@
 
 [Reviewer note:
 - Apache-2.0 §9 lets us offer warranty or support only "on Your own behalf" and requires us to indemnify contributors for any warranty we offer. The disclaimers in §11 keep that exposure minimal.
-- The optional OculOS gaze-model script is not part of the Official Apps. Gaze360-trained weights are non-commercial only; see §5.6.]
+- The optional ojoS gaze-model script is not part of the Official Apps. Gaze360-trained weights are non-commercial only; see §5.6.]
 
 ## 4. Privacy summary
 
@@ -89,7 +89,7 @@ You are responsible for how you use the Official Apps. In particular:
    - capture another person's gaze, face or hand data without their knowledge.
 4. **Sending transcripts to AI providers.** If you send transcripts to a cloud AI provider, you are sharing what other people said with that provider. Make sure you have the right to do so.
 5. **No unlawful, harmful or high-risk use.** The Official Apps are not medical devices or certified assistive technology. Do not use them where an error could cause injury, financial loss or legal consequences without independent safeguards.
-6. **Optional gaze model.** The OculOS `make cnn-model` script downloads third-party weights trained on the Gaze360 dataset. Those weights are licensed for **non-commercial research only**. Do not load them into the Official Apps for commercial use, and do not redistribute them.
+6. **Optional gaze model.** The ojoS `make cnn-model` script downloads third-party weights trained on the Gaze360 dataset. Those weights are licensed for **non-commercial research only**. Do not load them into the Official Apps for commercial use, and do not redistribute them.
 
 [Reviewer note:
 - The developer's own exposure: MA §99 reaches anyone who "aid[s] another to secretly … record" (§99 B.4, C.6). [18 U.S.C. §2512](https://www.law.cornell.edu/uscode/text/18/2512) bars selling devices "primarily useful" for surreptitious interception. The FTC has acted against covert-surveillance software (e.g. its [SpyFone order, 2021](https://www.ftc.gov/news-events/news/press-releases/2021/09/ftc-bans-spyfone-ceo-surveillance-business-orders-company-delete-all-secretly-stolen-data)).
@@ -99,7 +99,7 @@ You are responsible for how you use the Official Apps. In particular:
 
 ## 6. Automation and accidental actions
 
-- OculOS, ManOS and Murmur control your mouse and keyboard and can paste text into other apps.
+- ojoS, manoS and bocaS control your mouse and keyboard and can paste text into other apps.
 - Gaze, gesture and speech recognition are imperfect. They can **click, drag, scroll, type or paste in the wrong place**. That can send messages, delete files, submit forms or trigger purchases you did not intend.
 - Dictated text may be wrong, and clipboard contents may be replaced or restored.
 - Keep backups.
@@ -136,7 +136,7 @@ You are responsible for how you use the Official Apps. In particular:
 
 1. You may request a refund within **[14 / 30] days** of purchase through Gumroad or by emailing **[CONTACT EMAIL]**. We grant first-time refund requests within that window without questions.
 2. Gumroad has final say over refunds, chargebacks and disputes ([Gumroad Terms §7.1](https://gumroad.com/terms)). Gumroad does not return its fees on refunds; we absorb them.
-3. **A refunded, charged-back or disputed Key stops working.** The Official Apps detect this at the next weekly check. You may still build Humanity from source.
+3. **A refunded, charged-back or disputed Key stops working.** The Official Apps detect this at the next weekly check. You may still build sentidoS from source.
 4. **EU/EEA/UK consumers.** By activating your Key you ask us to supply digital content immediately, and you acknowledge that you lose your 14-day right of withdrawal once activation succeeds. This does not affect our voluntary refund window in §9.1 or your statutory rights if the Official Apps are faulty.
 
 [Reviewer note:
@@ -222,12 +222,12 @@ You are responsible for how you use the Official Apps. In particular:
 ## 15. Intellectual property and trademarks
 
 - We and our contributors keep all rights not expressly granted.
-- The source code is licensed under MIT. **The names "Humanity", "OculOS", "ManOS" and "Murmur" and their icons are not licensed by MIT.**
+- The source code is licensed under MIT. **The names "sentidoS", "ojoS", "manoS" and "bocaS" and their icons are not licensed by MIT.**
 - If you build or distribute your own copy, give it a different name and icon, and do not imply that it is official or endorsed by us. See `TRADEMARKS.md`.
 
 [Reviewer note:
-- Trademark rights here are common-law only unless registered. "Humanity" is a common word, so the mark is weak.
-- See the audit's finding 1: the current Humanity, ManOS and Murmur icons use Apple SF Symbols, which Apple forbids in app icons. Replace them before asserting any rights in the icons.]
+- Trademark rights here are common-law only unless registered. "sentidoS" is a common word, so the mark is weak.
+- See the audit's finding 1: the current sentidoS, manoS and bocaS icons use Apple SF Symbols, which Apple forbids in app icons. Replace them before asserting any rights in the icons.]
 
 ## 16. Export and legal compliance
 
