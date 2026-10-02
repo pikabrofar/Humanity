@@ -1,0 +1,20 @@
+// Stand-ins for the SF Symbols the app uses (drawn as simple SVG; same meaning and weight).
+window.G = {
+  figure: '<svg viewBox="0 0 24 24"><circle cx="12" cy="4.4" r="2.3" fill="currentColor"/><path d="M3.6 7.8 9.3 9.7h5.4l5.7-1.9" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"/><path d="M9.3 9.6h5.4l-.6 5.6H9.9Z" fill="currentColor"/><path d="M10.3 14.8 9 21.2M13.7 14.8l1.3 6.4" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round"/></svg>',
+  wifi: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M2.5 9.2a14 14 0 0 1 19 0M5.8 12.6a9.2 9.2 0 0 1 12.4 0M9.1 16a4.4 4.4 0 0 1 5.8 0"/><circle cx="12" cy="19.2" r="1.3" fill="currentColor" stroke="none"/></svg>',
+  battery: '<svg viewBox="0 0 30 24"><rect x="1.5" y="6" width="23" height="12" rx="3.5" fill="none" stroke="currentColor" stroke-opacity=".55" stroke-width="1.4"/><rect x="3.4" y="7.9" width="16" height="8.2" rx="2" fill="currentColor"/><path d="M26.6 10v4" stroke="currentColor" stroke-opacity=".55" stroke-width="1.8" stroke-linecap="round"/></svg>',
+  plane: '<svg viewBox="0 0 24 24"><path d="M3 11.2 20.6 3.6c.7-.3 1.4.4 1.1 1.1L14.1 22.3c-.3.8-1.4.7-1.6-.1l-1.9-7.4-7.4-1.9c-.8-.2-.9-1.3-.2-1.7Z" fill="currentColor"/></svg>',
+  sparkles: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M10 2.5l1.7 5.1 5.1 1.7-5.1 1.7L10 16.1l-1.7-5.1-5.1-1.7 5.1-1.7Z"/><path d="M18 13l.9 2.6 2.6.9-2.6.9L18 20l-.9-2.6-2.6-.9 2.6-.9Z"/></svg>',
+  circle: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>',
+  check: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="currentColor"/><path d="m7.4 12.3 3.1 3.1 6.2-6.4" fill="none" stroke="#000" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  lock: '<svg viewBox="0 0 24 24"><rect x="4.5" y="10.5" width="15" height="11" rx="3" fill="currentColor"/><path d="M8 10.5V8a4 4 0 0 1 8 0v2.5" fill="none" stroke="currentColor" stroke-width="2.2"/></svg>',
+  chevUp2: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="m6 12 6-6 6 6M6 18l6-6 6 6"/></svg>',
+  drag: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8.3 13.2V5.6a1.3 1.3 0 0 1 2.6 0V11V3.9a1.3 1.3 0 0 1 2.6 0V11V4.9a1.3 1.3 0 0 1 2.6 0v6.7V7.4a1.3 1.3 0 0 1 2.6 0v7.2c0 4.1-2.7 7.2-6.3 7.2-2.5 0-4.1-1.1-5.4-3.1L4 14.4a1.35 1.35 0 0 1 2.2-1.6l2.1 2.5Z"/></svg>',
+  eye: '<svg viewBox="0 0 24 24"><use href="#g-eye"/></svg>',
+  hand: '<svg viewBox="0 0 24 24"><use href="#g-hand"/></svg>',
+  wave: '<svg viewBox="0 0 24 24"><use href="#g-wave"/></svg>',
+  stop: '<svg viewBox="0 0 24 24"><rect x="6.5" y="6.5" width="11" height="11" rx="2.4" fill="currentColor"/></svg>',
+  pointer: '<svg viewBox="0 0 24 34"><path d="M2.5 2.5v25.2l6.5-6.1 4.3 9.8 4.4-1.9-4.2-9.6h8.9Z" fill="#111" stroke="#fff" stroke-width="2" stroke-linejoin="round"/></svg>',
+  camera: '<svg viewBox="0 0 24 24"><rect x="2.5" y="6.5" width="13.5" height="11" rx="2.6" fill="none" stroke="currentColor" stroke-width="1.9"/><path d="m16 10.5 5.2-3v9L16 13.5Z" fill="currentColor"/></svg>',
+  mic: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><rect x="8.6" y="2.6" width="6.8" height="12" rx="3.4" fill="currentColor" stroke="none"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.6v3.6"/></svg>',
+};
