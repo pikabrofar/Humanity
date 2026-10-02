@@ -1,7 +1,7 @@
 import Foundation
 
 /// Continuous hand use. Resting `rest` seconds (hand down or out of view)
-/// restarts the count (research/10: 20 min backstop, ~15 s rest recovers).
+/// restarts the count (sentidoS-a1 research/10: 20 min backstop, ~15 s rest recovers).
 public struct FatigueTimer: Sendable {
     public static let breakAfter: TimeInterval = 20 * 60
     public static let rest: TimeInterval = 15

@@ -1,6 +1,6 @@
-# Humanity Security Audit
+# sentidoS Security Audit
 
-**Scope:** OculOS, ManOS, Murmur, MeetingKit, AIKit, LicenseKit, the Humanity host app, build scripts, `.github/workflows`, the shipped `dist/*.dmg`, and all git history (36 commits on all branches, including `origin/claude/camera-eye-hand-tracking-0y2amh`).
+**Scope:** ojoS, manoS, bocaS, MeetingKit, AIKit, LicenseKit, the sentidoS host app, build scripts, `.github/workflows`, the shipped `dist/*.dmg`, and all git history (36 commits on all branches, including `origin/claude/camera-eye-hand-tracking-0y2amh`).
 **Revision:** `e098368` (2026-10-01 00:10), plus the uncommitted working tree as of 00:22. Other people were committing and editing during the audit. `VoiceProfileStore.swift`, the Info.plists and the README changed after they were read, so re-check line numbers before you fix anything.
 **Method:** I read every Swift source file that handles input injection, networking, files, keys or licensing. I grepped the full `git log -p` and the working tree for secrets. I mounted each DMG read-only and inspected its signature. I ran one experiment against a local server to see how URLSession handles headers on a redirect. I did not launch the apps or post any events.
 
@@ -28,32 +28,32 @@ The code is MIT-licensed and the license check is client-only. For licensing, th
 
 | # | Pri | Finding | Where |
 |---|-----|---------|-------|
-| 1 | **P1** | LLM-added newlines and control characters reach terminals. Only Terminal.app and iTerm2 get the newline-to-space treatment. | `Murmur/Sources/MurmurKit/PasteSequence.swift:23-45`, `TextCleanup.swift:30-46`, `MurmurUI/AppModel.swift:255-266` |
+| 1 | **P1** | LLM-added newlines and control characters reach terminals. Only Terminal.app and iTerm2 get the newline-to-space treatment. | `bocaS/Sources/MurmurKit/PasteSequence.swift:23-45`, `TextCleanup.swift:30-46`, `MurmurUI/AppModel.swift:255-266` |
 | 2 | P2 | Dev builds pin the designated requirement (DR) to the bundle ID only. Any same-ID ad-hoc app then inherits TCC grants and reads Keychain API keys silently, and `package.sh` produces such builds by default. | `*/scripts/build-app.sh:46-52`, `scripts/package.sh:13`, `AIKit/Sources/AIKit/KeychainStore.swift:9-20` |
 | 3 | P2 | The weekly license recheck deletes a paying user's license on any non-JSON reply (captive portal, Gumroad 5xx). | `LicenseKit/Sources/LicenseKit/License.swift:77,97-99,111-119` |
-| 4 | P2 | The clipboard restore race and password-manager handling can paste or keep a copied password. | `Murmur/Sources/MurmurUI/Engine/TextInserter.swift:11-36,57`, `MurmurKit/PasteSequence.swift:59-75` |
-| 5 | P2 | OculOS dwell-click snaps up to about 4° (~175 pt) to the nearest control, re-arms at launch, and has no stop chord. | `OculOS/Sources/OculOSUI/AppModel.swift:137-141,163-170`, `Humanity/Sources/Humanity/HumanityApp.swift:80,102-106` |
-| 6 | P2 | A ManOS drag holds the mouse button down indefinitely when camera frames stop. | `ManOS/Sources/ManOSUI/Engine/HandEngine.swift:146-152`, `ManOS/Sources/HandKit/GestureRecognizer.swift:148-152`, `OculOS/Sources/GazeKit/CameraCapture.swift:33-41` |
+| 4 | P2 | The clipboard restore race and password-manager handling can paste or keep a copied password. | `bocaS/Sources/MurmurUI/Engine/TextInserter.swift:11-36,57`, `MurmurKit/PasteSequence.swift:59-75` |
+| 5 | P2 | ojoS dwell-click snaps up to about 4° (~175 pt) to the nearest control, re-arms at launch, and has no stop chord. | `ojoS/Sources/OculOSUI/AppModel.swift:137-141,163-170`, `sentidoS/Sources/sentidoS/HumanityApp.swift:80,102-106` |
+| 6 | P2 | A manoS drag holds the mouse button down indefinitely when camera frames stop. | `manoS/Sources/ManOSUI/Engine/HandEngine.swift:146-152`, `manoS/Sources/HandKit/GestureRecognizer.swift:148-152`, `ojoS/Sources/GazeKit/CameraCapture.swift:33-41` |
 | 7 | P3 | AIKit has no redirect policy. URLSession drops `Authorization` on a cross-host redirect but **forwards `x-api-key`** (the Anthropic key). Verified empirically. | `AIKit/Sources/AIKit/LLMClient.swift:34-40,92-95` |
 | 8 | P3 | A `license.json` with a future `verifiedAt` unlocks forever and is never rechecked. | `License.swift:41,113` |
-| 9 | P3 | Kill-switch semantics: ⌃⌥⌘H *resumes* when paused, and if the hotkey fails to register nobody is told. | `ManOS/Sources/ManOSUI/AppModel.swift:48-50,64-72` |
-| 10 | P3 | Murmur: Esc stops working after you release the hotkey. The insert target is whatever app is frontmost when dictation stops. Hands-free mode has no maximum length. | `Murmur/Sources/MurmurUI/AppModel.swift:154,199,221-222,266` |
-| 11 | P3 | Murmur: a password dictated without Accessibility is left on the clipboard. The HUD shows the partial transcript of a password-field dictation. | `TextInserter.swift:47-49`, `Murmur/Sources/MurmurUI/Views/HUD.swift:84` |
-| 12 | P3 | Deleting a meeting runs a recursive `removeItem` on an absolute folder path read from JSON. | `Murmur/Sources/MurmurUI/Views/MeetingsView.swift:103-111`, `MeetingKit/Sources/MeetingKit/MeetingRecorder.swift:11,28-33` |
+| 9 | P3 | Kill-switch semantics: ⌃⌥⌘H *resumes* when paused, and if the hotkey fails to register nobody is told. | `manoS/Sources/ManOSUI/AppModel.swift:48-50,64-72` |
+| 10 | P3 | bocaS: Esc stops working after you release the hotkey. The insert target is whatever app is frontmost when dictation stops. Hands-free mode has no maximum length. | `bocaS/Sources/MurmurUI/AppModel.swift:154,199,221-222,266` |
+| 11 | P3 | bocaS: a password dictated without Accessibility is left on the clipboard. The HUD shows the partial transcript of a password-field dictation. | `TextInserter.swift:47-49`, `bocaS/Sources/MurmurUI/Views/HUD.swift:84` |
+| 12 | P3 | Deleting a meeting runs a recursive `removeItem` on an absolute folder path read from JSON. | `bocaS/Sources/MurmurUI/Views/MeetingsView.swift:103-111`, `MeetingKit/Sources/MeetingKit/MeetingRecorder.swift:11,28-33` |
 | 13 | P3 | Release pipeline hardening. The workflows aren't committed yet, and the shipped DMGs were built locally (arm64 only), not by CI. | `.github/workflows/release.yml:18,39-61`, `SECURITY.md:12-15` |
-| 14 | P3 | `make-cnn-model.sh` runs an unpinned third-party repo, unpinned pip packages and unhashed weights. | `OculOS/scripts/make-cnn-model.sh:16-24` |
-| 15 | P3 | Core ML models chosen by the user load inside the TCC-privileged process. FluidAudio honors a host override from the environment. | `OculOS/Sources/GazeKit/GazeNetwork.swift:14-25`, FluidAudio `ModelRegistry.swift:32-37` |
-| 16 | P3 | ManOS arrow-key flicks inherit any modifier the user is holding (⌘↓ opens the selected item in Finder). | `ManOS/Sources/ManOSUI/Engine/EventInjector.swift:53-58` |
+| 14 | P3 | `make-cnn-model.sh` runs an unpinned third-party repo, unpinned pip packages and unhashed weights. | `ojoS/scripts/make-cnn-model.sh:16-24` |
+| 15 | P3 | Core ML models chosen by the user load inside the TCC-privileged process. FluidAudio honors a host override from the environment. | `ojoS/Sources/GazeKit/GazeNetwork.swift:14-25`, FluidAudio `ModelRegistry.swift:32-37` |
+| 16 | P3 | manoS arrow-key flicks inherit any modifier the user is holding (⌘↓ opens the selected item in Finder). | `manoS/Sources/ManOSUI/Engine/EventInjector.swift:53-58` |
 | 17 | P3 | Ollama runs over plaintext with no authentication, so whatever process listens on port 11434 receives transcripts. | `AIKit/Sources/AIKit/Provider.swift:66` |
 
 There is no P0: nothing is remotely exploitable without user interaction, and no secret is exposed.
 
 ## Verified clean (no action needed)
 
-- **Secrets.** None in the working tree, the full history (all branches, deleted files included) or `OculOS/build-cnn.log`. I searched for the patterns `sk-`, `sk-ant-`, `AIza`, `ghp_`, `github_pat_`, `AKIA`, `hf_`, `gsk_`, PEM blocks, `Bearer …`, and literal password/token/api_key assignments. No `.p12`, `.pem`, `.cer`, `.env` or `.mobileprovision` file was ever committed. The Gumroad `productID` (`License.swift:11`) is a public identifier by design, not a secret. CI reads the signing material from `secrets.*` and deletes `cert.p12` after import.
-- **`Process` and shell.** The only use is `/usr/bin/tccutil reset <Accessibility|ScreenCapture> <own bundle id>` (`Humanity/Sources/Humanity/Permissions.swift:116-128`). It runs a fixed executable with fixed arguments and no shell, so injection is impossible. `tccutil reset` with a bundle ID only clears that app's own entry.
+- **Secrets.** None in the working tree, the full history (all branches, deleted files included) or `ojoS/build-cnn.log`. I searched for the patterns `sk-`, `sk-ant-`, `AIza`, `ghp_`, `github_pat_`, `AKIA`, `hf_`, `gsk_`, PEM blocks, `Bearer …`, and literal password/token/api_key assignments. No `.p12`, `.pem`, `.cer`, `.env` or `.mobileprovision` file was ever committed. The Gumroad `productID` (`License.swift:11`) is a public identifier by design, not a secret. CI reads the signing material from `secrets.*` and deletes `cert.p12` after import.
+- **`Process` and shell.** The only use is `/usr/bin/tccutil reset <Accessibility|ScreenCapture> <own bundle id>` (`sentidoS/Sources/sentidoS/Permissions.swift:116-128`). It runs a fixed executable with fixed arguments and no shell, so injection is impossible. `tccutil reset` with a bundle ID only clears that app's own entry.
 - **AppleScript.** None. There is no `NSAppleScript`, no `osascript` and no `com.apple.security.automation.apple-events` entitlement.
-- **Inbound IPC.** None: no URL schemes, XPC, distributed notifications, `NWListener` or Services. Other apps have no way to trigger an action. The `-Humanity.start` launch argument only picks a sidebar row.
+- **Inbound IPC.** None: no URL schemes, XPC, distributed notifications, `NWListener` or Services. Other apps have no way to trigger an action. The `-sentidoS.start` launch argument only picks a sidebar row.
 - **Deserialization.** Saved data is decoded only as `Codable` JSON. There is no `NSKeyedUnarchiver`, `NSCoding` or `NSClassFromString`. A tampered file at worst fails to decode, and decodes have `try?` fallbacks. One minor gap: `GazeCalibration.featureMean` (`GazeCalibration.swift:110`) isn't checked against the feature count, so a hand-edited file could crash the app. That is local DoS only.
 - **Paths.** Meeting folders are named from the date (`MeetingRecorder.swift:193`), not the title. Recordings use UUID file names. Markdown export names strip `/\:?*"<>|` (`MarkdownExporter.swift:23-27`). Titles only seed an `NSSavePanel` name. I found no path traversal from titles. Every write uses `.atomic`, which renames over a symlink instead of writing through it.
 - **Networking.**
@@ -61,7 +61,7 @@ There is no P0: nothing is remotely exploitable without user interaction, and no
   - No Info.plist has `NSAppTransportSecurity` exceptions. `http://localhost` for Ollama falls under ATS's local-host exemption; confirm once against a running Ollama.
   - Sessions are ephemeral with no URL cache. Keys go only in headers and are redacted from error text (`LLMClient.swift:117`).
   - Gumroad uses HTTPS with an ephemeral session.
-- **LLM output** is never executed, never used as a command, and never rendered as Markdown. Summaries display through `Text(String)`, which doesn't parse links. Its only path to the OS is Murmur's text insertion (finding 1).
+- **LLM output** is never executed, never used as a command, and never rendered as Markdown. Summaries display through `Text(String)`, which doesn't parse links. Its only path to the OS is bocaS's text insertion (finding 1).
 - **Entitlements and hardened runtime.** All four DMG apps verify (`codesign --verify --deep --strict`). Their flags are `adhoc,runtime`, and the only entitlements are `device.camera` and `device.audio-input`. There is no `get-task-allow`, `disable-library-validation`, `allow-jit` or `allow-dyld-environment-variables`. Not being sandboxed is required for CGEvent and Accessibility.
 - **Shipped DMG signatures.** All four `dist/*-1.0.0.dmg` apps have `designated => cdhash H"…"`, i.e. a plain ad-hoc signature that can't be impersonated. Their checksums match the `.sha256` files.
 - **Dependencies.** FluidAudio is pinned by `Package.resolved` to revision `21493f8…`. Its prebuilt `NemoTextProcessing` binary target is checksum-pinned. Its diarizer models are pinned to an immutable Hugging Face commit (`ModelNames.swift:262-265` in the checkout: `df2625ac…`) and fetched over HTTPS. Apple's speech models download through `AssetInventory`, and recognition refuses to fall back to server mode (`Transcriber.swift:198-202`, `FileTranscriber.swift:85-87`).
@@ -75,7 +75,7 @@ There is no P0: nothing is remotely exploitable without user interaction, and no
 ### 1. [P1] Dictation can carry a newline or control character into a terminal
 
 **Where:**
-- `Murmur/Sources/MurmurKit/PasteSequence.swift:23`: the terminal list holds only `com.apple.Terminal` and `com.googlecode.iterm2`.
+- `bocaS/Sources/MurmurKit/PasteSequence.swift:23`: the terminal list holds only `com.apple.Terminal` and `com.googlecode.iterm2`.
 - `PasteSequence.swift:25-27`: everything else is pasted.
 - `PasteSequence.swift:32-45`: in the typed path, only `isNewline` characters become spaces.
 - `TextCleanup.swift:30-46`: `acceptRewrite` keeps internal newlines and only trims the ends.
@@ -132,7 +132,7 @@ There is no P0: nothing is remotely exploitable without user interaction, and no
 - `KeychainStore.swift:9-20`: a legacy file-based keychain item whose ACL trusts the creating app's DR.
 
 **Scenario:**
-1. A developer or tester runs `make app` and grants Accessibility, Screen Recording, the camera and the microphone. Or a maintainer runs `scripts/package.sh Murmur 1.0.1` locally and uploads the DMG.
+1. A developer or tester runs `make app` and grants Accessibility, Screen Recording, the camera and the microphone. Or a maintainer runs `scripts/package.sh bocaS 1.0.1` locally and uploads the DMG.
 2. Later, any unprivileged process running as that user writes a stub `.app` with `CFBundleIdentifier` set to the same ID, signs it with `codesign -s - -i <id>`, and launches it.
 3. TCC evaluates the stored csreq, `identifier "<id>"`, and the stub matches. It gets full Accessibility (keystroke injection, reading any window's AX tree, including other apps' contents), the camera, the microphone and screen capture, all with no prompt.
 4. It can also read every AIKit API key from the Keychain silently, because the item's ACL holds the same DR.
@@ -184,7 +184,7 @@ There is no P0: nothing is remotely exploitable without user interaction, and no
 
 **Scenarios:**
 - **(a) Wrong paste.** The user copies a password from 1Password, then dictates into a busy app (an Electron app mid-GC, a VM, a remote-desktop client that syncs the clipboard asynchronously). The app processes ⌘V *after* the restore and pastes the **password** into a chat box or document.
-- **(b) The password lingers.** Password managers auto-clear the clipboard after 30–90 s, usually only if the clipboard is still "theirs" (`changeCount` unchanged). Murmur's write and restore changes `changeCount`, so the auto-clear is probably skipped and the password stays on the clipboard indefinitely. I didn't test this against each manager; verify with 1Password and Bitwarden.
+- **(b) The password lingers.** Password managers auto-clear the clipboard after 30–90 s, usually only if the clipboard is still "theirs" (`changeCount` unchanged). bocaS's write and restore changes `changeCount`, so the auto-clear is probably skipped and the password stays on the clipboard indefinitely. I didn't test this against each manager; verify with 1Password and Bitwarden.
 - **Likelihood:** low to medium.
 - **Impact:** a secret is disclosed to the wrong app.
 - **Existing mitigations:**
@@ -195,10 +195,10 @@ There is no P0: nothing is remotely exploitable without user interaction, and no
 - **Minimal fix:** if `snapshot()` contains a type named `org.nspasteboard.ConcealedType` (or `com.agilebits.onepassword`), insert by **typing** instead of pasting. The clipboard is never touched, and the password manager's timer keeps working. Optionally, also type into known remote-desktop and VM clients (`com.microsoft.rdc.macos`, `com.parallels.desktop.console`, `com.vmware.fusion`, `com.citrix.receiver.icaviewer.mac`).
 - **Test:** unit test with a fake `Clipboard` whose snapshot includes `ConcealedType` → expect `.type` and no write. Manual: copy from 1Password, dictate into TextEdit, and confirm the password manager still clears the clipboard on schedule.
 
-### 5. [P2] OculOS dwell-click can hit a control you weren't looking at, and it re-arms at launch
+### 5. [P2] ojoS dwell-click can hit a control you weren't looking at, and it re-arms at launch
 
 **Where:**
-- `OculOS/Sources/OculOSUI/AppModel.swift:137-141`: snapping uses a `4 * ppd` radius. That is about 175 pt on a 14″ display at 50 cm.
+- `ojoS/Sources/OculOSUI/AppModel.swift:137-141`: snapping uses a `4 * ppd` radius. That is about 175 pt on a 14″ display at 50 cm.
 - `:163-170`: the dwell fires `click()`, which snaps.
 - `Persistence.swift:134`: `dwellClick` persists.
 - `HumanityApp.swift:80,102-106`: `gazeOn` persists, so tracking, and with it dwell, resumes at login.
@@ -206,7 +206,7 @@ There is no P0: nothing is remotely exploitable without user interaction, and no
 
 **Scenarios:**
 - A user reads a confirmation sheet, or rests their eyes in blank space near "Delete", "Empty Trash", "Send" or "Don't Save". The dwell completes in 1 s (0.3 s at minimum), and the snap moves the click onto the nearest button up to ~175 pt away.
-- After a reboot, Humanity starts at login with gaze on and dwell armed. Clicks start before the user has noticed that gaze control is live.
+- After a reboot, sentidoS starts at login with gaze on and dwell armed. Clicks start before the user has noticed that gaze control is live.
 - **Likelihood:** medium for users who enable dwell.
 - **Impact:** an irreversible click (deleting, sending, purchasing, granting a permission prompt).
 - **Existing mitigations:**
@@ -218,14 +218,14 @@ There is no P0: nothing is remotely exploitable without user interaction, and no
 - **Minimal fix** (keeps dwell useful):
   1. Snap a dwell click within at most ~1.5°, and keep 4° for the explicit ⌃⌥⌘G click.
   2. Don't restore `dwellClick` at launch: re-arm per session, the same way hand control "never resumes by itself" (`HumanityApp.swift:96-98`).
-  3. Make ⌃⌥⌘H in Humanity a "stop all automation" chord that also disarms dwell. In standalone OculOS, let Esc cancel a dwell that is in progress.
+  3. Make ⌃⌥⌘H in sentidoS a "stop all automation" chord that also disarms dwell. In standalone ojoS, let Esc cancel a dwell that is in progress.
   4. Inside an `AXSheet` or `AXDialog`, or in a window owned by `SecurityAgent` or `UserNotificationCenter`, require ⌃⌥⌘G instead of dwell, or double the dwell time.
 - **Test:**
   - Unit: `GazeClick.nearest(to:in:radius:)` with a button 150 pt away and a 1.5° radius returns nil.
   - Manual: put a "Delete" button in a test window, enable dwell, stare 100 pt to its side, and confirm no click.
   - Manual: relaunch and confirm dwell is off.
 
-### 6. [P2] A ManOS drag holds the button down when frames stop
+### 6. [P2] A manoS drag holds the button down when frames stop
 
 **Where:**
 - `HandEngine.swift:146-152`: events only happen in the frame callback.
@@ -268,19 +268,19 @@ There is no P0: nothing is remotely exploitable without user interaction, and no
 
 **Where:** `License.swift:41` (`now - verifiedAt < 60 days` holds for any future date) and `:113` (no recheck while `now - verifiedAt` is negative).
 
-- **Scenario:** `{"key":"x","verifiedAt":9e9}` in `~/Library/Application Support/Humanity/license.json` unlocks every app permanently and never contacts Gumroad. Other bypasses are just as easy and legitimate under MIT: build from source, or set `License.required = false`.
+- **Scenario:** `{"key":"x","verifiedAt":9e9}` in `~/Library/Application Support/sentidoS/license.json` unlocks every app permanently and never contacts Gumroad. Other bypasses are just as easy and legitimate under MIT: build from source, or set `License.required = false`.
 - **Proportionate fix:** treat `verifiedAt > now + 1 day` as invalid. Nothing more. Don't obfuscate, don't hide the file, don't move it to the Keychain, and don't fight `required = false` in source builds. If key sharing becomes a real problem, read Gumroad's `uses` on *first* activation and politely decline above a generous cap (for example 10). Never enforce a cap on rechecks.
 - **Test:** unit test: `isUnlocked` with `verifiedAt = now + 30 days` returns false.
 
 ### 9. [P3] Kill-switch semantics
 
-**Where:** `ManOS/Sources/ManOSUI/AppModel.swift:64-72` (when enabled and paused, ⌃⌥⌘H *resumes*) and `:48-50` (`HotKey(...)` returns nil when registration fails, and nothing reports it).
+**Where:** `manoS/Sources/ManOSUI/AppModel.swift:64-72` (when enabled and paused, ⌃⌥⌘H *resumes*) and `:48-50` (`HotKey(...)` returns nil when registration fails, and nothing reports it).
 
-- **Scenario:** hand control is paused by the open-palm gesture and acting oddly. The user hits the "kill switch" and control turns **on**. Separately, if another app already owns ⌃⌥⌘H, the advertised kill switch silently doesn't exist. Murmur surfaces the same failure (`hotKeyMissing`); ManOS doesn't.
+- **Scenario:** hand control is paused by the open-palm gesture and acting oddly. The user hits the "kill switch" and control turns **on**. Separately, if another app already owns ⌃⌥⌘H, the advertised kill switch silently doesn't exist. bocaS surfaces the same failure (`hotKeyMissing`); manoS doesn't.
 - **Minimal fix:** ⌃⌥⌘H always turns control **off**. Resume with the palm gesture, or with ⌃⌥⌘H pressed again while off (which already turns it on). If the hotkey is nil, show "Kill switch unavailable: ⌃⌥⌘H is taken" on the Live page and in the menu, and refuse to enable control until the user acknowledges it once.
-- **Test:** unit test on `AppModel` with a fake engine: when enabled and paused, `toggleControl()` gives `isEnabled == false`. Manual: register ⌃⌥⌘H in another app first, then launch ManOS and look for the warning.
+- **Test:** unit test on `AppModel` with a fake engine: when enabled and paused, `toggleControl()` gives `isEnabled == false`. Manual: register ⌃⌥⌘H in another app first, then launch manoS and look for the warning.
 
-### 10. [P3] Murmur: Esc gap, target app drift, open-ended hands-free mode
+### 10. [P3] bocaS: Esc gap, target app drift, open-ended hands-free mode
 
 **Where:**
 - `AppModel.swift:199`: `cancelKey = nil` on release.
@@ -302,7 +302,7 @@ The HUD and sounds make this visible, so the risk is mostly mis-delivered privat
 
 **Test:** unit test the `firstResult` and cancel path. Manual: tap-start in Notes, switch to Slack, tap-stop → expect "Copied".
 
-### 11. [P3] Murmur: secure dictation edge cases
+### 11. [P3] bocaS: secure dictation edge cases
 
 **Where:** `TextInserter.swift:47-49` (no Accessibility → `board.write(text)`, even for a password field) and `HUD.swift:84` (the partial transcript is always shown).
 
@@ -343,7 +343,7 @@ The HUD and sounds make this visible, so the risk is mostly mis-delivered privat
 
 ### 14. [P3] The gaze-model build script runs unpinned code
 
-**Where:** `OculOS/scripts/make-cnn-model.sh:16,20` (unpinned `torch torchvision coremltools`), `:23` (`git clone --depth 1` of the upstream HEAD, then `convert_gaze_model.py:16-18` `import models`, which runs that repo's Python), and `:24` (`.pt` weights from a mutable release asset with no hash).
+**Where:** `ojoS/scripts/make-cnn-model.sh:16,20` (unpinned `torch torchvision coremltools`), `:23` (`git clone --depth 1` of the upstream HEAD, then `convert_gaze_model.py:16-18` `import models`, which runs that repo's Python), and `:24` (`.pt` weights from a mutable release asset with no hash).
 
 `weights_only=True` blocks pickle code. It does nothing about the repo's own Python code, which runs as the developer.
 
@@ -367,9 +367,9 @@ Core ML models aren't code, but a malformed one targets Core ML's parser inside 
 
 **Test:** `launchctl setenv REGISTRY_URL http://127.0.0.1:9`, then process a meeting → the download goes to Hugging Face anyway, or fails over HTTPS.
 
-### 16. [P3] ManOS arrow-key flicks inherit held modifiers
+### 16. [P3] manoS arrow-key flicks inherit held modifiers
 
-**Where:** `EventInjector.swift:53-58`. The arrow-key events come from a `.hidSystemState` source and have no explicit `flags`. Murmur and OculOS both set `flags = []`.
+**Where:** `EventInjector.swift:53-58`. The arrow-key events come from a `.hidSystemState` source and have no explicit `flags`. bocaS and ojoS both set `flags = []`.
 
 - **Scenario:** the user is holding ⌘ (or ⌥) while flicking, and ⌘↓ opens the selected item in Finder, or ⌘↑ goes to the enclosing folder.
 - **Fix:** `event?.flags = []`.
@@ -413,7 +413,7 @@ Core ML models aren't code, but a malformed one targets Core ML's parser inside 
 
 ---
 
-## AUTOMATION SAFETY: ManOS, OculOS, Murmur
+## AUTOMATION SAFETY: manoS, ojoS, bocaS
 
 ### Risk tiers and proportionate safeguards
 
@@ -425,10 +425,10 @@ Core ML models aren't code, but a malformed one targets Core ML's parser inside 
 
 The principle: passive triggers (dwell, ambient voice) get low-tier powers by default. Active triggers (a pinch, a hotkey) get medium. Nothing reaches the high tier without an explicit, intentional act. None of this needs dialogs.
 
-### ManOS (hands)
+### manoS (hands)
 
 - **Accidental activation.** Good:
-  - control is off at every launch, and Humanity never re-enables it (`HumanityApp.swift:96-98`);
+  - control is off at every launch, and sentidoS never re-enables it (`HumanityApp.swift:96-98`);
   - the hand must be steady for 250 ms before anything happens;
   - a pinch needs two consecutive frames, with enter/exit hysteresis;
   - motion is damped as the fingers close, and the click is backdated to the start of the pinch;
@@ -438,10 +438,10 @@ The principle: passive triggers (dwell, ambient voice) get low-tier powers by de
   - a fatigue reminder.
 
   Gap: talking with your hands on a video call while control is on. A suggestion that costs nothing: after the hand has been out of view for more than 10 s, require a 0.6 s dwell to re-engage instead of 250 ms.
-- **False-positive gestures.** A thumb-index pinch made incidentally (holding a mug, adjusting glasses) clicks wherever the pointer is. Look+pinch mode in Humanity is riskier: the pointer *is* the gaze (`HumanityApp.swift:90`). Gaze has 2–4° of error and isn't snapped on the pinch path, so the click can land on an adjacent control. Suggestions: show a small target highlight under the gaze point in look+pinch mode (the PointerHUD already exists), and apply the same small snap (≤1.5°) used for dwell.
+- **False-positive gestures.** A thumb-index pinch made incidentally (holding a mug, adjusting glasses) clicks wherever the pointer is. Look+pinch mode in sentidoS is riskier: the pointer *is* the gaze (`HumanityApp.swift:90`). Gaze has 2–4° of error and isn't snapped on the pinch path, so the click can land on an adjacent control. Suggestions: show a small target highlight under the gaze point in look+pinch mode (the PointerHUD already exists), and apply the same small snap (≤1.5°) used for dwell.
 - **Runaway input.** Not possible beyond the camera rate. Events are 1:1 with frames, flicks have a 0.4–0.9 s debounce, and scrolls end on release.
 - **Kill switch.** ⌃⌥⌘H is a Carbon hotkey, so it works from any app and mid-drag, and it releases held buttons. Fix the semantics and the silent failure (finding 9). There is no Esc, which is right: a global Esc would break every app.
-- **Stuck mouse button.** Possible only when frames stop mid-drag (finding 6), or if the app crashes mid-drag (a physical click clears it). The right-click posts down and up back to back. ManOS never posts modifier key events, so **no modifier can stick**. Arrow-key flicks pick up modifiers the user is physically holding (finding 16).
+- **Stuck mouse button.** Possible only when frames stop mid-drag (finding 6), or if the app crashes mid-drag (a physical click clears it). The right-click posts down and up back to back. manoS never posts modifier key events, so **no modifier can stick**. Arrow-key flicks pick up modifiers the user is physically holding (finding 16).
 - **Destructive UI.** A lost hand mid-drag *drops* at the current location. Consider the drop-at-origin cancel in finding 6. Context menus (right-click followed by a stray pinch) are the realistic two-step accident, and that is acceptable at the medium tier.
 - **Indicators.**
   - The menu bar icon switches to `hand.point.up.left.fill` while controlling and `hand.raised.slash` while paused.
@@ -450,16 +450,16 @@ The principle: passive triggers (dwell, ambient voice) get low-tier powers by de
   - The Live page explains `blockedReason`.
   - Good.
 
-### OculOS (gaze)
+### ojoS (gaze)
 
 - **Accidental activation.** Gaze never clicks unless Dwell is on (off by default) or ⌃⌥⌘G is pressed. Dwell fires once per fixation and needs Accessibility. Gaps: dwell and gaze re-arm at launch, and the 4° snap reaches neighboring controls (finding 5).
 - **Dwell on destructive UI.** This is the highest-risk passive trigger in the suite. Recommended order: a smaller snap radius for dwell; no dwell in sheets, alerts or system security dialogs (use ⌃⌥⌘G there); dwell off at launch.
 - **Runaway input.** At most one click per fixation, so no runaway is possible.
-- **Kill switch.** OculOS has none of its own. Gaze stops when the menu bar tile is turned off. Recommendation: in Humanity, ⌃⌥⌘H disarms dwell as well, and in standalone OculOS, Esc cancels a dwell that is in progress. Calibration already exits on Esc (`AppModel.swift:222`).
+- **Kill switch.** ojoS has none of its own. Gaze stops when the menu bar tile is turned off. Recommendation: in sentidoS, ⌃⌥⌘H disarms dwell as well, and in standalone ojoS, Esc cancels a dwell that is in progress. Calibration already exits on Esc (`AppModel.swift:222`).
 - **Stuck button or modifier.** Not possible. Down and up are posted back to back with `flags = []` (`GazeClick.swift:104-111`), and ⌃⌥⌘G waits up to 1 s for the modifiers to be released.
-- **Indicators.** A gaze ring with dwell progress whenever dwell is on (`AppModel.swift:175`). Gap: Humanity's menu bar icon shows recording but not "dwell armed" (`HumanityApp.swift:548-550`). Add a state, for example `eye.circle.fill`.
+- **Indicators.** A gaze ring with dwell progress whenever dwell is on (`AppModel.swift:175`). Gap: sentidoS's menu bar icon shows recording but not "dwell armed" (`HumanityApp.swift:548-550`). Add a state, for example `eye.circle.fill`.
 
-### Murmur (voice)
+### bocaS (voice)
 
 - **Accidental activation.** The trigger is a four-key chord (⌃⌥⌘D), and there is no wake word, so false starts are unlikely. Tap mode is open-ended (finding 10).
 - **Voice as an injection channel.** Whatever the microphone hears while listening is inserted, by design. The model rewrite adds the *formatting* risks (newlines, control characters), not the *content* risk. See finding 1.
@@ -477,7 +477,7 @@ The principle: passive triggers (dwell, ambient voice) get low-tier powers by de
   - the check runs both at start and at insert (`AppModel.swift:153,248,277-278`).
 
   Gaps: the HUD echo and the copy fallback when Accessibility is missing (finding 11). Note that `IsSecureEventInputEnabled()` is global, so another app holding secure input (for example Terminal's Secure Keyboard Entry) also triggers the conservative path. That is safe.
-- **Clipboard.** See finding 4. The restore skips if the user copied in the meantime, the original types are preserved, and Murmur's own writes carry the Transient and AutoGenerated markers. All good. Add: when Concealed content is on the clipboard, type instead of pasting.
+- **Clipboard.** See finding 4. The restore skips if the user copied in the meantime, the original types are preserved, and bocaS's own writes carry the Transient and AutoGenerated markers. All good. Add: when Concealed content is on the clipboard, type instead of pasting.
 - **Indicators.** A HUD on all Spaces while listening or finishing, Tink and Pop sounds, the menu bar `waveform.circle.fill`, and the system microphone indicator. Good.
 
 ### What not to add (to avoid making the app annoying)
@@ -500,8 +500,8 @@ git log --all -p | grep -nE 'sk-[A-Za-z0-9_-]{16,}|sk-ant-|AIza[0-9A-Za-z_-]{30,
 git log --all --name-only --format= | sort -u | grep -Ei '\.(p12|pem|cer|key|env|mobileprovision)$'
 
 # Signatures of shipped apps (expect cdhash or certificate leaf, never bare identifier)
-hdiutil attach -readonly -nobrowse -mountpoint /tmp/m dist/Murmur-1.0.0.dmg
-codesign -d -r- --entitlements - /tmp/m/Murmur.app; codesign --verify --deep --strict /tmp/m/Murmur.app
+hdiutil attach -readonly -nobrowse -mountpoint /tmp/m dist/bocaS-1.0.0.dmg
+codesign -d -r- --entitlements - /tmp/m/bocaS.app; codesign --verify --deep --strict /tmp/m/bocaS.app
 
 # Redirect header behavior: a POST with Authorization + x-api-key to a local server
 # that 30x-redirects to another host:port. Observed: Authorization dropped, x-api-key kept.

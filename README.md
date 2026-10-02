@@ -157,7 +157,7 @@ Assistant → Create a Certificate → Code Signing), then build with
 
 ## Research
 
-The design draws on [22 research notes](research/README.md) covering competing
+The design draws on [22 research notes](https://github.com/pikabrofar/sentidoS-a1/tree/main/research) covering competing
 products, HCI literature, accessibility, Apple APIs, privacy and distribution.
 
 ## Contributing

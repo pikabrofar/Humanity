@@ -30,7 +30,7 @@ Freshness notes:
 | 4 | `CFBundleVersion` is hard-coded to `1` and never bumped. | [Repo] all four `Info.plist`, build scripts | Stamp a monotonically increasing build number |
 | 5 | `package.sh` defaults `VERSION=dev`, which writes the invalid `CFBundleShortVersionString` "dev". CI accepts 2-part versions such as `1.2`. | [Repo] | Require `X.Y.Z` (Apple: "three period-separated integers") |
 | 6 | Every app gets **both** camera and audio-input entitlements from one shared file. | [Repo] `scripts/app.entitlements` | Per-app entitlements (§A3) |
-| 7 | Humanity's `NSAudioCaptureUsageDescription` says "**Murmur** records the meeting app's audio…" | [Repo] `Humanity/Resources/Info.plist` | Change it to "Humanity …" |
+| 7 | sentidoS's `NSAudioCaptureUsageDescription` says "**bocaS** records the meeting app's audio…" | [Repo] `sentidoS/Resources/Info.plist` | Change it to "sentidoS …" |
 | 8 | SHA-256 is computed before signing and stapling. Stapling modifies the DMG, so the published checksum would be wrong. | [Repo] `scripts/package.sh` | Compute the checksum last |
 | 9 | "Apple silicon only" vs CI: `release.yml` sets `UNIVERSAL=1` (arm64 + x86_64), but the local `dist/` DMGs are arm64-only. | [Repo] | Pick one: ship arm64-only or drop the claim |
 | 10 | The release notes describe the unnotarized flow in 3 steps. Apple's flow has more steps, including the admin password and a 1-hour window. | [Repo] `.github/workflows/release.yml` | Use the copy in §B10 |
@@ -86,7 +86,7 @@ Freshness notes:
   `designated => cdhash H"…"`. `spctl --assess --type execute` gives **rejected**.
 - The DMGs are "not signed at all", `stapler validate` reports no ticket, and `spctl -a -t open
   --context context:primary-signature` gives **rejected, no usable signature**.
-- CI can import a **self-signed** "Humanity Self-Signed" certificate. That keeps TCC grants stable
+- CI can import a **self-signed** "sentidoS Self-Signed" certificate. That keeps TCC grants stable
   across updates, but Gatekeeper still treats it as unidentified, so it is **not** a substitute for
   Developer ID.
 - Good news for notarization:
@@ -163,11 +163,11 @@ confirmation. Drop the `xattr` advice once builds are notarized.
   says nothing about the audio-input entitlement. The sample's project file wasn't downloaded, so its
   entitlements are not checked.
 - [Unverified] Third-party reports say a hardened-runtime build creates taps without audio-input.
-- **Practical answer:** it doesn't matter for this repo. The only two apps that use taps (Humanity and
-  Murmur, via MeetingKit) also record the microphone, so they need audio-input anyway.
+- **Practical answer:** it doesn't matter for this repo. The only two apps that use taps (sentidoS and
+  bocaS, via MeetingKit) also record the microphone, so they need audio-input anyway.
 
-**Is the camera entitlement required?** Yes, for Humanity, OculOS and ManOS (all use `AVCaptureDevice`
-via GazeKit). No, for Murmur, which has no camera code and no `NSCameraUsageDescription`.
+**Is the camera entitlement required?** Yes, for sentidoS, ojoS and manoS (all use `AVCaptureDevice`
+via GazeKit). No, for bocaS, which has no camera code and no `NSCameraUsageDescription`.
 
 **Repo today [Repo]:** one shared `scripts/app.entitlements` with camera and audio-input for every app.
 There is no sandbox, no `get-task-allow`, and no `cs.*` exceptions. None are needed: no JIT, no
@@ -177,10 +177,10 @@ plug-ins, and Core ML and FoundationModels are system frameworks.
 
 | App | camera | audio-input | Why |
 |---|---|---|---|
-| Humanity | yes | yes | Hosts OculOS, ManOS and Murmur modules |
-| OculOS | yes | **remove** | Camera only |
-| ManOS | yes | **remove** | Camera only |
-| Murmur | **remove** | yes | Mic, speech, taps |
+| sentidoS | yes | yes | Hosts ojoS, manoS and bocaS modules |
+| ojoS | yes | **remove** | Camera only |
+| manoS | yes | **remove** | Camera only |
+| bocaS | **remove** | yes | Mic, speech, taps |
 
 After signing, verify with `codesign -d --entitlements - --xml App.app`.
 
@@ -198,17 +198,17 @@ After signing, verify with `codesign -d --entitlements - --xml App.app`.
 
 **Matrix [Repo]** (code paths found by grepping each app's sources and the packages it links):
 
-| Key | Humanity | OculOS | ManOS | Murmur |
+| Key | sentidoS | ojoS | manoS | bocaS |
 |---|---|---|---|---|
 | NSCameraUsageDescription | present, needed | present, needed | present, needed | absent, not needed |
 | NSMicrophoneUsageDescription | present, needed | absent, not needed | absent, not needed | present, needed |
 | NSSpeechRecognitionUsageDescription | present, needed | n/a | n/a | present, needed |
-| NSAudioCaptureUsageDescription | present, **text names "Murmur": fix** | n/a | n/a | present, needed |
+| NSAudioCaptureUsageDescription | present, **text names "bocaS": fix** | n/a | n/a | present, needed |
 | NSAppleEventsUsageDescription | not used | not used | not used | not used |
 | NSScreenCaptureUsageDescription | n/a (undocumented) | n/a (undocumented) | n/a | n/a |
 
 Notes:
-- **OculOS and Screen Recording:** OculOS calls `SCShareableContent` and
+- **ojoS and Screen Recording:** ojoS calls `SCShareableContent` and
   `SCScreenshotManager.captureImage` for the optional heatmap backdrop (`ScreenshotCapture.swift`), so it
   does use Screen Recording. Apple documents no Info.plist key for it, so nothing is required. Don't add
   `NSScreenCaptureUsageDescription` expecting it to change the prompt.
@@ -216,7 +216,7 @@ Notes:
   `osascript`. Opening `x-apple.systempreferences:` URLs with `NSWorkspace` is not an Apple event. Do
   not add `NSAppleEventsUsageDescription`.
 - **Speech:** recognition is forced on-device (`requiresOnDeviceRecognition = true` in
-  `Murmur/…/Transcriber.swift` and `MeetingKit/…/FileTranscriber.swift`), so the claim "Nothing is sent
+  `bocaS/…/Transcriber.swift` and `MeetingKit/…/FileTranscriber.swift`), so the claim "Nothing is sent
   to Apple" is consistent with the code. Text cleanup can go to a cloud provider when the user adds a
   key, but that is text, not speech recognition.
 - **Versions:** `CFBundleShortVersionString` uses "three period-separated integers". For
@@ -229,13 +229,13 @@ What each app uses [Repo]:
 
 | Capability | API in repo | TCC service (System Settings pane) | Apps |
 |---|---|---|---|
-| Post mouse/keyboard events | `CGEvent(...)` + `.post` | **PostEvent**, shown under **Accessibility** | ManOS, OculOS (dwell click), Murmur (paste), Humanity |
-| Read AX tree (snap-to-target) | `AXUIElementCopyElementAtPosition`, `AXUIElementCopyAttributeValue` | **Accessibility** | OculOS, Humanity |
-| Global mouse-down monitor | `NSEvent.addGlobalMonitorForEvents(matching: .leftMouseDown)` | Apple gates only key events (below) | OculOS, Humanity |
-| Global hotkeys | Carbon `RegisterEventHotKey` | none documented | OculOS, Murmur, Humanity |
-| Window bounds | `CGWindowListCopyWindowInfo` | none for bounds [Unverified] | ManOS, Humanity |
-| Screen stills / app audio | `SCShareableContent`, `SCScreenshotManager`, `SCStream` | **Screen Recording** | OculOS (optional), MeetingKit fallback (macOS < 14.4 or failed tap), Humanity |
-| App audio | Core Audio process tap | "system audio recording" (`NSAudioCaptureUsageDescription`) | Murmur, Humanity |
+| Post mouse/keyboard events | `CGEvent(...)` + `.post` | **PostEvent**, shown under **Accessibility** | manoS, ojoS (dwell click), bocaS (paste), sentidoS |
+| Read AX tree (snap-to-target) | `AXUIElementCopyElementAtPosition`, `AXUIElementCopyAttributeValue` | **Accessibility** | ojoS, sentidoS |
+| Global mouse-down monitor | `NSEvent.addGlobalMonitorForEvents(matching: .leftMouseDown)` | Apple gates only key events (below) | ojoS, sentidoS |
+| Global hotkeys | Carbon `RegisterEventHotKey` | none documented | ojoS, bocaS, sentidoS |
+| Window bounds | `CGWindowListCopyWindowInfo` | none for bounds [Unverified] | manoS, sentidoS |
+| Screen stills / app audio | `SCShareableContent`, `SCScreenshotManager`, `SCStream` | **Screen Recording** | ojoS (optional), MeetingKit fallback (macOS < 14.4 or failed tap), sentidoS |
+| App audio | Core Audio process tap | "system audio recording" (`NSAudioCaptureUsageDescription`) | bocaS, sentidoS |
 
 **Input Monitoring: are CGEvent posting and Carbon hotkeys affected?**
 - **CGEvent posting needs PostEvent, not Input Monitoring.** [Verified via Apple DTS on the Apple
@@ -254,7 +254,7 @@ What each app uses [Repo]:
   Apple's `tapCreate` doc says taps receive key events only for root or with assistive access. If a
   future feature adds an event tap, that changes.
 - **Key events:** Apple's `addGlobalMonitorForEvents` doc says "Key-related events may only be monitored
-  if accessibility is enabled". OculOS monitors only `.leftMouseDown` globally; its key monitors are
+  if accessibility is enabled". ojoS monitors only `.leftMouseDown` globally; its key monitors are
   local.
 
 **Screen Recording:**
@@ -312,7 +312,7 @@ Source: DPLA, last updated **August 18, 2026** [Verified]. My summary, not legal
 | §3.2 (conduct bullet) | No "misleading, fraudulent … consumer misrepresentation" | Product claims must be accurate (also Gumroad §11.2(b)). |
 | §3.3.1(A) | No private APIs | §A6 |
 | §3.3.1(C) | No unlocking features "through distribution mechanisms other than the App Store, Custom App Distribution or TestFlight" without Apple's approval | **Ambiguous for license keys.** The §3.3 lead-in scopes the Program Requirements to App Store, TestFlight and Ad Hoc apps, and license keys are standard practice for Developer ID software. This would be a problem if the apps ever go to the Mac App Store. **Ask a lawyer if in doubt.** |
-| §3.3.3(A) Recordings | Recording mic, camera or screen requires "a reasonably conspicuous audio, visual or other indicator"; apps "may not be designed to facilitate Recordings of others without their awareness" | Murmur meeting capture: keep a visible recording indicator (menu bar icon or HUD) the whole time. Keep the PRIVACY.md consent warning. |
+| §3.3.3(A) Recordings | Recording mic, camera or screen requires "a reasonably conspicuous audio, visual or other indicator"; apps "may not be designed to facilitate Recordings of others without their awareness" | bocaS meeting capture: keep a visible recording indicator (menu bar icon or HUD) the whole time. Keep the PRIVACY.md consent warning. |
 | §3.3.3(B)–(C) | Collect data only with consent; "provide a privacy policy … on Your website"; notify users of breaches | Publish the privacy policy at a stable URL (§B7). |
 | §5.1 | Safeguard certificates and keys; don't transfer them; notify Apple of compromise | Store the Developer ID `.p12` and notary API key only as encrypted CI secrets. Restrict them to tag-triggered release jobs and never commit them. The clause's example (no uploading the App Store certificate "to a cloud repository for use by a third party") is about App Store certificates, but follow its spirit. |
 | §5.3 Notarized Applications | Apple may retain and scan uploads and revoke tickets. "You agree **not to represent that Apple has performed a security check or malware detection** for Your Application or that Apple has reviewed or approved Your Application." You remain responsible for the app's safety. Includes an export-control clause (EAR/ITAR, encryption). | **Marketing must not say "Apple-approved", "verified by Apple" or "malware-checked by Apple."** A conservative reading avoids "notarized by Apple" as a trust claim in marketing too. Install docs can say the app "opens without Gatekeeper warnings." The apps use only standard HTTPS. Have a lawyer confirm the export clause is satisfied. |
@@ -342,11 +342,11 @@ List* (which lists `Mac®` and `macOS®`):
   other countries and regions."
 
 **Recommendations:**
-- Use "Humanity for Mac" or "Requires macOS 14 Sonoma or later", with the product name more prominent.
+- Use "sentidoS for Mac" or "Requires macOS 14 Sonoma or later", with the product name more prominent.
 - Never use the Apple logo or an App Store badge.
 - Add the credit line to the Gumroad page and website footer.
-- **Naming risk to review with a trademark lawyer:** "ManOS" is one letter from "macOS", and both
-  "OculOS" and "ManOS" end in "OS". Apple's guidelines forbid takeoffs and variations of its marks.
+- **Naming risk to review with a trademark lawyer:** "manoS" is one letter from "macOS", and both
+  "ojoS" and "manoS" end in "OS". Apple's guidelines forbid takeoffs and variations of its marks.
   I can't assess the risk, but it's worth checking before spending on marketing.
 
 ## A9. Ordered release checklist
@@ -357,7 +357,7 @@ Per app, run in CI on a tag. `$ID` = `Developer ID Application: <Legal Name> (<T
 
 1. **Pre-flight.**
    - Re-run the private-API grep from §A6. Confirm the usage strings match each app's matrix row (§A4).
-   - Confirm `NSAudioCaptureUsageDescription` in Humanity names Humanity.
+   - Confirm `NSAudioCaptureUsageDescription` in sentidoS names sentidoS.
    - Run `swift test` for each package.
 2. **Versions.**
    - Set `CFBundleShortVersionString` to the tag (`X.Y.Z`, exactly three integers).
@@ -464,7 +464,7 @@ notice", so re-check it before launch.
 - Desktop software you wrote is allowed. Nothing here is a reseller-rights, PLR or OEM product.
 - **Watch this item:** "AI services which includes selling access to AI tools, chatbots, image or
   content generation services, or subscriptions to AI services that are fulfilled outside of Gumroad."
-  - Humanity doesn't sell AI access: AIKit uses the **buyer's own** API keys, and every task defaults
+  - sentidoS doesn't sell AI access: AIKit uses the **buyer's own** API keys, and every task defaults
     to on-device.
   - Describe it as offline Mac software with optional bring-your-own-key integrations. Don't market it
     as an AI service or subscription.
@@ -639,7 +639,7 @@ Adapt this wording. Keep it accurate, and update it when notarization lands.
 
 **System requirements**
 > Requires macOS 14 Sonoma or later on a Mac with Apple silicon. A webcam (the built-in camera works)
-> for OculOS and ManOS, and a microphone for Murmur. Recording a call app's audio needs macOS 14.4 or
+> for ojoS and manoS, and a microphone for bocaS. Recording a call app's audio needs macOS 14.4 or
 > later; earlier versions use Screen Recording instead. The most accurate dictation needs macOS 26.
 
 **Apple silicon only.** Use this line only if the shipped binaries are arm64-only. Today CI builds
@@ -647,7 +647,7 @@ universal binaries (blocker 9).
 > Apple silicon only. Intel-based Macs are not supported.
 
 **Unnotarized warning** (interim, until Developer ID):
-> Humanity isn't notarized yet, so macOS blocks it the first time you open it. To open it:
+> sentidoS isn't notarized yet, so macOS blocks it the first time you open it. To open it:
 > 1. Drag it to Applications and open it. Close the warning.
 > 2. Open System Settings → Privacy & Security, and scroll to Security.
 > 3. Click **Open Anyway**. It appears for about an hour after step 1.
@@ -659,8 +659,8 @@ universal binaries (blocker 9).
 > release page.
 
 **License model**
-> Free to download. A license key is required to use the official builds. One key unlocks Humanity,
-> OculOS, ManOS and Murmur on the Macs you personally use. Pay what you want, minimum $5. You can pay
+> Free to download. A license key is required to use the official builds. One key unlocks sentidoS,
+> ojoS, manoS and bocaS on the Macs you personally use. Pay what you want, minimum $5. You can pay
 > more to support development. The source code is open under the MIT License. Activation needs an
 > internet connection. The apps re-check your key about once a week, and they keep working offline for
 > up to 60 days after the last successful check. Refunded or charged-back keys stop working.
@@ -669,7 +669,7 @@ Decide and state the seat policy explicitly. "Your own Macs" is a suggestion.
 
 **Refund policy.** Set it in Gumroad's refund-policy setting. Given the install friction, a generous
 window reduces disputes.
-> 30-day money-back guarantee: if Humanity doesn't work on your Mac, email support@… for a full refund.
+> 30-day money-back guarantee: if sentidoS doesn't work on your Mac, email support@… for a full refund.
 > Refunded keys are deactivated.
 
 **Data practices**

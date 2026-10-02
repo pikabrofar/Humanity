@@ -1,8 +1,8 @@
-# Humanity: compliance research report (pre-release)
+# sentidoS: compliance research report (pre-release)
 
 Prepared 2026-10-01 against commit `222596d` and the then-untracked `.github/`. Written by a compliance research lead, **not a lawyer. This is not legal advice.** Nothing here says the product is safe, compliant or immune from suit.
 
-Markers used throughout: V = fetched and read 2026-10-01; V2 = secondary source only; U = unverified. Full source URLs are in the files in `legal/`, `legal/research/` and `legal/redteam/`. This report summarizes them.
+Markers used throughout: V = fetched and read 2026-10-01; V2 = secondary source only; U = unverified. Full source URLs are in the files in `legal/` and, in sentidoS-a1, `legal/research/` and sentidoS-a1 `legal/redteam/`. This report summarizes them.
 
 Since this report was drafted, PRIVACY.md has been fixed: the unremembered-voiceprint row now says 30 days, and "Learn from clicks" is disclosed (P0-7).
 
@@ -41,7 +41,7 @@ Since this report was drafted, PRIVACY.md has been fixed: the unremembered-voice
 | ADA / FDA | Only with medical claims | "Not a medical or assistive device" | Research notes naming conditions (softened) | Y |
 | EAR / OFAC | Light | Likely EAR99; Gumroad blocks embargoed countries | No classification memo | Y |
 | Tax | Gumroad is merchant of record for sales tax | — | Income tax; confirm MA collection | CPA |
-| Trademark | Yes | TRADEMARKS.md | Murmur HIGH, OculOS MED-HIGH, Humanity MED-HIGH, ManOS MED | Y |
+| Trademark | Yes | TRADEMARKS.md | bocaS HIGH, ojoS MED-HIGH, sentidoS MED-HIGH, manoS MED | Y |
 | Personal liability | Yes | — | Sole proprietor; consider an LLC | Y |
 
 ## 3. Apple
@@ -121,7 +121,7 @@ Since this report was drafted, PRIVACY.md has been fixed: the unremembered-voice
 - Med: a FluidAudio environment variable can redirect model downloads.
 - Med: newlines can still reach editor-integrated terminals.
 - Med: Delete All hides failures.
-- Several Low items: see `legal/redteam/03-security-researcher.md`.
+- Several Low items: see sentidoS-a1 `legal/redteam/03-security-researcher.md`.
 
 ## 7. Open source
 
@@ -133,23 +133,23 @@ Since this report was drafted, PRIVACY.md has been fixed: the unremembered-voice
 - The Gaze360 script requires acknowledgement.
 
 **Open:**
-- The LICENSE holder is "Humanity contributors"; replace it with the legal name or DBA.
+- The LICENSE holder is "sentidoS contributors"; replace it with the legal name or DBA.
 - No ScanCode scan yet.
 - No CI guard that keeps the espeak-derived FluidAudio bundle out.
 - TERMS §2.3, §5 and §15 vs MIT (attorney).
 
 ## 8. Automation safeguards
-- **ManOS:**
+- **manoS:**
   - Off at launch.
   - Physical mouse wins.
   - ⌃⌥⌘H kill switch.
   - Stall watchdog.
-- **OculOS:**
+- **ojoS:**
   - Dwell off at every launch.
   - 1.5° snap, avoiding dialogs.
   - Esc and ⌃⌥⌘E.
   - Visible ring.
-- **Murmur:**
+- **bocaS:**
   - Four-key chord, no wake word.
   - Sanitized output and no synthesized Return.
   - Secure-input handling.
@@ -180,7 +180,7 @@ Since this report was drafted, PRIVACY.md has been fixed: the unremembered-voice
 **P1:**
 - Done: dictation audio off by default, Delete All, crash orphans, retention, 0700 folders, indicators.
 - **OPEN:**
-  - Cloud prompt for note summaries (`Murmur/Sources/MurmurUI/AppModel.swift`).
+  - Cloud prompt for note summaries (`bocaS/Sources/MurmurUI/AppModel.swift`).
   - Intel decision (`release.yml` `UNIVERSAL`).
   - Price in release notes.
   - Version-pinned Terms and Privacy URLs (`License.swift`).
@@ -196,11 +196,11 @@ Since this report was drafted, PRIVACY.md has been fixed: the unremembered-voice
 - ScanCode scan.
 
 **P3:**
-- Kill-switch semantics, flick modifiers, the clipboard edge cases, and the other items listed in `legal/redteam/`.
+- Kill-switch semantics, flick modifiers, the clipboard edge cases, and the other items listed in sentidoS-a1 `legal/redteam/`.
 
 ## 11. Pre-release checklist
 - [ ] Decide on an LLC: yours, or your father's after his accountant or attorney reviews it.
-- [ ] Choose new names after a clearance search (candidates in `legal/research/15*`).
+- [ ] Choose new names after a clearance search (candidates in sentidoS-a1 `legal/research/15*`).
 - [ ] Fill the TERMS/PRIVACY placeholders; attorney review; remove the banner.
 - [ ] Set the LICENSE holder line.
 - [ ] Pin the Terms/Privacy URLs to a tag.
@@ -233,7 +233,7 @@ Since this report was drafted, PRIVACY.md has been fixed: the unremembered-voice
 1. Connect a Gumroad payout; set the support email, the 30-day refund policy and the Terms field.
 2. Fill the TERMS.md and PRIVACY.md placeholders, and make the LICENSE holder line consistent.
 3. Decide on an LLC and insurance.
-4. Decide on names (see `legal/research/15*`).
+4. Decide on names (see sentidoS-a1 `legal/research/15*`).
 5. Apple Developer account, then notarization.
 6. Run `gh auth refresh -h github.com -s workflow` so `.github/` can be pushed.
 7. Read Gumroad's Terms before 2026-10-14.
@@ -243,11 +243,11 @@ Since this report was drafted, PRIVACY.md has been fixed: the unremembered-voice
 
 ---
 
-## Update: Humanity is now free (decided 2026-10-01)
+## Update: sentidoS is now free (decided 2026-10-01)
 
 The owner chose free MIT software with an optional donation link instead of
 paid license keys. LicenseKit and the activation window were removed; the apps
-make no Gumroad requests. "Support Humanity…" opens a Gumroad pay-what-you-want
+make no Gumroad requests. "Support sentidoS…" opens a Gumroad pay-what-you-want
 page ($0 minimum) that unlocks nothing. TERMS.md was replaced with short Terms
 of Use (MIT, no warranty, acceptable use incl. recording consent, donations).
 
@@ -258,4 +258,3 @@ donations stay genuinely optional and unconditional. Recording-consent,
 biometric, trademark and safety items are unchanged. Confirm with counsel that
 the donation setup isn't treated as a sale.
 
-2026-10-01: Product renamed. Humanity is now Handless, OculOS is ojoS, ManOS is manoS and Murmur is bocaS. Names in this folder and in research/ are historical.

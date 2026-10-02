@@ -3,9 +3,15 @@
 # Usage: scripts/package.sh <AppName> [version]
 #   UNIVERSAL=1  build arm64 + x86_64 (needs full Xcode, as on GitHub runners)
 #   SIGN_ID=...  codesigning identity (default: ad-hoc)
+#   NOTARY_PROFILE=...  notarytool keychain profile: notarize and staple the DMG
+#                       (needs a Developer ID SIGN_ID)
 set -eu
 APP_NAME="$1"
 VERSION="${2:-}"  # empty: keep Info.plist version
+case "$VERSION" in
+    ""|[0-9]*.[0-9]*.[0-9]*) ;;
+    *) echo "version must look like 1.2.3, got '$VERSION'" >&2; exit 1 ;;
+esac
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 APP_DIR="$ROOT/$APP_NAME"
 OUT="$ROOT/dist"
@@ -22,5 +28,13 @@ DMG="$OUT/$APP_NAME-${VERSION:-dev}.dmg"
 rm -f "$DMG"
 hdiutil create -quiet -volname "$APP_NAME" -srcfolder "$STAGE" -format UDZO -ov "$DMG"
 rm -rf "$STAGE"
+if [ "${SIGN_ID:--}" != "-" ]; then
+    codesign --force --timestamp --sign "$SIGN_ID" "$DMG"
+    if [ -n "${NOTARY_PROFILE:-}" ]; then
+        xcrun notarytool submit "$DMG" --keychain-profile "$NOTARY_PROFILE" --wait
+        xcrun stapler staple "$DMG"
+    fi
+fi
+# Checksum last: signing and stapling both change the file.
 (cd "$OUT" && shasum -a 256 "$(basename "$DMG")" > "$(basename "$DMG").sha256")
 echo "Packaged $DMG"

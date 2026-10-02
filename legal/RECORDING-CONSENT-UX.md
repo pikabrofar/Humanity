@@ -1,13 +1,13 @@
 # Recording-consent and voice-profile UX
 
-Research-engineering note, not legal advice. 2026-10-01. Scope: Murmur → Meetings (MeetingKit) and voice profiles.
+Research-engineering note, not legal advice. 2026-10-01. Scope: bocaS → Meetings (MeetingKit) and voice profiles.
 
 ## 1. Why this matters for this app specifically
 
 - **Other participants see no indicator.**
   - MeetingKit captures the call app's audio with a Core Audio process tap or ScreenCaptureKit, plus the local mic (`MeetingKit/Sources/MeetingKit/Capture/*`).
   - Zoom, Teams and Meet show recording notices only for *their own* recording feature.
-  - Other people on the call get **no signal** that Humanity is recording. The user's announcement is the only notice they will ever get.
+  - Other people on the call get **no signal** that sentidoS is recording. The user's announcement is the only notice they will ever get.
 - **"All system audio" captures everything.** That includes media and other calls.
 - **Naming a speaker silently creates a biometric profile.**
   - In `MeetingDetailView.swift`, clicking a speaker name and choosing **Save** calls `Meeting.name(speaker:as:in:)`.
@@ -21,7 +21,7 @@ Research-engineering note, not legal advice. 2026-10-01. Scope: Murmur → Meeti
   - [M.G.L. c. 272 §99](https://malegislature.gov/Laws/GeneralLaws/PartIV/TitleI/Chapter272/Section99) B.4 defines interception to include "aid another to secretly … record". §99 C.6 adds accessory liability.
   - Illinois [14-2(a)(4)](https://www.ilga.gov/documents/legislation/ilcs/documents/072000050K14-2.htm) and [18 U.S.C. §2512](https://www.law.cornell.edu/uscode/text/18/2512) target devices "primarily useful" for *surreptitious* recording.
   - The FTC banned the stalkerware maker SpyFone from the surveillance business ([2021](https://www.ftc.gov/news-events/news/press-releases/2021/09/ftc-bans-spyfone-ceo-surveillance-business-orders-company-delete-all-secretly-stolen-data)).
-  - A visible, non-hideable recording state is the strongest evidence that Humanity is *not* a covert tool.
+  - A visible, non-hideable recording state is the strongest evidence that sentidoS is *not* a covert tool.
 
 ## 2. U.S. law
 
@@ -84,7 +84,7 @@ Show it as a sheet. **Start Recording** is disabled until the checkbox is ticked
 
 > **Recording other people requires their consent**
 >
-> Murmur records your microphone and the call's audio on this Mac. People on the call **won't see any recording indicator** from their meeting app.
+> bocaS records your microphone and the call's audio on this Mac. People on the call **won't see any recording indicator** from their meeting app.
 >
 > In Massachusetts, California and many other places, recording a conversation without the consent of **everyone** in it is a crime. Participants may be in different states or countries.
 >
@@ -135,7 +135,7 @@ Change `MeetingDetailView.renameForm` and `Meeting.name(speaker:as:in:)`:
 - The first time it is ticked, show this:
 
 > **Save a voiceprint of {Name}?**
-> Murmur will store a numeric voice fingerprint (no audio) on this Mac so it can recognize {Name} in future meetings. Voiceprints are biometric data. In some places (for example Illinois) you need {Name}'s **written** consent first.
+> bocaS will store a numeric voice fingerprint (no audio) on this Mac so it can recognize {Name} in future meetings. Voiceprints are biometric data. In some places (for example Illinois) you need {Name}'s **written** consent first.
 > ☐ {Name} agreed to have their voice remembered.
 > [Copy consent request] [Cancel] [Save voice]
 
@@ -176,5 +176,5 @@ Change `MeetingDetailView.renameForm` and `Meeting.name(speaker:as:in:)`:
 | Persistent banner panel | new `MeetingUI/RecordingBanner.swift`; reuse `RecordingIndicator` in `MeetingUI/Components.swift` |
 | Name ≠ enroll; attestation sheet | `MeetingUI/MeetingDetailView.swift`, `Meeting.name(speaker:as:in:)` (add `remember: Bool`) |
 | Retention, attestation and match dates; Delete all | `MeetingKit/VoiceProfileStore.swift`, `MeetingUI/VoiceProfilesView.swift` |
-| Cloud-summary notice | `Murmur/Sources/MurmurUI/Views/MeetingsView.swift`, `AIKit/Tasks.swift` caller |
+| Cloud-summary notice | `bocaS/Sources/MurmurUI/Views/MeetingsView.swift`, `AIKit/Tasks.swift` caller |
 | Tests | `MeetingKitTests/VoiceProfileTests.swift`: renaming without `remember` must not enroll, and expired profiles must be purged |
