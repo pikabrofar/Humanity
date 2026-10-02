@@ -104,3 +104,40 @@ public enum PasteSequence {
         return true
     }
 }
+
+/// `PasteSequence.insert` for an app that pastes more than once: one instance per app.
+/// A dictation that lands while the previous one's restore is pending puts back the
+/// user's clipboard, not the previous dictation (which is marked transient, so a fresh
+/// snapshot of it would never be restored, and the user's clipboard would be lost).
+@MainActor
+public final class PasteRestorer {
+    private var pending: (saved: [[String: Data]], ours: Int)?
+    private var generation = 0
+
+    public init() {}
+
+    /// Same contract as `PasteSequence.insert`.
+    @discardableResult
+    public func insert(_ text: String, into board: some Clipboard, restoreAfter delay: Duration?,
+                       paste: () -> Void,
+                       sleep: (Duration) async -> Void = { try? await Task.sleep(for: $0) }) async -> Bool {
+        // Our previous paste is still on the board: keep what the user had before it.
+        let saved = pending.flatMap { $0.ours == board.changeCount ? $0.saved : nil } ?? board.snapshot()
+        board.write(text)
+        let ours = board.changeCount
+        paste()
+        generation += 1
+        let mine = generation
+        guard let delay, !PasteSequence.isSensitive(saved) else {
+            pending = nil
+            return false
+        }
+        pending = (saved, ours)
+        await sleep(delay)
+        guard mine == generation else { return false } // a newer paste owns the restore now
+        pending = nil
+        guard board.changeCount == ours else { return false }
+        board.restore(saved)
+        return true
+    }
+}

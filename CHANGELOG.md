@@ -7,6 +7,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **manoS:** the pointer follows the palm measured from the image centre, so
+  leaning toward or away from the camera barely moves it (a quick 15% lean
+  moved it ~380 pt before). Mostly vertical or horizontal scrolls lock to that
+  axis, like on a trackpad.
+- **bocaS:** a model's rewrite is used only when it reuses the words you said,
+  so a dictated question is never replaced by its answer, a translation or a
+  refusal. The filler and stutter rules run only for English.
+
+### Fixed
+
+- **manoS:** a hand that comes into view already pinched (holding a pen or a
+  mug), or a pinch held past 15 s, no longer clicks. A click right after a drag
+  no longer jumps back to where the drag began, and drags no longer leap at the
+  start. Fingers that rest near the click threshold no longer slow the pointer
+  to a quarter speed. Crossed pinch sliders can't make a held pinch flicker.
+  Holding an open palm still pauses at any frame rate, and a slowly moving palm
+  never does. Stalled camera frames now also end a scroll. The hand that holds a
+  button keeps control when the other hand comes into view. Flick arrow keys no
+  longer pick up held modifier keys, and moves and drags now carry motion deltas
+  for apps that read them.
+- **bocaS:** two dictations in a row no longer lose your clipboard. Cleanup no
+  longer breaks web and email addresses ("apple.Com"), "i.e." and "a.m.",
+  "mm-hmm", units ("5 mm"), acronyms ("ER") or repeated digits ("7 7 3 9"), and
+  keeps "you know" when it's meant ("If you know, tell me"). Chinese and
+  Japanese get "。", Thai gets no period. A dictation that was only fillers
+  pastes nothing. A model call that runs past its time limit is now cancelled.
+  Summaries read Markdown headings, "Action item:" and "Next steps:", and drop
+  "No action items were mentioned."; one failed chunk no longer discards the
+  whole summary. Delete All Data during "Polishing…" no longer saves the
+  dictation again. A transcript containing `</details>` no longer breaks the
+  Markdown export.
+
 ## [1.0.0] - 2026-10-01
 
 First public release. sentidoS is a free, MIT-licensed macOS menu bar suite for

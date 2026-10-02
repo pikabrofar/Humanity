@@ -14,7 +14,9 @@ public enum MarkdownExporter {
         }
         md += "\n## Transcript\n\n\(r.text)\n"
         if let cleaned = r.cleaned, cleaned != r.transcript {
-            md += "\n<details><summary>Raw transcript</summary>\n\n\(r.transcript)\n\n</details>\n"
+            // Spoken text can contain "</details>"; escaped, it can't end the block early.
+            let raw = r.transcript.replacingOccurrences(of: "</details>", with: "&lt;/details&gt;", options: .caseInsensitive)
+            md += "\n<details><summary>Raw transcript</summary>\n\n\(raw)\n\n</details>\n"
         }
         return md
     }

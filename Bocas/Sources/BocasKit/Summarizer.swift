@@ -23,30 +23,47 @@ public enum Summarizer {
         - <one task per line, or "- None">
         """
 
+    /// Reads `format`, and the variations models drift into: Markdown headings
+    /// ("## Summary"), "Action item:", "Next steps:", numbered or checkbox items.
     public static func parse(_ reply: String) -> Summary {
         var summary: [String] = []
         var items: [String] = []
         var inItems = false
         for raw in reply.components(separatedBy: .newlines) {
             let line = raw.replacingOccurrences(of: "**", with: "").trimmingCharacters(in: .whitespaces)
-            let upper = line.uppercased()
-            if upper.hasPrefix("SUMMARY") {
-                inItems = false
-                summary.append(afterColon(line))
-            } else if upper.hasPrefix("ACTION ITEMS") {
-                inItems = true
-                items.append(afterColon(line))
+            if let (isItems, rest) = heading(line) {
+                inItems = isItems
+                if isItems { items.append(item(rest)) } else { summary.append(rest) }
             } else if inItems {
-                items.append(TextCleanup.replace("^(?:[-*•]|\\d+[.)])?\\s*(?:\\[[ xX]?\\]\\s*)?", in: line, with: ""))
+                items.append(item(line))
             } else {
                 summary.append(line)
             }
         }
-        let none: Set = ["none", "none.", "n/a"]
         return Summary(
             text: summary.filter { !$0.isEmpty }.joined(separator: " "),
-            actionItems: items.filter { !$0.isEmpty && !none.contains($0.lowercased()) }
+            actionItems: items.filter { !$0.isEmpty && !isNone($0) }
         )
+    }
+
+    /// A section label, and the text after its colon: (true, …) for action items.
+    private static func heading(_ line: String) -> (Bool, String)? {
+        let s = TextCleanup.replace("^#{1,6}\\s*", in: line, with: "")
+        guard let label = s.range(of: "^(?:summary|action items?|next steps|to-?dos?|tasks)\\s*(?::|$)",
+                                  options: [.regularExpression, .caseInsensitive]) else { return nil }
+        let rest = s[label.upperBound...].trimmingCharacters(in: .whitespaces)
+        return (!s[label].lowercased().hasPrefix("summary"), rest)
+    }
+
+    private static func item(_ line: String) -> String {
+        TextCleanup.replace("^(?:[-*•]|\\d+[.)])?\\s*(?:\\[[ xX]?\\]\\s*)?", in: line, with: "")
+    }
+
+    /// "None", "N/A", "No action items were mentioned." and the like.
+    static func isNone(_ item: String) -> Bool {
+        let none = "^(?:none(?: (?:mentioned|identified|noted|found|discussed))?|n/?a|nothing(?: to do)?"
+            + "|(?:there (?:are|were|is) )?no (?:clear |specific |explicit )?(?:action items?|tasks?|next steps|to-?dos?)\\b.*)[.!]?$"
+        return item.range(of: none, options: [.regularExpression, .caseInsensitive]) != nil
     }
 
     /// Used without Apple Intelligence: the opening sentences, plus every
@@ -83,10 +100,5 @@ public enum Summarizer {
         return tokenizer.tokens(for: text.startIndex..<text.endIndex)
             .map { text[$0].trimmingCharacters(in: .whitespacesAndNewlines) }
             .filter { !$0.isEmpty }
-    }
-
-    private static func afterColon(_ line: String) -> String {
-        guard let colon = line.firstIndex(of: ":") else { return "" }
-        return line[line.index(after: colon)...].trimmingCharacters(in: .whitespaces)
     }
 }

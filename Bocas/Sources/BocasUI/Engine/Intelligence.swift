@@ -66,8 +66,14 @@ enum Intelligence {
                 // A fresh session per chunk keeps earlier chunks out of the context.
                 let session = LanguageModelSession(instructions:
                     "Condense this part of a transcript into brief notes. Keep every task, decision, name, date and number.")
-                guard let reply = try? await session.respond(to: chunk) else { return nil }
-                notes.append(reply.content)
+                if let reply = try? await session.respond(to: chunk) {
+                    notes.append(reply.content)
+                } else {
+                    // One refused or failed chunk keeps its opening and its commitments,
+                    // instead of throwing away the whole summary.
+                    let fallback = Summarizer.extractive(chunk)
+                    notes.append(([fallback.text] + fallback.actionItems).joined(separator: " "))
+                }
             }
             source = notes.joined(separator: "\n")
         }

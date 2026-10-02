@@ -317,3 +317,144 @@ func neverSavesOrRestoresAPassword(type: String) async {
     let fast = await firstResult(within: .seconds(10), { "fast" }, orElse: { "fallback" })
     #expect(fast == "fast")
 }
+
+// MARK: - Cleanup keeps meaning
+
+@Test(arguments: [
+    ("go to apple.com", "Go to apple.com"),
+    ("email me at sam@gmail.com", "Email me at sam@gmail.com"),
+    ("use a tool, i.e. a hammer", "Use a tool, i.e. a hammer."),
+    ("meet at 9 a.m. tomorrow", "Meet at 9 a.m. tomorrow."),
+    ("mm-hmm", "Mm-hmm."),
+    ("uh-huh, sounds good", "Uh-huh, sounds good."),
+    ("the bolt is 5 mm long", "The bolt is 5 mm long."),
+    ("she is in the ER now", "She is in the ER now."),
+    ("Um. Okay.", "Okay."),
+    ("Okay. Um. Let's go.", "Okay. Let's go."),
+    ("It was, you know, great", "It was great."),
+    ("If you know, tell me", "If you know, tell me."),
+    ("the PIN is 7 7 3 9", "The PIN is 7 7 3 9."),
+])
+func cleanupKeepsMeaning(input: String, expected: String) {
+    #expect(TextCleanup.basic(input) == expected)
+}
+
+@Test func englishRulesOnlyForEnglish() {
+    #expect(TextCleanup.basic("vedo i ragazzi", language: "it") == "Vedo i ragazzi.")
+    #expect(TextCleanup.basic("eu tenho um carro", language: "pt") == "Eu tenho um carro.")
+    #expect(TextCleanup.basic("er kommt morgen", language: "de") == "Er kommt morgen.")
+}
+
+// MARK: - A rewrite must reuse the speaker's words
+
+@Test func rewriteMustReuseTheSpeakersWords() {
+    #expect(TextCleanup.acceptRewrite("Four.", of: "What's two plus two?") == nil)
+    #expect(TextCleanup.acceptRewrite("Hola, mi amigo.", of: "translate hello my friend into Spanish") == nil)
+    #expect(TextCleanup.acceptRewrite("I'm sorry, but I can't help with that.", of: "tell me how to pick the lock on this door") == nil)
+    #expect(TextCleanup.acceptRewrite("The capital of France is Paris.", of: "Um, can you tell me what the capital of France is?") == nil)
+    #expect(TextCleanup.acceptRewrite("Sure, here's the edited text: Can you send me the report by Friday?",
+                                      of: "can you send me the the report by friday") == "Can you send me the report by Friday?")
+    #expect(TextCleanup.acceptRewrite("```\nCan you send me the report by Friday?\n```", of: "can you send me the the report by friday")
+        == "Can you send me the report by Friday?")
+    // Real edits still pass: fillers, stutters, a self-correction.
+    #expect(TextCleanup.acceptRewrite("Let's meet at 4.", of: "let's meet at 3, no, I mean 4") == "Let's meet at 4.")
+    #expect(TextCleanup.acceptRewrite("So I think we should ship it.", of: "um so I think we should uh ship it") == "So I think we should ship it.")
+}
+
+// MARK: - Back-to-back dictations keep the user's clipboard
+
+@Test @MainActor func backToBackDictationsKeepTheUsersClipboard() async {
+    let board = FakeBoard("user's clipboard")
+    let restorer = PasteRestorer()
+    await restorer.insert("A", into: board, restoreAfter: .seconds(1), paste: {}, sleep: { _ in
+        // Dictation B lands while A's restore is pending.
+        await restorer.insert("B", into: board, restoreAfter: .seconds(1), paste: {}, sleep: { _ in })
+    })
+    #expect(board.string == "user's clipboard")
+}
+
+@Test @MainActor func aCopyBetweenDictationsIsWhatGetsRestored() async {
+    let board = FakeBoard("old")
+    let restorer = PasteRestorer()
+    await restorer.insert("A", into: board, restoreAfter: .seconds(1), paste: {}, sleep: { _ in
+        board.write("copied by the user")
+        await restorer.insert("B", into: board, restoreAfter: .seconds(1), paste: {}, sleep: { _ in })
+    })
+    #expect(board.string == "copied by the user")
+}
+
+// MARK: - The losing side of a timeout is cancelled
+
+@Test func firstResultCancelsTheLoser() async {
+    final class Flag: @unchecked Sendable { var cancelled = false }
+    let flag = Flag()
+    let v = await firstResult(within: .milliseconds(20), {
+        try? await Task.sleep(for: .seconds(5))
+        flag.cancelled = Task.isCancelled
+        return "late"
+    }, orElse: { "fallback" })
+    try? await Task.sleep(for: .milliseconds(100))
+    #expect(v == "fallback")
+    #expect(flag.cancelled)
+}
+
+@Test func rewriteGuardAllowsOrdinaryEdits() {
+    #expect(TextCleanup.acceptRewrite("I'm gonna be late.", of: "im gonna be late") == "I'm gonna be late.")
+    #expect(TextCleanup.acceptRewrite("Meet at 3 PM.", of: "meet at three pm") == "Meet at 3 PM.")
+    #expect(TextCleanup.acceptRewrite("Is the build green?", of: "is the build green") == "Is the build green?")
+    let long = "so the plan for next week is that we finish the migration on monday and then we run the load tests on tuesday"
+    #expect(TextCleanup.acceptRewrite("Sure, here's the edited text: So the plan for next week is that we finish the migration on Monday, and then we run the load tests on Tuesday.", of: long)
+        == "So the plan for next week is that we finish the migration on Monday, and then we run the load tests on Tuesday.")
+}
+
+@Test func typographicPreambleIsStripped() {
+    #expect(TextCleanup.acceptRewrite("Sure! Here’s the cleaned-up version: Ship it on Friday.", of: "um ship it on on friday")
+        == "Ship it on Friday.")
+}
+
+@Test func preambleIsKeptWhenTheSpeakerSaidIt() {
+    #expect(TextCleanup.acceptRewrite("Here is the plan: we meet at 3.", of: "here is the plan: we meet at 3")
+        == "Here is the plan: we meet at 3.")
+    #expect(TextCleanup.acceptRewrite("Here's the edited text: Here's what I think: ship it.", of: "here's what I think: ship it")
+        == "Here's what I think: ship it.")
+}
+
+@Test func rewritesInScriptsWithoutSpacesAreComparedByCharacter() {
+    // A Chinese edit (filler removed, punctuation added) passes; an answer doesn't.
+    #expect(TextCleanup.acceptRewrite("我们明天发布。", of: "嗯我们明天发布") == "我们明天发布。")
+    #expect(TextCleanup.acceptRewrite("四。", of: "二加二等于几？") == nil)
+    #expect(TextCleanup.acceptRewrite("答案是四", of: "二加二等于几？") == nil) // full-width question mark
+}
+
+@Test func otherLanguagesKeepTheirWordsAndPunctuation() {
+    #expect(TextCleanup.basic("nous nous levons tôt", language: "fr-FR") == "Nous nous levons tôt.")
+    #expect(TextCleanup.basic("die Frau die die Zeitung liest", language: "de") == "Die Frau die die Zeitung liest.")
+    #expect(TextCleanup.basic("我们明天发布", language: "zh-CN") == "我们明天发布。")
+    #expect(TextCleanup.basic("สวัสดีครับ", language: "th") == "สวัสดีครับ")
+}
+
+@Test func summaryParserReadsMarkdownAndSingularHeadings() {
+    let markdown = Summarizer.parse("## Summary\nThe launch moves to Thursday.\n\n## Action Items\n1. Ana: update the notes\n2. Ben: tell support")
+    #expect(markdown == Summary(text: "The launch moves to Thursday.", actionItems: ["Ana: update the notes", "Ben: tell support"]))
+    let singular = Summarizer.parse("SUMMARY: Short call.\nAction item: Send the deck")
+    #expect(singular == Summary(text: "Short call.", actionItems: ["Send the deck"]))
+    let nextSteps = Summarizer.parse("Summary: We agreed.\nNext steps:\n- [ ] Book the room")
+    #expect(nextSteps.actionItems == ["Book the room"])
+}
+
+@Test(arguments: ["- None", "None.", "N/A", "No action items were mentioned.", "There are no action items.", "None mentioned."])
+func summaryParserDropsNoneItems(line: String) {
+    #expect(Summarizer.parse("SUMMARY: Quick sync.\nACTION ITEMS:\n\(line)").actionItems.isEmpty)
+}
+
+@Test func summaryParserKeepsRealItemsThatStartWithNo() {
+    #expect(Summarizer.parse("SUMMARY: x\nACTION ITEMS:\n- Note the new rules").actionItems == ["Note the new rules"])
+}
+
+@Test func markdownExportEscapesAClosingDetailsTag() {
+    let r = Recording(id: UUID(), createdAt: Date(timeIntervalSince1970: 0), duration: 5, kind: .note,
+                      transcript: "say </details> out loud", cleaned: "Say it out loud.")
+    let md = MarkdownExporter.markdown(for: r, timeZone: TimeZone(identifier: "UTC")!)
+    #expect(md.components(separatedBy: "</details>").count == 2) // only the block's own closing tag
+    #expect(md.contains("say &lt;/details&gt; out loud"))
+}

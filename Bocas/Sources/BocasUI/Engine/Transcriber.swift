@@ -9,6 +9,8 @@ import Speech
 protocol LiveTranscriber: AnyObject {
     /// The whole transcript so far, including not-yet-final words.
     var onPartial: ((String) -> Void)? { get set }
+    /// The recognizer's language ("en-US"), so cleanup applies only rules for it.
+    var language: String { get }
     func start() async throws
     nonisolated func append(_ buffer: AVAudioPCMBuffer)
     /// Ends the audio and returns the final transcript.
@@ -49,6 +51,7 @@ final class AnalyzerTranscriber: LiveTranscriber {
 
     private let locale: Locale
     private let vocabulary: [String]
+    var language: String { locale.identifier }
     // Fed from the audio thread. AsyncStream's continuation is thread-safe and
     // each buffer is handed off, never touched again by the sender.
     nonisolated(unsafe) private let raw = AsyncStream.makeStream(of: AVAudioPCMBuffer.self)
@@ -177,6 +180,8 @@ final class LegacyTranscriber: LiveTranscriber {
     // Appended from the audio thread; `append` is documented as thread-safe.
     nonisolated(unsafe) private let request = SFSpeechAudioBufferRecognitionRequest()
     private var recognizer: SFSpeechRecognizer? // held for the session's lifetime
+    /// The current locale, or the en-US fallback `start()` uses when it isn't supported.
+    var language: String { (recognizer?.locale ?? .current).identifier }
     private var task: SFSpeechRecognitionTask?
     private var latest = ""
     private var done = false

@@ -43,10 +43,13 @@ On first launch, **Quick Setup** asks for the microphone, Speech Recognition and
 | Speech to text | `SpeechAnalyzer` + `SpeechTranscriber`, streaming | `SFSpeechRecognizer` with `requiresOnDeviceRecognition` |
 | Cleanup | Apple Foundation Models (when Apple Intelligence is on) | Deterministic rules: fillers, stutters, punctuation, capitalization |
 | Summary + action items | Foundation Models, chunked to fit its 4K context | Opening sentences + sentences that sound like tasks |
-| Insertion | Clipboard + synthesized ⌘V, then the old clipboard is restored | Same |
+| Insertion | Clipboard + synthesized ⌘V, then the old clipboard is restored; typed into terminals and password fields | Same |
 
-If Apple Intelligence is unavailable or the model's reply doesn't look like an
-edit of what you said, bocaS uses the rules instead.
+If Apple Intelligence is unavailable, or the model's reply doesn't look like an
+edit of what you said (it answered a question you dictated, translated it, or
+brought in words you didn't say), bocaS uses the rules instead. The filler and
+stutter rules apply to English only; other languages get spacing, punctuation
+and capitalization.
 
 ## Privacy
 
@@ -58,8 +61,9 @@ edit of what you said, bocaS uses the rules instead.
 - No screenshots, and no reading of other apps' content. The only thing bocaS
   notes is the frontmost app's name, which is saved with each dictation.
 - Pasted text is marked `org.nspasteboard.TransientType`, so clipboard managers
-  skip it. Your previous clipboard is put back after 0.5 s, unless you copied
-  something else in the meantime.
+  skip it. Your previous clipboard is put back after 1–2 s (busy apps read the
+  clipboard late, and longer text waits longer), unless you copied something
+  else in the meantime. Two dictations in a row still put back your clipboard.
 - Recordings are plain files in `~/Library/Application Support/Bocas/Recordings`
   (`<id>.m4a` + `<id>.json`). You can delete them in the app, in Finder, or
   stop saving dictations in Settings.
@@ -70,13 +74,13 @@ edit of what you said, bocaS uses the rules instead.
   store, the cleanup rules, summary parsing and fallback, Markdown export,
   clipboard-restore sequencing, and the tap/hold hotkey logic. All of it is
   unit-tested.
-- `Sources/Bocas`: the SwiftUI app. Contains the audio engine, transcribers,
-  Foundation Models, paste injection, the HUD and the views.
+- `Sources/BocasUI` (run by the `Bocas` app target): the audio engine,
+  transcribers, Foundation Models, paste injection, the HUD and the views.
 
 ## Limitations
 
-- Pasting doesn't work in apps that block ⌘V, such as some terminals and
-  secure fields. There's no typing fallback yet.
-- There's no custom vocabulary, per-app modes or configurable shortcut yet.
+- Text is typed instead of pasted into terminals and password fields. Other
+  apps that block ⌘V don't receive it.
+- There are no per-app modes or configurable shortcut yet.
 - The legacy engine (macOS 14–15) is noticeably less accurate than the macOS 26
   one.

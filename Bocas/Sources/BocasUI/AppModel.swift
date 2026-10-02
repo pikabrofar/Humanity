@@ -268,6 +268,7 @@ final class AppModel {
         // Dictating into a password field: the text goes only there. No cleanup (cloud or
         // on-device), no history, no audio left on disk.
         let secure = mode == .dictation && (session.secure || IsSecureEventInputEnabled())
+        let language = transcriber?.language
         var cleaned: String?
         if cleanup, !secure {
             // A cloud model the user connected (AIKit), else Apple Intelligence, else rules.
@@ -278,7 +279,16 @@ final class AppModel {
                 if let cloud = (try? await Tasks.cleanup(raw)).flatMap({ TextCleanup.acceptRewrite($0, of: raw) }) { return cloud }
                 return useIntelligence ? await Intelligence.polish(raw) : nil
             } orElse: { nil }
-            cleaned = TextCleanup.respell(TextCleanup.keepLineBreaks(of: raw, in: rewrite ?? TextCleanup.basic(raw)), terms: terms)
+            // Delete All Data (or another reset) may have ended the session while the model ran.
+            guard self.session?.id == session.id else { return }
+            cleaned = TextCleanup.respell(TextCleanup.keepLineBreaks(of: raw, in: rewrite ?? TextCleanup.basic(raw, language: language)),
+                                          terms: terms)
+            // Only fillers ("um", "hmm"): nothing to insert or keep.
+            if cleaned?.isEmpty == true {
+                discardSession()
+                flash("Didn't catch that. Try again a little closer to the mic.")
+                return
+            }
         }
         let recording = Recording(id: session.id, createdAt: session.startedAt, duration: duration, kind: mode,
                                   transcript: raw, cleaned: cleaned,
@@ -292,6 +302,7 @@ final class AppModel {
             } else {
                 message = "Copied. Press ⌘V to paste, or allow Accessibility in Quick Setup."
             }
+            guard self.session?.id == session.id else { return }
         }
         self.session = nil
         transcriber = nil
@@ -407,7 +418,7 @@ final class AppModel {
             guard !raw.isEmpty else { return flash("Still no words found in this recording.") }
             update(id) {
                 $0.transcript = raw
-                $0.cleaned = cleanup ? TextCleanup.basic(raw) : nil
+                $0.cleaned = cleanup ? TextCleanup.basic(raw, language: Locale.current.identifier) : nil
             }
             await summarize(id)
         } catch {

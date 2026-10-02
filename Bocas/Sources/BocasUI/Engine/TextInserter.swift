@@ -37,6 +37,10 @@ struct SystemPasteboard: Clipboard {
 }
 
 enum TextInserter {
+    /// Shared, so a dictation that lands during the previous one's restore window
+    /// still puts back the user's clipboard.
+    @MainActor private static let restorer = PasteRestorer()
+
     /// Pastes (or types) `text` into the frontmost app. Returns as soon as the
     /// text is sent; the clipboard is restored in the background.
     /// - Returns: false when Accessibility is missing; the text is then left
@@ -55,8 +59,8 @@ enum TextInserter {
             type(text)
         } else {
             Task {
-                await PasteSequence.insert(text, into: board, restoreAfter: restoreClipboard ? restoreDelay(text) : nil,
-                                           paste: sendCommandV)
+                await restorer.insert(text, into: board, restoreAfter: restoreClipboard ? restoreDelay(text) : nil,
+                                      paste: sendCommandV)
             }
         }
         return true
