@@ -174,7 +174,7 @@ kbd { font: 400 .8em/1 var(--mono); letter-spacing: .02em; padding: .22em .4em .
 .callouts.narrow li { justify-items: center; text-align: center; white-space: normal; }
 .callouts.narrow b { font-size: 22px; }
 .callouts.narrow .label { font-size: 10.5px; }
-.intro-cap { position: absolute; left: 0; right: 0; top: calc(var(--top) + max(5vh, 22px)); z-index: 2; text-align: center; padding-inline: var(--m); opacity: 0; display: grid; justify-items: center; gap: 16px; }
+.intro-cap { position: absolute; left: 0; right: 0; top: calc(var(--top) + max(5vh, 22px)); z-index: 2;  pointer-events: none; text-align: center; padding-inline: var(--m); opacity: 0; display: grid; justify-items: center; gap: 16px; }
 .intro-cap h2 { font: 600 clamp(32px, 4.2vw, 62px)/1 var(--sans); letter-spacing: -0.04em; }
 .intro-cap { top: auto; bottom: calc(env(safe-area-inset-bottom, 0px) + max(7vh, 30px)); }
 @media (max-width: 760px) { .hero-word { top: calc(var(--top) + 12vh); } .intro-cap h2 { font-size: 30px; } }
