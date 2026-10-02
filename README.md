@@ -5,6 +5,7 @@
 <br>
 <br>
 
+<a href="https://pikabrofar.github.io/sentidoS/"><img alt="Website" src="https://img.shields.io/badge/Website-f58841?style=for-the-badge"></a>
 <a href="https://github.com/pikabrofar/sentidoS/releases"><img alt="Download for macOS" src="https://img.shields.io/badge/Download%20for%20macOS-d2692a?style=for-the-badge&logo=apple&logoColor=white"></a>
 <a href="https://gumroad.com/l/hamkad"><img alt="Support development" src="https://img.shields.io/badge/Support-3f3f46?style=for-the-badge&logo=gumroad&logoColor=white"></a>
 <img alt="macOS 14+" src="https://img.shields.io/badge/macOS%2014%2B-27272a?style=for-the-badge">
