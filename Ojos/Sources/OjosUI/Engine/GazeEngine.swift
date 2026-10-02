@@ -221,8 +221,12 @@ final class GazeEngine {
         lastFaceTime = now
         calibrationSink?(features)
 
-        // Hold the last estimate through blinks rather than jumping.
-        guard !features.isBlinking else { return }
+        // Hold the last estimate through blinks rather than jumping. A half-closed
+        // frame just before the blink reads as a downward glance: drop it too.
+        guard !features.isBlinking else {
+            stabilizer.discardPending()
+            return
+        }
         recentFeatures.append(features)
         if recentFeatures.count > 15 { recentFeatures.removeFirst() }
 
@@ -275,10 +279,17 @@ final class GazeEngine {
     /// calibration samples and the model is refit off the main thread. Clicks
     /// in varied head poses also sharpen the head-movement parameters.
     func learnFromClick(at target: CGPoint) {
-        guard var stored = calibration, !calibratedDisplayMissing, let latest = recentFeatures.last else { return }
-        let frames = recentFeatures.filter { latest.timestamp - $0.timestamp <= 0.25 }
-        // A click far from the predicted gaze usually means the user wasn't looking.
-        guard frames.count >= 3, let gaze, gaze.distance(to: target) < 0.25 else { return }
+        guard var stored = calibration, let screen = NSScreen.withDisplayID(stored.displayID) else { return }
+        // Only frames of a steady look near the click: a click made while looking
+        // elsewhere, or mid-saccade, would teach the model the wrong place.
+        let size = screen.frame.size
+        func points(_ p: CGPoint) -> CGPoint { CGPoint(x: p.x * size.width, y: p.y * size.height) }
+        let current = stored.model
+        let frames = ClickLearning.select(recentFeatures.map { (features: $0, predicted: points(current.predict($0))) },
+                                          target: points(target),
+                                          pointsPerDegree: stored.pointsPerDegree(widthPoints: size.width),
+                                          accuracyDegrees: stored.accuracyDegrees)
+        guard !frames.isEmpty else { return }
 
         stored.clickSamples.append(contentsOf: frames.map { CalibrationSample(features: $0, target: target) })
         stored.clickSamples = Array(stored.clickSamples.suffix(StoredCalibration.maxClickSamples))

@@ -15,14 +15,33 @@ public struct FixationDetector: Sendable {
     public var maxDispersion: Double
     /// Minimum fixation duration in seconds.
     public var minDuration: TimeInterval
+    /// A fixation never spans a longer gap in the samples (a look at the
+    /// keyboard, a lost face): the gaze may have been anywhere meanwhile.
+    public var maxGap: TimeInterval
 
-    public init(maxDispersion: Double, minDuration: TimeInterval = 0.1) {
+    public init(maxDispersion: Double, minDuration: TimeInterval = 0.1, maxGap: TimeInterval = 0.15) {
         self.maxDispersion = maxDispersion
         self.minDuration = minDuration
+        self.maxGap = maxGap
     }
 
     /// `samples` must be sorted by time.
     public func detect(_ samples: [GazeSample]) -> [Fixation] {
+        var runs: [[GazeSample]] = []
+        var run: [GazeSample] = []
+        for s in samples {
+            if let last = run.last, s.t - last.t > maxGap {
+                runs.append(run)
+                run = []
+            }
+            run.append(s)
+        }
+        runs.append(run)
+        return runs.flatMap(detectRun)
+    }
+
+    /// I-DT over samples without gaps.
+    private func detectRun(_ samples: [GazeSample]) -> [Fixation] {
         var fixations: [Fixation] = []
         var start = 0
         while start < samples.count {

@@ -21,6 +21,9 @@ public struct FixationStabilizer: Sendable {
     public var confirmSamples: Int
     /// Seconds of fixation history averaged.
     public var window: TimeInterval
+    /// Outside samples further apart than this don't confirm each other: a lost
+    /// face or a blink came between them.
+    public var maxCandidateGap: TimeInterval = 0.25
 
     private var center: CGPoint?
     private var fixation: [(p: CGPoint, t: TimeInterval)] = []
@@ -43,6 +46,7 @@ public struct FixationStabilizer: Sendable {
             candidates.removeAll()
             fixation.append((p, t))
         } else {
+            if let last = candidates.last, t - last.t > maxCandidateGap { candidates.removeAll() }
             candidates.append((p, t))
             guard candidates.count >= confirmSamples else { return c }
             let mean = candidates.map(\.p).centroid
@@ -50,7 +54,9 @@ public struct FixationStabilizer: Sendable {
                 candidates.removeFirst()
                 return c
             }
-            fixation = candidates
+            // Outliers on opposite sides agree with each other, but their mean is
+            // still this fixation: noise, not a saccade.
+            fixation = mean.distance(to: c) <= radius ? fixation + candidates : candidates
             candidates.removeAll()
         }
         fixation.removeAll { t - $0.t > window }
@@ -65,6 +71,12 @@ public struct FixationStabilizer: Sendable {
         let next = CGPoint(x: x / total, y: y / total)
         center = next
         return next
+    }
+
+    /// Drops unconfirmed outside samples, e.g. when a blink starts: a half-closed
+    /// frame reads as a downward glance and must not pair with the next one.
+    public mutating func discardPending() {
+        candidates.removeAll()
     }
 
     public mutating func reset() {

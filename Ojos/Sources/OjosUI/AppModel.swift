@@ -120,9 +120,11 @@ final class AppModel {
     }
 
     private func handleClick(_ event: NSEvent) {
-        // Our own gaze clicks land where we predicted, so they teach nothing.
+        // Only physical clicks teach. Synthetic ones land where gaze predicted (ours,
+        // and manoS's look-and-pinch, which aims at the gaze), so they'd only confirm
+        // the model's own error.
         guard learnFromClicks, calibration == nil,
-              event.cgEvent?.getIntegerValueField(.eventSourceUserData) != GazeClick.tag else { return }
+              event.cgEvent?.getIntegerValueField(.eventSourceUserData) == 0 else { return }
         let frame = engine.targetScreen.frame
         let location = NSEvent.mouseLocation // global, origin bottom-left
         guard frame.contains(location) else { return }
@@ -143,7 +145,8 @@ final class AppModel {
     /// about 4° for explicit clicks, 1.5° (and never onto `dwellAvoids` controls) for dwell.
     private func clickTarget(forDwell: Bool = false) -> CGPoint? {
         guard calibration == nil, let point = gazePoint else { return nil }
-        guard snapToTargets, let ppd = engine.calibration?.pointsPerDegree else { return point }
+        guard snapToTargets,
+              let ppd = engine.calibration?.pointsPerDegree(widthPoints: engine.targetScreen.frame.width) else { return point }
         let degrees = forDwell ? GazeClick.dwellSnapDegrees : GazeClick.clickSnapDegrees
         return GazeClick.snap(point, radius: degrees * ppd, forDwell: forDwell) ?? point
     }
@@ -199,6 +202,7 @@ final class AppModel {
         guard dwellClick, calibration == nil else { return }
         dwell.duration = dwellTime
         dwell.radius = engine.fixationRadius
+        dwell.maxGap = 0.1 // gaze arrives every frame; a longer pause is a blink or closed eyes
         // Without Accessibility macOS drops the click; don't pretend it happened.
         if dwell.update(gazePoint, at: CACurrentMediaTime()), AXIsProcessTrusted(),
            let point = clickTarget(forDwell: true), !GazeClick.dwellBlocked(at: point) {

@@ -74,9 +74,10 @@ makes the features roughly invariant to distance from the camera and to head
 tilt. The two eyes are averaged to reduce noise.
 
 **Pupil refinement.** Vision's pupil landmark jitters by a few pixels. The
-refiner shrinks the eye contour vertically (to exclude eyelashes) and takes the
-intensity-weighted centroid of the darkest 22% of pixels inside it. If the
-result lands too far from Vision's estimate, it's discarded.
+refiner shrinks the eye contour vertically (to exclude eyelashes) and finds the
+point inside it where the image gradients converge (Timm and Barth's means of
+gradients, with a sub-pixel peak). If the result lands too far from Vision's
+estimate, it's discarded.
 
 **Geometric model.** ojoS models the physical setup instead of fitting a
 plain feature regression:
@@ -112,8 +113,8 @@ model. The ridge penalty is chosen on the validation points, and the model is
 dropped entirely if it doesn't reduce held-out error. The Calibrate page shows
 whether it's on.
 
-Details of the fixation steps: each dot appears, pauses for 0.75 s so the eyes can settle,
-then collects samples for at least 1.3 s while its ring shrinks. Blinks are
+Details of the fixation steps: each dot appears, pauses for 0.5 s so the eyes can settle,
+then collects samples for 1–3.5 s, until it has a steady fixation, while its ring shrinks. Blinks are
 dropped. Last, you hold your gaze on the center dot for 8 s while moving your
 head. The target stays fixed while the head pose varies, and this is what
 identifies the head parameters. The model is fit, samples with residuals above
@@ -156,20 +157,26 @@ works.
   and gross outliers (more than 5σ) are ignored, instead of hard trimming.
 - *Pursuit lag.* Eye latency varies by person. It's estimated per calibration
   by aligning eye and dot motion, and catch-up saccades are removed.
-- *During use.* Blinks hold the cursor. Looking off-screen for 4 frames hides it,
-  instead of pinning it to an edge.
+- *During use.* Blinks hold the cursor, and dwell time doesn't run while your
+  eyes are closed. Looking off-screen for 4 frames hides it, instead of pinning
+  it to an edge.
 
 **Learning from clicks** (like WebGazer). You almost always look at what you click. On each
-click, frames from the previous 250 ms become samples for the click point, and
-the model is refit (up to 400 click samples). Clicks more than 25% of the
-screen away from the predicted gaze are ignored. This corrects head movement
-and posture changes since calibration. Turn it off in Settings → Accuracy.
+mouse or trackpad click, the steady frames from the previous 300 ms become
+samples for the click point, and the model is refit (up to 400 click samples).
+A click is ignored when the gaze in those frames was moving (a saccade) or more
+than 2.5× the calibration's accuracy (3–8°) from the click. Synthetic clicks,
+ojoS's own and manoS's look-and-pinch, are never learned: they land where gaze
+predicted. This corrects head movement and posture changes since calibration.
+Turn it off in Settings → Accuracy.
 
 **Smoothing.** Webcam gaze noise is larger than eye movements within a
 fixation, so a low-pass filter either jitters or lags. `FixationStabilizer`
 holds the cursor at the running mean of the current fixation. It moves only
 after several consecutive samples agree on a new spot, so single noisy frames
-are ignored. A critically damped spring animates each jump.
+are ignored, and so are outliers on opposite sides of the cursor. Blinks are
+held, including the half-open frames on either side of one, which would read
+as a downward glance. A critically damped spring animates each jump.
 
 ## Using GazeKit in your own app
 
@@ -185,7 +192,7 @@ try camera.configure()
 camera.onFrame = { pixelBuffer, time in
     guard let features = extractor.analyze(pixelBuffer: pixelBuffer, timestamp: time).features,
           !features.isBlinking, let calibration else { return }
-    let gaze = stabilizer.update(calibration.predict(features)) // normalized, top-left origin
+    let gaze = stabilizer.update(calibration.predict(features), at: time) // normalized, top-left origin
 }
 camera.start()
 ```

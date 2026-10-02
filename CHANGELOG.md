@@ -13,6 +13,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   leaning toward or away from the camera barely moves it (a quick 15% lean
   moved it ~380 pt before). Mostly vertical or horizontal scrolls lock to that
   axis, like on a trackpad.
+- **ojoS:** click learning uses only mouse and trackpad clicks made during a
+  steady look near the click (within 2.5× the calibration's accuracy). Before,
+  manoS's look-and-pinch clicks, which land where gaze predicted, were learned
+  as truth and pushed real clicks out of the sample buffer.
 - **bocaS:** a model's rewrite is used only when it reuses the words you said,
   so a dictated question is never replaced by its answer, a translation or a
   refusal. The filler and stutter rules run only for English.
@@ -29,6 +33,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   button keeps control when the other hand comes into view. Flick arrow keys no
   longer pick up held modifier keys, and moves and drags now carry motion deltas
   for apps that read them.
+- **ojoS:** the half-open frames around a blink no longer read as a glance down
+  and move the cursor, and eyes kept shut for more than 0.5 s now count as
+  closed instead of becoming the new "open". Two noisy samples on opposite sides
+  of the cursor no longer make it jump, and samples on either side of a lost
+  face no longer confirm a saccade. Dwell no longer counts time with your eyes
+  closed, so it can't click while you rest them. Snapping radii follow the
+  display's current resolution. Gaze recordings no longer merge a look away and
+  back into one long fixation.
 - **bocaS:** two dictations in a row no longer lose your clipboard. Cleanup no
   longer breaks web and email addresses ("apple.Com"), "i.e." and "a.m.",
   "mm-hmm", units ("5 mm"), acronyms ("ER") or repeated digits ("7 7 3 9"), and

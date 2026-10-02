@@ -19,9 +19,12 @@ public final class FaceFeatureExtractor {
     /// gradients (Timm & Barth). Noticeably reduces jitter on well-lit faces.
     public var usesPupilRefinement = true
 
-    /// A frame counts as a blink when openness falls below this fraction of the
-    /// running baseline.
-    public var blinkRatio = 0.65
+    /// A blink starts when openness falls below this fraction of the running
+    /// baseline (see `BlinkDetector`).
+    public var blinkRatio: Double {
+        get { blink.enter }
+        set { blink.enter = newValue }
+    }
 
     /// Optional appearance-based gaze CNN, run on the face crop each frame.
     public var network: GazeNetwork?
@@ -30,8 +33,7 @@ public final class FaceFeatureExtractor {
     /// Landmark results don't carry head pose; revision 3 face rectangles do.
     private let poseRequest: VNDetectFaceRectanglesRequest
     private let refiner = PupilRefiner()
-    private var opennessBaseline: Double?
-    private var blinkStart: TimeInterval?
+    private var blink = BlinkDetector()
 
     public init() {
         request = VNDetectFaceLandmarksRequest()
@@ -45,7 +47,7 @@ public final class FaceFeatureExtractor {
         let size = CGSize(width: CVPixelBufferGetWidth(pixelBuffer), height: CVPixelBufferGetHeight(pixelBuffer))
         var result = FrameAnalysis(imageSize: size)
         // A new face (or the same one after a while) needs a fresh openness baseline.
-        defer { if result.features == nil { opennessBaseline = nil; blinkStart = nil } }
+        defer { if result.features == nil { blink.reset() } }
 
         let handler = VNImageRequestHandler(cvPixelBuffer: pixelBuffer, orientation: .up, options: [:])
         guard (try? handler.perform([poseRequest])) != nil,
@@ -106,19 +108,10 @@ public final class FaceFeatureExtractor {
     }
 
     /// Blinks last 0.1–0.4 s. Narrower eyes for longer (squinting, looking down,
-    /// a new head pose) are the new normal, so the baseline adapts to them.
+    /// a new head pose) are the new normal, so the baseline adapts to them; eyes
+    /// that stay shut remain a blink.
     func isBlink(openness: Double, at timestamp: TimeInterval) -> Bool {
-        let baseline = opennessBaseline ?? openness
-        if openness < baseline * blinkRatio {
-            blinkStart = blinkStart ?? timestamp
-        } else {
-            blinkStart = nil
-        }
-        let isBlinking = blinkStart.map { timestamp - $0 <= 0.5 } ?? false
-        if !isBlinking {
-            opennessBaseline = baseline * 0.97 + openness * 0.03
-        }
-        return isBlinking
+        blink.update(openness: openness, at: timestamp)
     }
 
     /// Expresses the pupil relative to the eye corners, in a frame rotated so the

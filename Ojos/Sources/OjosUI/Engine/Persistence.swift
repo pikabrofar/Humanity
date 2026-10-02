@@ -30,9 +30,10 @@ struct StoredCalibration: Codable {
     /// Held-out accuracy when available (honest), else training error (optimistic).
     var accuracyDegrees: Double { validation?.accuracyDegrees ?? errorDegrees }
 
-    /// Screen points per degree of visual angle at the calibration distance.
-    var pointsPerDegree: Double {
-        GazeClick.pointsPerDegree(widthPoints: screenSize.width, widthMM: model.geometry.widthMM,
+    /// Screen points per degree of visual angle at the calibration distance, for
+    /// the display's current width in points (a scaled resolution changes it).
+    func pointsPerDegree(widthPoints: Double) -> Double {
+        GazeClick.pointsPerDegree(widthPoints: widthPoints, widthMM: model.geometry.widthMM,
                                   distanceMM: model.calibrationDistanceMM)
     }
 
