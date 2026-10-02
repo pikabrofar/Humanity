@@ -201,7 +201,7 @@ def hit(g=1.0, low=52):
     t = tt(d)
     crack = filt(noise(d), 'high', 2200) * expenv(d, .045, .001) * .7
     body = filt(noise(d), 'band', [180, 1600]) * expenv(d, .32, .004) * .45
-    low_s = np.sin(2 * math.pi * (low + 18 * np.exp(-t / .12)) * t) * expenv(d, .5, .03) * .28
+    low_s = np.sin(2 * math.pi * (low + 30 + 18 * np.exp(-t / .12)) * t) * expenv(d, .45, .03) * .16
     tail = filt(noise(d), 'band', [3000, 9000]) * expenv(d, .9, .02) * .08
     return (crack + body + low_s + tail) * g
 

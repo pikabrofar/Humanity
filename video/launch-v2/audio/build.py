@@ -15,6 +15,14 @@ BPM, BEAT, BAR = 120, .5, 2.0
 
 score, sfx, amb = Bus(DUR), Bus(DUR), Bus(DUR)
 
+
+def M(*xs):
+    """Layer sounds of different lengths."""
+    out = np.zeros(max(len(x) for x in xs))
+    for x in xs:
+        out[:len(x)] += x
+    return out
+
 # ======================================================================= score
 CH = {  # pad voicings (MIDI) and bass roots
     'Am9': ([45, 52, 59, 60, 67], 33), 'C': ([48, 55, 64, 71, 74], 36), 'Am': ([45, 52, 60, 67, 71], 33),
@@ -127,6 +135,9 @@ for b in range(2):
         score.add(bass(48, BEAT / 2 * .9, g=.55 * (1 - b * .4)), 41.5 + b * BAR + s * BEAT / 2)
 score.add(pad([48, 55, 64, 67, 74], 3.5, cutoff=1600, att=1.0, rel=1.5, g=.7), 44.0)
 score.x = reverb(score.x, wet=.32, ir=reverb_ir(2.8))
+# the silence before "No headset required." must be silent after the reverb too
+g0, g1, g2 = int(23.46 * SR), int(23.52 * SR), int(23.8 * SR)
+score.x[:, g0:g1] *= np.linspace(1, 0, g1 - g0); score.x[:, g1:g2] = 0
 
 # ======================================================================= sound design
 HIT = []
@@ -134,17 +145,17 @@ for e in EV['events']:
     t, ty = e['t'], e['type']
     p = e.get('x', e.get('pan', 0))
     if ty == 'lockon':
-        sfx.add(tick(2600, g=.9) + tick(3900, g=.4), t, p=p); sfx.add(whoosh(.12, 2000, 7000, g=.25), t - .06, p=p)
+        sfx.add(M(tick(2600, g=.9), tick(3900, g=.4)), t, p=p); sfx.add(whoosh(.12, 2000, 7000, g=.25), t - .06, p=p)
     elif ty == 'dwell':
         d = e.get('dur', 1.0); tt_ = tt(d)
         f = 620 * 2 ** (tt_ / d)
         sfx.add(np.sin(2 * math.pi * np.cumsum(f) / SR) * (tt_ / d) ** 1.5 * .07 * (1 + .25 * np.sin(2 * math.pi * 14 * tt_)), t, p=-.3)
     elif ty == 'click':
-        h = e.get('hit', .3); sfx.add(tick(3400, .04, g=1.4) + pop(900, 500, g=.6), t); HIT.append((t, h))
+        h = e.get('hit', .3); sfx.add(M(tick(3400, .04, g=1.4), pop(900, 500, g=.6)), t); HIT.append((t, h))
     elif ty == 'send':
         sfx.add(whoosh(.5, 500, 7000, g=.8), t, p=.2)
     elif ty == 'pupil':
-        sfx.add(whoosh(.75, 3000, 220, g=.9, q=1.2), t); sfx.add(np.sin(2 * math.pi * 46 * tt(1.0)) * adsr(SR, .4, .3, .5, .3) * .16, t + .2)
+        sfx.add(whoosh(.75, 3000, 220, g=.9, q=1.2), t); sfx.add(np.sin(2 * math.pi * 72 * tt(1.0)) * adsr(SR, .4, .3, .5, .3) * .09, t + .2)
     elif ty == 'emerge':
         sfx.add(reverse_swell(.6, g=.35), t)
     elif ty == 'fly':
@@ -157,7 +168,7 @@ for e in EV['events']:
     elif ty == 'whooshUp':
         sfx.add(whoosh(.45, 900, 9000, g=.5), t)
     elif ty == 'hud':
-        i = e.get('i', 0); sfx.add(pop(1200 + 250 * i, 600 + 120 * i, g=.7) + tick(2200 + 400 * i, g=.4), t, p=-.3 + .3 * i)
+        i = e.get('i', 0); sfx.add(M(pop(1200 + 250 * i, 600 + 120 * i, g=.7), tick(2200 + 400 * i, g=.4)), t, p=-.3 + .3 * i)
     elif ty == 'saccade':
         sfx.add(tick(1800 + 300 * ((t * 7) % 3), .03, g=.22), t, p=-.2 + .4 * ((t * 3) % 1))
     elif ty == 'key':
@@ -175,15 +186,15 @@ for e in EV['events']:
         for k in range(10):
             sfx.add(tick(2400 + 180 * k, .03, g=.18), t + k * .045, p=-.6 + .12 * k)
     elif ty == 'pinch':
-        sfx.add(pop(1500, 620, g=.9) + tick(3300, g=.35), t)
+        sfx.add(M(pop(1500, 620, g=.9), tick(3300, g=.35)), t)
     elif ty == 'drag':
         sfx.add(whoosh(1.0, 400, 1200, g=.22, q=1.0), t, p=-.2)
     elif ty == 'drop':
-        d = .25; sfx.add(np.sin(2 * math.pi * 320 * tt(d)) * expenv(d, .05) * .35 + tick(2600, g=.4), t)
+        d = .25; sfx.add(M(np.sin(2 * math.pi * 320 * tt(d)) * expenv(d, .05) * .35, tick(2600, g=.4)), t)
     elif ty == 'flick':
         sfx.add(whoosh(.26, 1500, 9000, g=.65), t)
     elif ty == 'slide':
-        sfx.add(whoosh(.4, 400, 2400, g=.35) + tick(2000, g=.3)[:int(.4 * SR)].tolist().__len__() * 0, t)
+        sfx.add(whoosh(.4, 400, 2400, g=.35), t)
         sfx.add(tick(2000, g=.35), t + .05)
     elif ty == 'saved':
         sfx.add(bell(88, 1.0, idx=1.0, g=.5), t); sfx.add(bell(95, 1.0, idx=1.0, g=.4), t + .09)
@@ -196,7 +207,7 @@ for e in EV['events']:
         d = .16; tt_ = tt(d); f = 5000 * np.exp(-tt_ / .06) + 600
         sfx.add((filt(noise(d), 'band', [2000, 9000]) * .4 + np.sin(2 * math.pi * np.cumsum(f) / SR) * .12) * np.sin(math.pi * tt_ / d), t, p=.2)
     elif ty == 'paste':
-        sfx.add(pop(1300, 700, g=.6) + tick(4200, g=.3), t); sfx.add(whoosh(.2, 2000, 8000, g=.25), t - .1)
+        sfx.add(M(pop(1300, 700, g=.6), tick(4200, g=.3)), t); sfx.add(whoosh(.2, 2000, 8000, g=.25), t - .1)
     elif ty == 'card':
         sfx.add(whoosh(.35, 600, 4000, g=.4), t - .1); sfx.add(tick(2200, g=.3), t + .15)
     elif ty == 'pop':
@@ -207,7 +218,7 @@ for e in EV['events']:
         for i in range(11):  # each frame absorbed by the chip
             ta = 34.05 + i * .32
             if ta < 37.9:
-                sfx.add(bell(98 - (i % 3) * 2, .35, idx=.6, g=.16) + tick(3000 + 200 * (i % 4), .03, g=.15), ta, p=[-.35, .35, 0][i % 3])
+                sfx.add(M(bell(98 - (i % 3) * 2, .35, idx=.6, g=.16), tick(3000 + 200 * (i % 4), .03, g=.15)), ta, p=[-.35, .35, 0][i % 3])
     elif ty == 'deny':
         for k in range(2):
             d = .12; sfx.add(np.sin(2 * math.pi * 330 * tt(d)) * expenv(d, .04) * .22, t + k * .1)
@@ -218,18 +229,19 @@ for e in EV['events']:
         for k in range(3):
             sfx.add(tick(2000 + 300 * k, .04, g=.4), t + k * .08, p=-.2 + .2 * k)
     elif ty == 'toggle':
-        i = e.get('i', 0); sfx.add(pop(900 + 220 * i, 430 + 100 * i, g=.85) + tick(2600 + 300 * i, g=.4), t, p=-.35 + .35 * i)
+        i = e.get('i', 0); sfx.add(M(pop(900 + 220 * i, 430 + 100 * i, g=.85), tick(2600 + 300 * i, g=.4)), t, p=-.35 + .35 * i)
     elif ty == 'riser':
         sfx.add(riser(e.get('len', 1.5), 500, 9000, g=.3), t)
     elif ty == 'chime':
         sfx.add(bell(91, 1.4, idx=1.0, g=.55), t); sfx.add(bell(96, 1.6, idx=1.0, g=.45), t + .1)
 sfx.x = reverb(sfx.x, wet=.16, ir=reverb_ir(1.2, (1.2, .9, .5)), hp=500)
+sfx.x[:, int(23.52 * SR):int(23.79 * SR)] *= .15   # let the gap breathe
 
 # ======================================================================= ambience: a quiet room so silence is never empty
 n = amb.n
 z = rng.standard_normal((2, n))
 pink = filt(z, 'low', 900, 1) * .5 + filt(z, 'low', 220, 1) * .5
-amb.x = filt(pink, 'high', 40, 2) * .006
+amb.x = filt(pink, 'high', 110, 2) * .006   # room tone without rumble
 air = filt(rng.standard_normal((2, int(3.4 * SR))), 'band', [3000, 9000]) * np.sin(np.linspace(0, math.pi, int(3.4 * SR))) ** 2 * .01
 amb.add(air, 2.9)
 

@@ -9,7 +9,7 @@ F.DUR = 47.4;
 const SCR = [18, 464];                         // the screen crop's page offset
 const inT = (t, r) => t >= r[0] && t < r[1];
 const lookFor = ([x, y]) => [(x - 252) / 252 * .5, -.06 + y / 300 * .46];   // mirrored selfie view: looking left on screen = left here
-const ctr = (n, base = $('#screen')) => { const r = n.getBoundingClientRect(), s = base.getBoundingClientRect(); return [r.left - s.left + r.width / 2, r.top - s.top + r.height / 2]; };
+const ctr = (n, base = $('#cam')) => { const r = n.getBoundingClientRect(), s = base.getBoundingClientRect(); return [r.left - s.left + r.width / 2, r.top - s.top + r.height / 2]; };
 const hash = n => { const x = Math.sin(n * 127.1 + 311.7) * 43758.5453; return x - Math.floor(x); };
 
 // ======================================================================= build
@@ -30,7 +30,10 @@ const W = {
   note: mk('note', () => UI.note('n1')),
 };
 const gaze = UI.gaze(), ptr = UI.pointer(), pill = UI.pill();
-const raw = el('canvas', null, null, screenEl); raw.width = 1008; raw.height = 1200; raw.style.cssText = 'position:absolute;left:0;top:0;width:504px;height:600px;z-index:24;pointer-events:none';
+const legend = el('div', null, `<span style="display:flex;align-items:center;gap:7px"><i style="width:8px;height:8px;border-radius:50%;background:#78beff;box-shadow:0 0 8px #3d9cff"></i>Raw webcam gaze</span><span style="display:flex;align-items:center;gap:7px"><i style="width:12px;height:12px;border-radius:50%;box-shadow:inset 0 0 0 2.5px #0a84ff"></i>Cursor, held still</span>`, $('#mac'));
+legend.style.cssText = 'position:absolute;left:18px;right:18px;top:262px;display:none;justify-content:center;gap:22px;padding:9px 0;font:400 11px/1 var(--mono);letter-spacing:.12em;text-transform:uppercase;color:#fff;background:linear-gradient(transparent,rgba(0,0,0,.55) 30%,rgba(0,0,0,.55) 70%,transparent);z-index:28';
+legend.dataset.safe = '';
+const raw = el('canvas', null, null, $('#cam')); raw.width = 1512; raw.height = 1800; raw.style.cssText = 'position:absolute;left:0;top:0;width:504px;height:600px;z-index:24;pointer-events:none';
 const rg = raw.getContext('2d');
 $('#mbIcon').innerHTML = G.figure; $('#mbWifi').innerHTML = G.wifi;
 $('#clock').insertAdjacentHTML('beforebegin', `<span class="si" style="width:30px">${G.battery}</span>`);
@@ -86,7 +89,7 @@ $('#wm').innerHTML = [...'sentido'].map(c => `<span class="m" style="display:inl
 const K = s => [...s].map(k => `<span class="key">${k}</span>`).join('');
 F.head('It clicks where<br>you look.', .15, 2.5);
 F.head('Meet sentido<em style="color:var(--brand)">S</em>.', 4.45, 6.0, { top: 520, size: 56 });
-F.label('Spanish for “senses”', 4.75, 6.0, 592, { color: '#a1a1a6' });
+F.label('Spanish for “senses”', 4.7, 6.05, 592, { color: '#a1a1a6' });
 F.head('Steady while<br>you read.', 6.35, 9.3);
 const hG = F.head(`Look, then press<br>${K('⌃⌥⌘G')}`, 9.75, 12.8);
 F.head('Pinch to click.<br>Hold to drag.', 13.35, 16.6);
@@ -140,7 +143,7 @@ function hud(t) {
 // reading path for "Steady while you read": word rects from the paragraph
 let WORDS = [], SEND, LINK, ITEMS, SAVE, PHOTO1, ALBUM, PHOTO_EL;
 F.preps.push(() => {
-  show(split, true); mac.style.transform = 'none'; split.style.transform = 'none';
+  show(split, true); mac.style.transform = 'none'; split.style.transform = 'none'; camEl.style.transform = 'none';
   ORDER.forEach(([, k]) => { SP[k].style.display = 'block'; SP[k].style.transform = 'none'; });
   SEND = ctr($('.send', W.mail));
   const p = $('.txt', W.doc), tn = p.firstChild, txt = tn.textContent; let i = 0;
@@ -151,6 +154,43 @@ F.preps.push(() => {
   show(split, false);
   if (!SEND[0] || !SAVE[0] || !PHOTO1[0]) throw new Error('UI targets measured as zero');
 });
+
+// ======================================================================= virtual camera inside the screen
+// Pushes in on the action, follows it, pulls back for each swipe. Focus is in screen-crop coordinates.
+const camEl = $('#cam'), VC = [252, 168];
+function campath(t, K) {
+  if (t <= K[0][0]) return K[0].slice(1);
+  for (let i = 1; i < K.length; i++) if (t <= K[i][0]) { const a = K[i - 1], b = K[i], u = e.io3(seg(t, a[0], b[0])); return [lerp(a[1], b[1], u), lerp(a[2], b[2], u), lerp(a[3], b[3], u)]; }
+  return K[K.length - 1].slice(1);
+}
+function setCam(f) { const [fx, fy, sc] = f; camEl.style.transform = `translate(${(VC[0] - fx * sc).toFixed(2)}px, ${(VC[1] - fy * sc).toFixed(2)}px) scale(${sc.toFixed(4)})`; }
+const HOME = [252, 150, 1];
+// follow: blend the keyed focus toward a moving target with weight w
+const follow = (f, target, w) => [lerp(f[0], target[0], w), lerp(f[1], target[1], w), f[2]];
+
+// Vision-style landmarks on the eye: the lid contour and a tracked pupil
+const lmCv = $('#lmCv'), lg = lmCv.getContext('2d');
+function landmarks(alpha, irisC, o = {}) {
+  lg.setTransform(2, 0, 0, 2, 0, 0); lg.clearRect(0, 0, 540, 960);
+  // cleared canvases can linger in the compositor, so hide the layer outright when it's unused
+  lmCv.style.display = alpha > 0 && irisC ? 'block' : 'none';
+  if (alpha <= 0 || !irisC) return;
+  const cx = o.cx ?? 270, cy = o.cy ?? 238, R = o.r ?? 88, W = o.openW ?? 205, open = .9;
+  const ocx = cx, ocy = cy + R * .06, H = R * 1.0, bot = .95 * (.55 + .45 * open);
+  lg.save(); lg.beginPath(); lg.rect(20, 116, o.clipW ?? 500, 236); lg.clip(); lg.globalAlpha = alpha;
+  const pts = [];
+  for (let i = 0; i <= 8; i++) { const x = -.9 + 1.8 * i / 8, sp = 1 - x * x; pts.push([ocx + x * W, ocy - Math.pow(sp, .7) * open * H]); }
+  for (let i = 7; i >= 1; i--) { const x = -.9 + 1.8 * i / 8, sp = 1 - x * x; pts.push([ocx + x * W, ocy + Math.pow(sp, .8) * bot * H]); }
+  lg.strokeStyle = 'rgba(120,210,255,.55)'; lg.lineWidth = 1; lg.beginPath(); pts.forEach((q, i) => i ? lg.lineTo(q[0], q[1]) : lg.moveTo(q[0], q[1])); lg.closePath(); lg.stroke();
+  lg.fillStyle = '#7fd6ff'; pts.forEach(q => { lg.beginPath(); lg.arc(q[0], q[1], 2.2, 0, 7); lg.fill(); });
+  // pupil centre, as the gradient-based pupil finder reports it
+  const [px, py] = irisC;
+  lg.strokeStyle = '#30d158'; lg.lineWidth = 1.4; lg.beginPath(); lg.arc(px, py, 9, 0, 7); lg.stroke();
+  lg.beginPath(); lg.moveTo(px - 18, py); lg.lineTo(px - 11, py); lg.moveTo(px + 11, py); lg.lineTo(px + 18, py); lg.moveTo(px, py - 18); lg.lineTo(px, py - 11); lg.moveTo(px, py + 11); lg.lineTo(px, py + 18); lg.stroke();
+  lg.font = '400 9.5px "Fragment Mono"'; lg.fillStyle = '#30d158'; lg.textAlign = 'left';
+  lg.fillText(`PUPIL ${((px - 20) / 500).toFixed(2)}, ${((py - 116) / 236).toFixed(2)}`, px + 22, py - 6);
+  lg.restore();
+}
 
 // ======================================================================= beat: hook + split-screen grammar
 const GZ = { // gaze keys per beat, in screen-crop coordinates
@@ -176,15 +216,17 @@ F.beats.push({ t0: 0, t1: T.hook[1], draw(t) {
   topReset(); tag.style.display = 'flex'; tag.querySelector('span').textContent = 'Camera · ojoS'; tag.style.opacity = 1 - clipK;
   $('#led').classList.add('on');
   mac.style.transform = `translateY(${e.i3(seg(t, 2.45, 2.95)) * 520}px)`;
-  spaces(t);
+  spaces(t); landmarks(0);
+  setCam(campath(t, [[0, ...HOME], [.3, ...HOME], [.85, SEND[0] + 50, SEND[1] + 40, 1.5], [1.68, SEND[0] + 50, SEND[1] + 40, 1.56], [2.08, ...HOME]]));
   // dwell 1.0 s (the default), click, send
   const dwell = seg(t, .62, 1.62), clicked = t >= 1.62;
   gaze.set(pos[0], pos[1], { dwell: t > .55 && !clicked ? dwell : null, alpha: 1 - seg(t, 2.3, 2.5), scale: 1 - .12 * Math.sin(Math.PI * seg(t, 1.62, 1.8)) });
   $('.send', W.mail).classList.toggle('dn', t >= 1.62 && t < 1.76);
   const se = e.io3(seg(t, 1.76, 2.2));
   W.mail.style.transform = `translate(${-10 * se}px, ${-300 * se * se}px) scale(${1 - .28 * se})`; W.mail.style.opacity = 1 - e.i2(se);
-  ptr.style.display = 'none'; pill.style.display = 'none'; rg.clearRect(0, 0, 1008, 1200);
+  ptr.style.display = 'none'; pill.style.display = 'none'; raw.style.display = 'none'; legend.style.display = 'none';
 }});
+fast(.3, .85, 2); fast(1.68, 2.08, 2); fast(6.0, 6.6, 2); fast(10.0, 10.45, 2); fast(11.12, 11.6, 2); fast(21.0, 21.4, 2); fast(22.35, 22.8, 2); fast(25.9, 26.35, 2); fast(28.85, 29.3, 2);
 ev(.27, 'lockon', { x: -.4 }); ev(.62, 'dwell', { dur: 1.0 }); ev(1.62, 'click', { hit: .35 }); ev(1.76, 'send'); ev(2.5, 'pupil'); fast(.25, .5); fast(1.74, 2.3); fast(2.5, 3.1);
 
 // ======================================================================= beat: title (3D icon assembles out of the dark)
@@ -218,7 +260,7 @@ function irisPanel(t, keys, o = {}) {
   irisCv.style.display = 'block';
   irisCv.style.clipPath = o.clip || panelClip(20, 116, 20, 608);
   const look = eyeAt(t, keys);
-  Iris.draw(Object.assign({ look, pupil: .29 + .015 * Math.sin(t * .9), screen: .55 }, o.iris || {}));
+  return Iris.draw(Object.assign({ look, pupil: .29 + .015 * Math.sin(t * .9), screen: .55 }, o.iris || {}));
 }
 F.beats.push({ t0: T.eyes1[0], t1: T.voice2[1] + .45, draw(t) {
   show(split, true);
@@ -227,8 +269,8 @@ F.beats.push({ t0: T.eyes1[0], t1: T.voice2[1] + .45, draw(t) {
   split.style.transform = `scale(${(.94 + .06 * enter) * (1 - .06 * exit)})`;
   split.style.filter = exit > .01 ? `blur(${exit * 8}px)` : (enter < 1 ? `blur(${(1 - enter) * 6}px)` : '');
   mac.style.transform = ''; spaces(t); $('#led').classList.add('on');
-  irisCv.style.display = 'none'; topReset(); tag.style.display = 'flex'; tag.style.opacity = 1; divider.style.display = 'none'; tag2.style.display = 'none'; bigKeys.style.display = 'none';
-  gaze.style.display = 'none'; ptr.style.display = 'none'; pill.style.display = 'none'; rg.clearRect(0, 0, 1008, 1200);
+  irisCv.style.display = 'none'; raw.style.display = 'none'; legend.style.display = 'none'; landmarks(0); setCam(HOME); topReset(); tag.style.display = 'flex'; tag.style.opacity = 1; divider.style.display = 'none'; tag2.style.display = 'none'; bigKeys.style.display = 'none';
+  gaze.style.display = 'none'; ptr.style.display = 'none'; pill.style.display = 'none'; rg.setTransform(1, 0, 0, 1, 0, 0), rg.clearRect(0, 0, 1512, 1800);
   W.mail.style.transform = ''; W.mail.style.opacity = 1;
   if (t < T.eyes2[0]) eyes1(t);
   else if (t < T.hands1[0]) eyes2(t);
@@ -240,26 +282,29 @@ F.beats.push({ t0: T.eyes1[0], t1: T.voice2[1] + .45, draw(t) {
 
 function eyes1(t) {
   tag.querySelector('span').textContent = 'Camera · ojoS';
-  const keys = GZ.eyes1(); irisPanel(t, keys);
+  const keys = GZ.eyes1(), ic = irisPanel(t, keys);
+  landmarks(e.o3(seg(t, 6.45, 6.9)) * (1 - seg(t, 9.2, 9.45)), ic);
   const p = gazeAt(t, keys);
   gaze.style.display = 'block'; gaze.set(p[0], p[1], {});
+  const base = campath(t, [[6.0, 252, 170, 1.15], [6.55, 240, 190, 1.62], [9.1, 260, 205, 1.62], [9.5, ...HOME]]);
+  setCam(follow(base, [p[0], p[1] + 12], .55 * seg(t, 6.3, 6.7) * (1 - seg(t, 9.1, 9.45))));
   // raw, noisy webcam estimates around the steady cursor
-  rg.setTransform(2, 0, 0, 2, 0, 0); rg.clearRect(0, 0, 504, 600);
+  raw.style.display = 'block'; rg.setTransform(3, 0, 0, 3, 0, 0); rg.clearRect(0, 0, 504, 600);
   const fi = Math.floor(t * 30);
   for (let k = 0; k < 9; k++) {
     const n = fi - k, a = hash(n) * 6.283, r = 10 + hash(n + .5) * 34, al = (1 - k / 9) * .8;
     const q = gazeAt(n / 30, keys, .05);
     rg.fillStyle = `rgba(120,190,255,${al})`; rg.shadowColor = '#3d9cff'; rg.shadowBlur = 6; rg.beginPath(); rg.arc(q[0] + Math.cos(a) * r, q[1] + Math.sin(a) * r, 3.4, 0, 7); rg.fill(); rg.shadowBlur = 0;
   }
-  const la = seg(t, 6.6, 7.0); rg.font = '400 12px "Fragment Mono"'; rg.textAlign = 'left';
-  rg.fillStyle = `rgba(120,190,255,${la})`; rg.beginPath(); rg.arc(40, 262, 4, 0, 7); rg.fill(); rg.fillText('RAW WEBCAM GAZE', 50, 266);
-  rg.strokeStyle = `rgba(10,132,255,${la})`; rg.lineWidth = 2.5; rg.beginPath(); rg.arc(228, 262, 6, 0, 7); rg.stroke(); rg.fillStyle = `rgba(255,255,255,${la})`; rg.fillText('CURSOR, HELD STILL', 240, 266);
+  legend.style.display = 'flex'; legend.style.opacity = e.o3(seg(t, 6.7, 7.1)) * (1 - seg(t, 9.15, 9.4));
 }
 GZ.eyes1Keys = null;
 function eyes2(t) {
   tag.querySelector('span').textContent = 'Camera · ojoS';
-  const keys = GZ.eyes2(); irisPanel(t, keys);
+  const keys = GZ.eyes2(), ic = irisPanel(t, keys);
+  landmarks(e.o3(seg(t, 9.8, 10.2)) * (1 - seg(t, 12.6, 12.9)), ic);
   const p = gazeAt(t, keys);
+  setCam(campath(t, [[9.5, ...HOME], [10.0, ...HOME], [10.45, LINK[0] + 40, LINK[1] + 10, 1.5], [11.12, LINK[0] + 40, LINK[1] + 10, 1.52], [11.6, 200, ITEMS[1][1], 1.4], [12.55, 205, ITEMS[1][1] + 8, 1.42], [13.0, ...HOME]]));
   gaze.style.display = 'block'; gaze.set(p[0], p[1], { scale: 1 - .14 * Math.sin(Math.PI * seg(t, 11.05, 11.2)) });
   const keysEl = $$('.key', hG.box);
   keysEl.forEach((k, i) => k.classList.toggle('dn', t >= 10.85 + i * .07 && t < 11.25));
@@ -300,6 +345,8 @@ function hands1(t) {
   const ho = handIn(t, { pose: 'open', to: 'pinch', t: pin, x: 262 + (pp[0] - 252) * .3, y: 232 + (pp[1] - 150) * .16, act: pin > .75 ? ['thumb', 'index'] : [] });
   if (!morphIrisToHand(t, 13.0, ho) || t > 13.45) { g.globalAlpha = seg(t, 13.45, 13.62); Hand.draw(g, ho); g.globalAlpha = 1; }
   ptr.style.display = 'block';
+  const hb = campath(t, [[13.0, ...HOME], [13.5, ...HOME], [14.0, 252, 160, 1.3], [15.7, 220, 160, 1.3], [16.4, 252, 150, 1.05], [16.8, ...HOME]]);
+  setCam(follow(hb, pp, .5 * seg(t, 13.6, 14.0) * (1 - seg(t, 15.6, 16.2))));
   const dragging = t >= 14.2 && t < 15.25;
   ptr.set(pp[0], pp[1], { hud: seg(t, 13.6, 13.8), ring: pin, color: dragging ? '#30d158' : '#0a84ff', sym: dragging ? 'drag' : null });
   // the dragged photo follows the pointer and drops into the album
@@ -331,6 +378,7 @@ function hands2(t) {
   ptr.style.display = 'block';
   const sym = (t >= 17.72 && t < 18.22) || (t >= 18.92 && t < 19.42) ? 'chevUp2' : null;
   ptr.set(392, 196, { hud: 1, ring: sym ? 1 : 0, color: '#0a84ff', sym });
+  setCam(campath(t, [[16.8, ...HOME], [17.3, ...HOME], [20.1, 262, 168, 1.12], [20.5, ...HOME]]));
 }
 ev(16.8, 'swipe'); ev(17.7, 'flick'); ev(17.8, 'slide'); ev(18.9, 'flick'); ev(19.0, 'slide'); fast(16.8, 17.3); fast(17.65, 18.25); fast(18.85, 19.45);
 
@@ -348,13 +396,14 @@ function peak(t) {
   Hand.draw(g, handIn(t, { pose: 'open', to: 'pinch', t: pin, x: lerp(262, 392, sp), y: lerp(230, 226, sp), s: lerp(106, 86, sp), act: pin > .75 ? ['thumb', 'index'] : [] }));
   g.restore();
   const p = gazeAt(t, keys);
+  setCam(campath(t, [[20.5, ...HOME], [21.0, ...HOME], [21.4, SAVE[0] - 70, SAVE[1] - 10, 1.55], [22.35, SAVE[0] - 70, SAVE[1] - 10, 1.6], [22.8, 252, 200, 1.18], [25.0, 252, 200, 1.22], [25.5, ...HOME]]));
   gaze.style.display = 'block'; gaze.set(p[0], p[1], { scale: 1 - .16 * pin, alpha: 1 - seg(t, 22.3, 22.5) });
   const d = W.dialog.d, saved = e.io3(seg(t, 22.18, 22.42));
   $('.save', d).classList.toggle('dn', t >= 22.05 && t < 22.2);
   d.style.transform = `scale(${1 - .06 * saved})`; d.style.opacity = 1 - saved;
   const bt = $('.bar span:last-child', W.dialog.back); if (bt) bt.textContent = t >= 22.3 ? 'Launch plan' : 'Launch plan — Edited';
   // "Saved" toast
-  rg.setTransform(2, 0, 0, 2, 0, 0); rg.clearRect(0, 0, 504, 600);
+  raw.style.display = 'block'; rg.setTransform(3, 0, 0, 3, 0, 0); rg.clearRect(0, 0, 504, 600);
   const ts = e.o3(seg(t, 22.35, 22.6)) * (1 - seg(t, 23.3, 23.6));
   if (ts > 0) { rg.globalAlpha = ts; rg.fillStyle = 'rgba(40,40,44,.95)'; rg.beginPath(); rg.roundRect(192, 190 - 8 * ts, 120, 40, 20); rg.fill();
     rg.fillStyle = '#30d158'; rg.beginPath(); rg.arc(214, 210 - 8 * ts, 8, 0, 7); rg.fill(); rg.fillStyle = '#fff'; rg.font = '600 15px "Instrument Sans"'; rg.textAlign = 'left'; rg.textBaseline = 'middle'; rg.fillText('Saved', 230, 211 - 8 * ts); rg.globalAlpha = 1; }
@@ -403,11 +452,13 @@ function voice(t) {
     if (t >= 28.45 && t < 28.55) html = 'Polishing…';
     if (t >= 28.55) html = SPOKEN.map(w => (w === 'um' || w === 'uh') ? `<span style="display:inline-block;color:#ff453a;text-decoration:line-through;max-width:${(1 - clean) * 3}em;overflow:hidden;vertical-align:bottom;opacity:${1 - clean}">${w}</span>`
       : w === 'so' ? (clean > .5 ? 'So' : 'so') : w === 'thursday' ? (clean > .5 ? 'Thursday.' : 'thursday') : w).join(' ');
-    pill.set({ x: 42, y: 250, w: 420, alpha: pa, t, level: talking ? .35 + .65 * Math.abs(Math.sin(t * 9.3)) : .05, html, live: nW > 0 && t < 28.45 || t >= 28.55 });
+    pill.set({ x: 68, y: 250, w: 368, alpha: pa, t, level: talking ? .35 + .65 * Math.abs(Math.sin(t * 9.3)) : .05, html, live: nW > 0 && t < 28.45 || t >= 28.55 });
     const ins = $('.ins', W.mail2), ia = seg(t, 29.0, 29.05);
     ins.textContent = ia > 0 ? CLEAN : ''; ins.style.background = `rgba(10,132,255,${.35 * (1 - seg(t, 29.1, 29.7))})`;
     $('.caret', W.mail2).style.opacity = Math.floor(t * 2.2) % 2 ? 1 : .15;
   }
+  setCam(t < 31.0 ? campath(t, [[25.5, ...HOME], [25.9, ...HOME], [26.35, 252, 280, 1.34], [28.85, 252, 280, 1.36], [29.3, 230, 168, 1.38], [30.6, 236, 168, 1.4], [31.0, ...HOME]])
+    : campath(t, [[31.0, ...HOME], [31.45, ...HOME], [31.85, 252, 178, 1.22], [33.0, 252, 182, 1.25]]));
   if (t >= 31.0) { // a voice note's summary
     const items = $$('.it', W.note), card = $('.card', W.note);
     card.style.opacity = e.o3(seg(t, 31.35, 31.6)); card.style.transform = `translateY(${(1 - e.o3(seg(t, 31.35, 31.6))) * 14}px)`;
@@ -514,8 +565,8 @@ F.beats.push({ t0: T.cta[0], t1: F.DUR + 1, draw(t) {
   show(full, true); trust.style.display = 'none'; dev.style.display = t < 41.3 ? 'block' : 'none'; cta.style.display = 'block';
   const l = t - 41.0;
   const rise = e.o5(seg(l, 0, .9)), settle = springU(l - .1, 1.1, .7);
-  Logo.draw({ x: 270, y: lerp(250, 282, rise), size: lerp(60, 200, rise), rx: lerp(-30, 0, settle) + Math.sin(l * .9) * 3, ry: Math.sin(l * .6) * 9 * seg(l, .8, 2), rz: 0,
-    tileAlpha: clamp(rise * 2), discs: [{}, {}, {}].map(() => ({ milk: 1, alpha: clamp(rise * 2) })), keyX: lerp(-6, 5, e.io2(seg(l, .4, 2.2))), exposure: 1 });
+  Logo.draw({ x: 270, y: lerp(250, 282, rise), size: lerp(60, 200, rise), rx: lerp(24, 0, settle) + Math.sin(l * .9) * 3, ry: Math.sin(l * .6) * 9 * seg(l, .8, 2), rz: 0,
+    tileAlpha: clamp(rise * 8), discs: [{}, {}, {}].map(() => ({ milk: 1, alpha: clamp(rise * 8) })), keyX: lerp(-6, 5, e.io2(seg(l, .4, 2.2))), exposure: 1 });
   $$('#wm .c').forEach((c, i) => { const k = e.expo(seg(l, .55 + i * .045, 1.25 + i * .045)); c.style.transform = `translateY(${(1 - k) * 112}%)`; });
   const tk = e.o3(seg(l, .95, 1.35)); $('#tagl').style.opacity = tk; $('#tagl').style.transform = `translateY(${(1 - tk) * 14}px)`;
   [['#cPill', 2.6], ['#cUrl', 2.85], ['#cBio', 3.1]].forEach(([s, d]) => { const k = e.o4(seg(l, d, d + .45)), el2 = $(s);

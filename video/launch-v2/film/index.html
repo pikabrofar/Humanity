@@ -42,7 +42,8 @@ canvas { display: block; }
 #mac { position: absolute; left: 0; top: 452px; width: 540px; height: 600px; }
 #bezel { position: absolute; left: 6px; right: 6px; top: 0; height: 620px; border-radius: 40px 40px 0 0; background: #0b0b0c; box-shadow: inset 0 0 0 1.5px #2c2c30, inset 0 2px 0 rgba(255,255,255,.08); }
 #screen { position: absolute; left: 18px; right: 18px; top: 12px; height: 600px; border-radius: 28px 28px 0 0; overflow: hidden; background: #160b12; }
-#wall { position: absolute; inset: -40px; background:
+#cam { position: absolute; left: 0; top: 0; width: 504px; height: 600px; transform-origin: 0 0; }
+#wall { position: absolute; inset: -700px; background:
   radial-gradient(55% 45% at 22% 70%, rgba(214,104,64,.55), transparent 70%),
   radial-gradient(50% 40% at 85% 25%, rgba(231,140,64,.45), transparent 70%),
   radial-gradient(70% 60% at 60% 95%, rgba(140,40,90,.55), transparent 70%),
@@ -109,13 +110,14 @@ canvas { display: block; }
   <div class="layer" id="Lsplit">
     <div id="top"><canvas id="topCv" width="1000" height="472"></canvas></div>
     <canvas id="irisGL" width="1080" height="1920"></canvas>
+    <canvas id="lmCv" width="1080" height="1920" style="position:absolute;left:0;top:0;width:540px;height:960px;z-index:3;pointer-events:none"></canvas>
     <div class="tag" id="topTag"><i></i><span>Camera</span></div>
     <div id="mac"><div id="bezel"></div>
-      <div id="screen"><div id="wall"></div>
+      <div id="screen"><div id="cam"><div id="wall"></div>
         <div id="menubar"><div class="l"><b id="appName">Mail</b><span>File</span><span>Edit</span></div>
           <div class="r"><span class="si" id="mbIcon"></span><span class="si" id="mbWifi"></span><span id="clock">Thu 9:41</span></div></div>
         <div id="windows"></div>
-      </div>
+      </div></div>
       <div id="notch"><div class="lens"></div><div class="led" id="led"></div></div>
     </div>
   </div>

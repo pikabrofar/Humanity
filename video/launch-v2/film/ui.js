@@ -85,7 +85,7 @@ UI.note = (id, o = {}) => pos(el('div', 'win', `${bar('Library')}
 
 // ---- the app's overlays
 UI.gaze = () => {
-  const g = el('div', 'gaze', `<svg viewBox="-14 -14 28 28"><circle r="12" fill="none" stroke="rgba(10,132,255,.35)" stroke-width="2.4"/><circle class="arc" r="12" fill="none" stroke="#0a84ff" stroke-width="4" stroke-linecap="round" transform="rotate(-90)" stroke-dasharray="75.4" stroke-dashoffset="75.4"/></svg>`, $('#screen'));
+  const g = el('div', 'gaze', `<svg viewBox="-14 -14 28 28"><circle r="12" fill="none" stroke="rgba(10,132,255,.35)" stroke-width="2.4"/><circle class="arc" r="12" fill="none" stroke="#0a84ff" stroke-width="4" stroke-linecap="round" transform="rotate(-90)" stroke-dasharray="75.4" stroke-dashoffset="75.4"/></svg>`, $('#cam'));
   g.set = (x, y, o = {}) => {
     g.style.left = x + 'px'; g.style.top = y + 'px'; g.style.opacity = o.alpha ?? 1;
     g.style.transform = `scale(${o.scale ?? 1})`;
@@ -95,7 +95,7 @@ UI.gaze = () => {
   return g;
 };
 UI.pointer = () => {
-  const p = el('div', 'ptr', `${G.pointer}<svg class="hudr" viewBox="-15 -15 30 30"><circle r="15" fill="rgba(0,0,0,.25)"/><circle r="12" fill="none" stroke="rgba(255,255,255,.35)" stroke-width="3"/><circle class="arc" r="12" fill="none" stroke="#0a84ff" stroke-width="3" stroke-linecap="round" transform="rotate(-90)" stroke-dasharray="75.4" stroke-dashoffset="75.4"/><g class="sym" transform="translate(-6.5,-6.5) scale(.54)" style="color:#fff"></g></svg>`, $('#screen'));
+  const p = el('div', 'ptr', `${G.pointer}<svg class="hudr" viewBox="-15 -15 30 30"><circle r="15" fill="rgba(0,0,0,.25)"/><circle r="12" fill="none" stroke="rgba(255,255,255,.35)" stroke-width="3"/><circle class="arc" r="12" fill="none" stroke="#0a84ff" stroke-width="3" stroke-linecap="round" transform="rotate(-90)" stroke-dasharray="75.4" stroke-dashoffset="75.4"/><g class="sym" transform="translate(-6.5,-6.5) scale(.54)" style="color:#fff"></g></svg>`, $('#cam'));
   p.set = (x, y, o = {}) => {
     p.style.left = (x - 3) + 'px'; p.style.top = (y - 3) + 'px'; p.style.opacity = o.alpha ?? 1;
     const h = p.querySelector('.hudr'); h.style.opacity = o.hud ?? 0;
@@ -105,7 +105,7 @@ UI.pointer = () => {
   return p;
 };
 UI.pill = () => {
-  const p = el('div', 'pill', `<span class="rec"></span><span class="lv">${'<i></i>'.repeat(5)}</span><span class="msg"><span></span></span><span class="esc">esc</span>`, $('#screen'));
+  const p = el('div', 'pill', `<span class="rec"></span><span class="lv">${'<i></i>'.repeat(5)}</span><span class="msg"><span></span></span><span class="esc">esc</span>`, $('#cam'));
   p.set = (o) => {
     p.style.left = o.x + 'px'; p.style.top = o.y + 'px'; p.style.width = o.w + 'px'; p.style.opacity = o.alpha ?? 1;
     p.style.transform = `scale(${o.scale ?? 1})`;
