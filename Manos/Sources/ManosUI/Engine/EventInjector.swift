@@ -53,6 +53,9 @@ final class EventInjector {
         if profile.flickAction == .arrowKeys {
             for down in [true, false] {
                 let event = CGEvent(keyboardEventSource: source, virtualKey: next ? 0x7D : 0x7E, keyDown: down) // ↓ next, ↑ previous
+                // The source copies held modifiers into the event; a plain arrow is
+                // wanted even while a key such as bocaS's ⌃⌥⌘D is down (⌘↓ jumps to the end).
+                event?.flags = []
                 event?.setIntegerValueField(.eventSourceUserData, value: Self.tag)
                 event?.post(tap: .cghidEventTap)
             }
@@ -104,6 +107,12 @@ final class EventInjector {
         else { return }
         // clickState on both down and up is what makes double/triple clicks work.
         event.setIntegerValueField(.mouseEventClickState, value: Int64(clicks))
+        // Synthetic events carry no motion deltas, but apps that track drags or
+        // pointer motion by NSEvent.deltaX/Y (canvases, 3D views, games) need them.
+        if type == .mouseMoved || type == .leftMouseDragged, let last = lastPosted {
+            event.setIntegerValueField(.mouseEventDeltaX, value: Int64((p.x - last.x).rounded()))
+            event.setIntegerValueField(.mouseEventDeltaY, value: Int64((p.y - last.y).rounded()))
+        }
         event.setIntegerValueField(.eventSourceUserData, value: Self.tag)
         event.post(tap: .cghidEventTap)
         lastPosted = p

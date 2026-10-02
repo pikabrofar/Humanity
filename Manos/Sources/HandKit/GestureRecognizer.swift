@@ -30,12 +30,17 @@ public enum GestureEvent: Sendable, Equatable {
 /// Guards against accidental input ("Midas touch"):
 /// - nothing happens until a hand has been steady in view for 250 ms;
 /// - pinches need two consecutive frames and use enter/exit hysteresis;
+/// - a click needs the fingers to have opened since the last one, so a hand that
+///   arrives already pinched (holding a pen or a mug) or a pinch held past
+///   `maxHold` never clicks by itself;
 /// - while the fingers close, the pointer slows to a quarter speed, and the
 ///   click lands where the cursor was when closing began (50–250 ms earlier),
 ///   undoing the hand motion that pinching causes (it causes ~30% of mid-air
 ///   pointing errors; Wolf et al., CHI 2020);
 /// - a held pinch only becomes a drag after moving past a slop distance;
-/// - losing the hand for 200 ms releases any held button.
+/// - losing the hand for 200 ms releases any held button;
+/// - positions are measured from the image centre in palm units, so leaning
+///   toward or away from the camera doesn't move the cursor.
 public struct GestureRecognizer: Sendable {
     public enum State: Sendable, Equatable {
         case idle, engaging, hovering, pressing, dragging, rightPending, scrolling, clutched
@@ -63,12 +68,22 @@ public struct GestureRecognizer: Sendable {
     /// taken over or stalled): the host should `releaseAll()`.
     public static let stallTimeout = 0.5
 
-    /// Whether a held button should be released because frames stopped arriving.
+    /// Whether a held button or an open scroll should be released because frames stopped arriving.
     public func isStalled(lastFrame: TimeInterval, now: TimeInterval) -> Bool {
-        isButtonDown && now - lastFrame > Self.stallTimeout
+        (isButtonDown || state == .scrolling) && now - lastFrame > Self.stallTimeout
     }
     /// Palm widths of movement before a held pinch becomes a drag or scroll.
     static let slop = 0.12
+    /// Time constant for following the palm's size (distance to the camera).
+    static let scaleSmoothing = 0.2
+    /// Speed below which an open palm counts as still, palm widths/s.
+    static let stillSpeed = 0.5
+    /// A pinch is closing when the thumb–index gap shrank by this much (palm
+    /// units) within `closingWindow`; a slow drift toward the threshold isn't one.
+    static let closingDrop = 0.15
+    static let closingWindow = 0.15
+    /// Scroll travel (palm widths) after which a mostly one-axis stroke locks to that axis.
+    static let scrollAxisDecision = 0.25
     static let doubleClickRadius = 6.0
     /// A flick must happen within this window. It is also how long the V pose
     /// stays armed after it was last seen, which rides through frames that
@@ -113,6 +128,27 @@ public struct GestureRecognizer: Sendable {
     /// closes with thumb on index doesn't click.
     private var anchorArmed = false
     private var rebasing = false
+    /// Fingers opened since the last press, or since the hand appeared.
+    private var pinchArmed = false
+    private var middleArmed = false
+    /// When hovering last began; a click never rewinds to before it.
+    private var hoverSince: TimeInterval = 0
+    private var lastFrameTime: TimeInterval?
+    private var scaleTime: TimeInterval?
+    /// Recent thumb–index gaps, for spotting a pinch as it closes.
+    private var aperture: [(TimeInterval, Double)] = []
+    private var closingMin = 0.0
+    private var closingMinTime: TimeInterval = 0
+    private enum ScrollAxis { case free, vertical, horizontal }
+    private var scrollAxis = ScrollAxis.free
+    private var scrollTravel = (x: 0.0, y: 0.0)
+
+    /// Camera image width / height (pose x runs from 0 to this). Positions are
+    /// measured from the image centre: leaning in scales the image about it, so
+    /// positions in palm units from there stay put. Set it from the camera.
+    public var imageAspect = 16.0 / 9 {
+        didSet { if imageAspect != oldValue { rebasing = true } }
+    }
 
     /// 0 = fingers apart, 1 = at the click threshold. Drives the on-screen pinch ring.
     public private(set) var pinchProgress = 0.0
@@ -167,38 +203,50 @@ public struct GestureRecognizer: Sendable {
             referenceScale = pose.scale
             filter.reset()
             lastAnchor = nil
+            lastFrameTime = nil
+            scaleTime = nil
+            // A hand that shows up already pinched must open before it can click.
+            pinchArmed = false
+            middleArmed = false
+            aperture.removeAll()
+            closingSince = nil
         }
-        // Palm units against a slowly adapting reference: robust to leaning in or out.
-        referenceScale += (pose.scale - referenceScale) * 0.02
-        let raw = pose.anchor
+        // Follow the palm's size with a short time constant (frame-rate independent).
+        // A rebase (new hand or pose source) starts from this frame's size.
+        let follow = rebasing ? 1 : scaleTime.map { 1 - exp(-max(t - $0, 0) / Self.scaleSmoothing) } ?? 1
+        scaleTime = t
+        referenceScale += (pose.scale - referenceScale) * follow
+        // Palm units from the image centre: leaning in scales the image about the
+        // centre, so these coordinates don't change when only the distance does.
+        let center = CGPoint(x: imageAspect / 2, y: 0.5), scale = referenceScale
+        func palmUnits(_ p: CGPoint) -> CGPoint { CGPoint(x: (p.x - center.x) / scale, y: (p.y - center.y) / scale) }
         if rebasing { filter.reset() }
-        let anchor = filter.filter(CGPoint(x: raw.x / referenceScale, y: raw.y / referenceScale), at: t)
+        let anchor = filter.filter(palmUnits(pose.anchor), at: t)
         if rebasing {
             rebasing = false
             mapper.track(anchor, at: t)
             (lastAnchor, pressAnchor, scrollLast) = (anchor, anchor, anchor)
         }
         // Unfiltered fingertips: the filter would blunt exactly the fast motion a flick is.
-        let tips = pose.fingertipCenter
-        let flickPoint = CGPoint(x: tips.x / referenceScale, y: tips.y / referenceScale)
-        let speed = lastAnchor.map { anchor.distance(to: $0) } ?? 0
+        let flickPoint = palmUnits(pose.fingertipCenter)
+        let dt = lastFrameTime.map { max(t - $0, 1e-3) } ?? 1.0 / 30
+        lastFrameTime = t
+        let speed = lastAnchor.map { anchor.distance(to: $0) / dt } ?? 0 // palm widths / s
         lastAnchor = anchor
 
         let dIndex = pose.indexPinch, dMiddle = pose.middlePinch
-        indexFrames = dIndex < profile.pinchEnter ? indexFrames + 1 : 0
-        middleFrames = dMiddle < profile.pinchEnter && dIndex > profile.pinchExit ? middleFrames + 1 : 0
-        let far = profile.pinchExit + 0.4
-        pinchProgress = min(max((far - dIndex) / (far - profile.pinchEnter), 0), 1)
-        // Fingers within reach of the threshold = a pinch is probably coming.
-        if dIndex < profile.pinchExit + 0.15 {
-            if closingSince == nil { closingSince = t }
-        } else if dIndex > profile.pinchExit + 0.3 {
-            closingSince = nil
-        }
+        let enter = profile.pinchEnter, exit = profile.releaseThreshold
+        indexFrames = dIndex < enter ? indexFrames + 1 : 0
+        middleFrames = dMiddle < enter && dIndex > exit ? middleFrames + 1 : 0
+        if dIndex > exit { pinchArmed = true }
+        if dMiddle > exit { middleArmed = true }
+        let far = exit + 0.4
+        pinchProgress = min(max((far - dIndex) / (far - enter), 0), 1)
+        trackClosing(dIndex, at: t, enter: enter, exit: exit)
         mapper.damping = closingSince != nil && state == .hovering ? Self.closingDamping : 1
 
         // Flicks need the V pose (pointing never makes it), held for two frames.
-        if pose.isVSign, dIndex > profile.pinchExit, dMiddle > profile.pinchExit {
+        if pose.isVSign, dIndex > exit, dMiddle > exit {
             if t - vSignLast > Self.flickWindow { vSignFrames = 0 }
             vSignFrames += 1
             vSignLast = t
@@ -222,7 +270,7 @@ public struct GestureRecognizer: Sendable {
         switch state {
         case .idle, .engaging:
             mapper.track(anchor, at: t)
-            if t - stateSince >= Self.engageDwell { state = .hovering }
+            if t - stateSince >= Self.engageDwell { beginHover(at: t) }
 
         case .hovering:
             if isFlickReady {
@@ -235,16 +283,24 @@ public struct GestureRecognizer: Sendable {
             } else if pose.isFist || pose.isAnchorGrip {
                 state = .clutched
                 anchorArmed = false
-            } else if indexFrames >= 2 {
-                let rewind = min(max(t - (closingSince ?? t - 0.1), Self.rewindRange.lowerBound), Self.rewindRange.upperBound)
-                let point = backdatedCursor(at: t - rewind)
+                // A fist can close thumb on index: open again before the next click.
+                pinchArmed = false
+                middleArmed = false
+            } else if indexFrames >= 2, pinchArmed {
+                pinchArmed = false
+                // Rewind to where closing began, but never to before this hover:
+                // the cursor may have been somewhere else entirely then.
+                let onset = max(closingSince ?? t - 0.1, hoverSince)
+                let rewind = min(max(t - onset, Self.rewindRange.lowerBound), Self.rewindRange.upperBound)
+                let point = backdatedCursor(at: max(t - rewind, hoverSince))
                 mapper.cursor = point
                 clicks = nextClickCount(at: point, time: t)
                 events.append(.down(point, clicks: clicks))
                 state = .pressing
                 stateSince = t
                 pressAnchor = anchor
-            } else if middleFrames >= 2 {
+            } else if middleFrames >= 2, middleArmed {
+                middleArmed = false
                 state = .rightPending
                 stateSince = t
                 pressAnchor = anchor
@@ -259,15 +315,16 @@ public struct GestureRecognizer: Sendable {
             }
 
         case .pressing, .dragging:
-            if dIndex > profile.pinchExit || t - stateSince > Self.maxHold {
+            if dIndex > exit || t - stateSince > Self.maxHold {
                 events.append(.up(mapper.cursor, clicks: clicks))
                 lastUp = (t, mapper.cursor)
-                state = .hovering
+                beginHover(at: t)
                 mapper.track(anchor, at: t)
             } else if state == .pressing {
                 if anchor.distance(to: pressAnchor) > Self.slop {
-                    // Start from the press point so the slop distance isn't lost.
-                    mapper.track(pressAnchor, at: t)
+                    // Start from the press point so the slop distance isn't lost. Its
+                    // time is the press time, so the first drag's speed (and gain) is real.
+                    mapper.track(pressAnchor, at: stateSince)
                     events.append(.drag(mapper.update(anchor, at: t)))
                     state = .dragging
                 } else {
@@ -278,21 +335,23 @@ public struct GestureRecognizer: Sendable {
             }
 
         case .rightPending:
-            if dMiddle > profile.pinchExit {
+            if dMiddle > exit {
                 if t - stateSince <= Self.rightClickMaxDuration { events.append(.rightClick(mapper.cursor)) }
-                state = .hovering
+                beginHover(at: t)
                 mapper.track(anchor, at: t)
             } else if anchor.distance(to: pressAnchor) > Self.slop {
                 state = .scrolling
                 scrollLast = pressAnchor
+                scrollAxis = .free
+                scrollTravel = (0, 0)
                 events.append(.scroll(dx: 0, dy: 0, phase: .began))
                 events.append(scrollEvent(to: anchor))
             }
 
         case .scrolling:
-            if dMiddle > profile.pinchExit {
+            if dMiddle > exit {
                 events.append(.scroll(dx: 0, dy: 0, phase: .ended))
-                state = .hovering
+                beginHover(at: t)
                 mapper.track(anchor, at: t)
             } else {
                 events.append(scrollEvent(to: anchor))
@@ -300,7 +359,7 @@ public struct GestureRecognizer: Sendable {
 
         case .clutched:
             mapper.track(anchor, at: t)
-            if pose.isAnchorGrip, dIndex > profile.pinchExit { anchorArmed = true }
+            if pose.isAnchorGrip, dIndex > exit { anchorArmed = true }
             if anchorArmed, indexFrames >= 2 {
                 clicks = nextClickCount(at: mapper.cursor, time: t)
                 events.append(.down(mapper.cursor, clicks: clicks))
@@ -308,12 +367,12 @@ public struct GestureRecognizer: Sendable {
                 stateSince = t
                 anchorArmed = false
             } else if !pose.isFist, !pose.isAnchorGrip {
-                state = .hovering
+                beginHover(at: t)
             }
 
         case .anchoredPressing:
             mapper.track(anchor, at: t)
-            if dIndex > profile.pinchExit || t - stateSince > Self.maxHold {
+            if dIndex > exit || t - stateSince > Self.maxHold {
                 events.append(.up(mapper.cursor, clicks: clicks))
                 lastUp = (t, mapper.cursor)
                 state = .clutched
@@ -361,9 +420,47 @@ public struct GestureRecognizer: Sendable {
 
     private mutating func scrollEvent(to anchor: CGPoint) -> GestureEvent {
         let sign = profile.invertScroll ? -1.0 : 1.0
-        let dx = Double(anchor.x - scrollLast.x), dy = Double(anchor.y - scrollLast.y)
+        var dx = Double(anchor.x - scrollLast.x), dy = Double(anchor.y - scrollLast.y)
         scrollLast = anchor
+        // A hand moving "straight down" drifts sideways too. Like a trackpad, lock a
+        // stroke that is clearly one-axis to that axis; diagonal strokes stay free.
+        scrollTravel.x += abs(dx)
+        scrollTravel.y += abs(dy)
+        if scrollAxis == .free, scrollTravel.x + scrollTravel.y >= Self.scrollAxisDecision {
+            if scrollTravel.y >= 2 * scrollTravel.x { scrollAxis = .vertical } else if scrollTravel.x >= 2 * scrollTravel.y { scrollAxis = .horizontal }
+        }
+        if scrollAxis == .vertical { dx = 0 } else if scrollAxis == .horizontal { dy = 0 }
         return .scroll(dx: dx * profile.scrollSpeed * sign, dy: dy * profile.scrollSpeed * sign, phase: .changed)
+    }
+
+    /// Starts hovering. The cursor history restarts here, so a click right after a
+    /// drag (or a clutch) can't rewind to where the cursor was before it.
+    private mutating func beginHover(at t: TimeInterval) {
+        state = .hovering
+        hoverSince = t
+        history = [(t, mapper.cursor)]
+    }
+
+    /// Closing = the gap shrank by `closingDrop` within `closingWindow` while near
+    /// the threshold. It ends when the fingers open again, or stop closing without
+    /// pinching. A fixed distance zone instead would keep damping a hand whose
+    /// relaxed gap happens to sit near the threshold, and mistime the rewind.
+    private mutating func trackClosing(_ d: Double, at t: TimeInterval, enter: Double, exit: Double) {
+        aperture.append((t, d))
+        aperture.removeAll { t - $0.0 > 0.4 }
+        if closingSince == nil {
+            let peak = aperture.filter { t - $0.0 <= Self.closingWindow }.max { $0.1 < $1.1 }
+            if let peak, peak.1 - d >= Self.closingDrop, d < exit + 0.3 {
+                closingSince = peak.0
+                closingMin = d
+                closingMinTime = t
+            }
+        } else if d < closingMin {
+            closingMin = d
+            closingMinTime = t
+        } else if d > closingMin + 0.1 || (t - closingMinTime > 0.2 && d > enter) {
+            closingSince = nil
+        }
     }
 
     private mutating func checkPauseToggle(_ pose: HandPose, stillness: Double, at t: TimeInterval) -> [GestureEvent] {
@@ -372,8 +469,8 @@ public struct GestureRecognizer: Sendable {
             palmLatched = false
             return []
         }
-        // `stillness` is palm widths moved this frame; ~0.5 palm/s at 30 fps.
-        guard stillness < 0.017 else {
+        // `stillness` is the palm's speed in palm widths per second.
+        guard stillness < Self.stillSpeed else {
             palmSince = nil
             return []
         }

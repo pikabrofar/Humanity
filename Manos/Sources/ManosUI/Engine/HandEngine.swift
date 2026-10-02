@@ -176,6 +176,7 @@ final class HandEngine {
         lastFrameTime = now
         countFrame(at: now)
         imageSize = result.imageSize
+        recognizer.imageAspect = result.imageSize.width / max(result.imageSize.height, 1)
         hands = chirality.apply(result.hands)
         if result.cropped != lastCropped { recognizer.rebase() }
         lastCropped = result.cropped
@@ -230,14 +231,10 @@ final class HandEngine {
         }
     }
 
-    /// Dominant hand if Vision can tell; otherwise the one closest to the last
-    /// active hand (identity tracking), otherwise the largest.
+    /// See `HandSelection.pick`: the dominant hand, tracked by position, and never
+    /// a different hand while a button is held.
     private func pickHand(_ hands: [HandPose]) -> HandPose? {
-        if let match = hands.first(where: { $0.chirality == dominantHand }) { return match }
-        if let last = activeHand {
-            return hands.min { $0.anchor.distance(to: last.anchor) < $1.anchor.distance(to: last.anchor) }
-        }
-        return hands.max { $0.scale < $1.scale }
+        HandSelection.pick(hands, dominant: dominantHand, last: activeHand, holding: recognizer.isButtonDown)
     }
 
     private func syncCursorToMouse() {

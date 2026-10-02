@@ -64,11 +64,19 @@ Safeguards against accidental input (the "Midas touch" problem):
 - **Pinch thresholds:** a pinch must hold for two frames. It starts below one
   threshold and ends above a higher one, so a pinch near the threshold doesn't
   flicker.
-- **Click rewind:** the click lands where the pointer was about 100 ms before
-  the pinch, which undoes the drift that pinching causes.
+- **Open between clicks:** the fingers must open before the next click, so a
+  hand that comes into view already pinched (holding a pen or a mug) doesn't
+  click.
+- **Click rewind:** the click lands where the pointer was when the fingers
+  started closing (50–250 ms earlier), which undoes the drift that pinching
+  causes. It never reaches back past the end of a drag.
 - **Drag slop:** a held pinch only becomes a drag after moving past a small
   distance.
-- **Tracking loss:** losing the hand releases any held button.
+- **Leaning:** the pointer follows the palm's position measured from the image
+  centre, in palm widths, so leaning toward or away from the camera barely
+  moves it.
+- **Tracking loss:** losing the hand, or frames stopping, releases any held
+  button or scroll.
 
 `HandKit` has no UI and is fully unit-tested with synthetic hand-pose sequences
 (`make test`).

@@ -423,4 +423,165 @@ func moves(_ events: [GestureEvent]) -> Int {
         _ = r.update(hand(at: CGPoint(x: 0.91, y: 0.5), t: 0.433), at: 0.433)
         #expect(r.mapper.cursor != before) // real motion still moves
     }
+
+    @Test func handArrivingPinchedNeverClicks() {
+        // Holding a pen or a mug: thumb and index are together when the hand appears.
+        var r = recognizer()
+        let held = run(&r, from: 0, frames: 30, pose: { hand(pinch: 0.1, t: $0) })
+        #expect(!held.contains { if case .down = $0 { true } else { false } })
+        // Opening and pinching again clicks as usual.
+        _ = run(&r, from: 1.0, frames: 3, pose: { hand(t: $0) })
+        let events = run(&r, from: 1.1, frames: 3, pose: { hand(pinch: 0.1, t: $0) })
+        #expect(events.contains { if case .down(_, clicks: 1) = $0 { true } else { false } })
+    }
+
+    @Test func pinchHeldPastMaxHoldClicksOnce() {
+        var r = recognizer()
+        _ = run(&r, from: 0, frames: 12, pose: { hand(t: $0) })
+        let events = run(&r, from: 0.4, frames: Int((GestureRecognizer.maxHold + 1) * 30), pose: { hand(pinch: 0.1, t: $0) })
+        #expect(events.filter { if case .down = $0 { true } else { false } }.count == 1)
+        #expect(events.filter { if case .up = $0 { true } else { false } }.count == 1)
+    }
+
+    @Test func clickAfterADragLandsWhereTheDragEnded() {
+        var r = recognizer()
+        _ = run(&r, from: 0, frames: 12, pose: { hand(t: $0) })
+        let start = r.mapper.cursor
+        _ = run(&r, from: 0.4, frames: 3, pose: { hand(pinch: 0.1, t: $0) })
+        _ = run(&r, from: 0.5, frames: 9, pose: { t in hand(at: CGPoint(x: 0.9 + (t - 0.5) * 0.1, y: 0.5), pinch: 0.1, t: t) })
+        // Released with the fingers only just apart, then pinched again at once.
+        let end = CGPoint(x: 0.93, y: 0.5)
+        let release = run(&r, from: 0.8, frames: 3, pose: { hand(at: end, pinch: 0.5, t: $0) })
+        let released = release.compactMap { if case .up(let p, _) = $0 { p } else { nil } }.first ?? start
+        #expect(released.distance(to: start) > 100)
+        let events = run(&r, from: 0.9, frames: 3, pose: { hand(at: end, pinch: 0.1, t: $0) })
+        let down = events.compactMap { if case .down(let p, _) = $0 { p } else { nil } }.first
+        #expect(down != nil)
+        // The rewind stops at the release; it can't reach back to before the drag.
+        #expect(down!.distance(to: released) < 10)
+    }
+
+    @Test func dragStartsWithoutALeap() {
+        var r = recognizer()
+        _ = run(&r, from: 0, frames: 12, pose: { hand(t: $0) })
+        _ = run(&r, from: 0.4, frames: 3, pose: { hand(pinch: 0.1, t: $0) })
+        let pressed = r.mapper.cursor
+        // Slowly (0.3 palm widths/s) past the 0.12 palm slop.
+        let events = run(&r, from: 0.5, frames: 25, pose: { t in hand(at: CGPoint(x: 0.9 + (t - 0.5) * 0.03, y: 0.5), pinch: 0.1, t: t) })
+        let first = events.compactMap { if case .drag(let p) = $0 { p } else { nil } }.first
+        #expect(first != nil)
+        // At the slow gain (350 pt per palm width) the slop is ~42 pt. Timing the
+        // first step as instantaneous read as a very fast move and leapt ~200 pt.
+        #expect(first!.distance(to: pressed) < 70)
+    }
+
+    @Test func leaningInDoesNotMoveTheCursor() {
+        // The user leans 15% closer: the whole image grows about its centre, hand included.
+        let center = CGPoint(x: 8.0 / 9.0, y: 0.5), home = CGPoint(x: 1.3, y: 0.35)
+        func leaning(_ t: Double) -> HandPose {
+            let k = 1 + 0.15 * ease(t, 0.5, 0.5)
+            return hand(at: CGPoint(x: center.x + (home.x - center.x) * k, y: center.y + (home.y - center.y) * k), scale: 0.1 * k, t: t)
+        }
+        var r = recognizer()
+        _ = run(&r, from: 0, frames: 15, pose: leaning)
+        let before = r.mapper.cursor
+        _ = run(&r, from: 0.5, frames: 45, pose: leaning)
+        // Measured from the image's corner instead, this lean moved the cursor ~380 pt.
+        #expect(r.mapper.cursor.distance(to: before) < 40)
+    }
+
+    @Test func cameraAspectChangeRebases() {
+        var r = recognizer()
+        _ = run(&r, from: 0, frames: 12, pose: { hand(t: $0) })
+        let before = r.mapper.cursor
+        r.imageAspect = 4.0 / 3 // a different camera format moves the image centre
+        _ = r.update(hand(t: 0.4), at: 0.4)
+        #expect(r.mapper.cursor == before)
+    }
+
+    @Test func relaxedFingersNearTheThresholdKeepFullSpeed() {
+        // Some hands rest with thumb and index fairly close (0.55, just above the
+        // 0.45 exit). That isn't a pinch closing, so pointing isn't slowed down.
+        func travel(pinch: Double) -> CGFloat {
+            var r = recognizer()
+            _ = run(&r, from: 0, frames: 12, pose: { hand(pinch: pinch, t: $0) })
+            let start = r.mapper.cursor
+            _ = run(&r, from: 0.4, frames: 15, pose: { t in hand(at: CGPoint(x: 0.9 + ease(t, 0.4, 0.4) * 0.05, y: 0.5), pinch: pinch, t: t) })
+            return r.mapper.cursor.x - start.x
+        }
+        #expect(travel(pinch: 1.2) > 50)
+        #expect(abs(travel(pinch: 0.55) - travel(pinch: 1.2)) < 2)
+    }
+
+    @Test func crossedThresholdsKeepHysteresis() {
+        // The Settings sliders can put exit below enter; release stays above enter.
+        var profile = HandProfile()
+        (profile.pinchEnter, profile.pinchExit) = (0.5, 0.4)
+        #expect(abs(profile.releaseThreshold - 0.58) < 1e-9)
+        #expect(HandProfile().releaseThreshold == HandProfile().pinchExit)
+        var r = GestureRecognizer(profile: profile, mapper: PointerMapper(bounds: screen, cursor: CGPoint(x: 720, y: 450)))
+        _ = run(&r, from: 0, frames: 12, pose: { hand(t: $0) })
+        _ = run(&r, from: 0.4, frames: 3, pose: { hand(pinch: 0.1, t: $0) })
+        #expect(r.isButtonDown)
+        // Fingers hovering between the two values: the press holds, no flicker.
+        let events = run(&r, from: 0.5, frames: 30, pose: { t in hand(pinch: Int(t * 30) % 2 == 0 ? 0.45 : 0.52, t: t) })
+        #expect(!events.contains { if case .up = $0 { true } else { false } })
+        #expect(!events.contains { if case .down = $0 { true } else { false } })
+    }
+
+    @Test(arguments: [30.0, 60.0]) func pauseNeedsAStillPalmAtAnyFrameRate(fps: Double) {
+        func pauses(speed: Double) -> Bool { // palm widths per second
+            var r = recognizer()
+            _ = run(&r, from: 0, frames: Int(0.4 * fps), fps: fps, pose: { hand(t: $0) })
+            return run(&r, from: 0.4, frames: Int(2 * fps), fps: fps, pose: { t in
+                hand(at: CGPoint(x: 0.9 + (t - 0.4) * speed * 0.1, y: 0.5), open: true, t: t)
+            }).contains(GestureEvent.paused(true))
+        }
+        #expect(pauses(speed: 0))
+        #expect(!pauses(speed: 0.8))
+    }
+
+    @Test func scrollingLocksToTheMainAxis() {
+        var r = recognizer()
+        _ = run(&r, from: 0, frames: 12, pose: { hand(t: $0) })
+        // Mostly down, with the sideways drift a real hand has.
+        let events = run(&r, from: 0.4, frames: 30, pose: { t in
+            hand(at: CGPoint(x: 0.9 + (t - 0.4) * 0.05, y: 0.5 - (t - 0.4) * 0.3), middle: 0.1, t: t)
+        })
+        let deltas = events.compactMap { if case .scroll(let dx, let dy, .changed) = $0 { (dx, dy) } else { nil } }
+        #expect(deltas.count > 10)
+        #expect(deltas.suffix(10).allSatisfy { $0.0 == 0 && $0.1 != 0 })
+    }
+
+    @Test func stalledFramesEndAScroll() {
+        var r = recognizer()
+        _ = run(&r, from: 0, frames: 12, pose: { hand(t: $0) })
+        _ = run(&r, from: 0.4, frames: 15, pose: { t in hand(at: CGPoint(x: 0.9, y: 0.5 + (t - 0.4) * 0.3), middle: 0.1, t: t) })
+        #expect(r.state == .scrolling)
+        #expect(r.isStalled(lastFrame: 10, now: 10.6))
+        #expect(r.releaseAll().contains { if case .scroll(_, _, .ended) = $0 { true } else { false } })
+    }
+
+    @Test func handSelectionIgnoresVisionOrder() {
+        // Both hands labelled dominant: the one nearest the last active hand wins, in either order.
+        let a = hand(at: CGPoint(x: 0.9, y: 0.5), t: 0), b = hand(at: CGPoint(x: 0.4, y: 0.5), t: 0)
+        let last = hand(at: CGPoint(x: 0.42, y: 0.5), t: 0)
+        #expect(HandSelection.pick([a, b], dominant: .right, last: last, holding: false) == b)
+        #expect(HandSelection.pick([b, a], dominant: .right, last: last, holding: false) == b)
+        // No history: the largest, i.e. the one nearest the camera.
+        let big = hand(at: CGPoint(x: 0.4, y: 0.5), scale: 0.15, t: 0)
+        #expect(HandSelection.pick([a, big], dominant: .right, last: nil, holding: false) == big)
+        #expect(HandSelection.pick([], dominant: .right, last: last, holding: false) == nil)
+    }
+
+    @Test func handSelectionKeepsTheHandThatHoldsTheButton() {
+        var left = hand(at: CGPoint(x: 0.4, y: 0.5), t: 0)
+        let right = hand(at: CGPoint(x: 1.2, y: 0.5), t: 0)
+        left.chirality = .left
+        // Dragging with the left hand when the dominant right hand comes into view.
+        #expect(HandSelection.pick([right, left], dominant: .right, last: left, holding: true) == left)
+        #expect(HandSelection.pick([right, left], dominant: .right, last: left, holding: false) == right)
+        // The dragging hand left the frame: no hand, so the button is released.
+        #expect(HandSelection.pick([right], dominant: .right, last: left, holding: true) == nil)
+    }
 }
