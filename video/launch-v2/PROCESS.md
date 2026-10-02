@@ -107,13 +107,26 @@ The creative brief and the beat sheet are in [`LAUNCH_PLAN.md`](LAUNCH_PLAN.md).
 
 **Before delivery:** all audit gates pass; a contact sheet of the sequential render reviewed; full-resolution checks of the hook, peak and CTA; loudness and peaks measured; both mixes encoded; a preview under the chat upload limit.
 
-## 8. Files
+## 8. What shipped
+
+| | |
+|---|---|
+| Masters | `sentidoS_launch_film.mp4` (score + SFX) and `sentidoS_launch_film_nomusic.mp4` (SFX only, for a trending sound) |
+| Format | 1080×1920, 30 fps, 47.4 s (1,422 frames); H.264 High, CRF 15; AAC 256 kbps, 48 kHz |
+| Loudness, measured on the encoded files | Full mix −14.0 LUFS, −0.9 dBTP; no-music mix −16.1 LUFS, −1.3 dBTP |
+| Audits | 0 text-edge, 0 safe-zone and 0 reading-time failures across all 1,422 frames |
+| Cost | 2,577 rendered sub-frames (1,155 of them for motion blur) in 22 min; finishing pass and encode 4.5 min |
+| Preview | 720×1280, 12.7 MB, for review in chat |
+
+The masters are not in git (`*.mp4` is ignored). Rebuild them with the commands in [`README.md`](README.md): render → `audio/build.py` → `audio/master.py` → `vfx.py` → mux.
+
+## 9. Files
 
 | File | What it is |
 |---|---|
 | `LAUNCH_PLAN.md` | The brief, concept, beat sheet and retention plan |
 | `film/` | The film as a web page: `core.js` (engine and audits), `scenes.js` (beats), `iris.js`, `hand.js`, `ui.js`, `logo.js` |
 | `render.js` | Frame renderer with sub-frame blur and audits; writes `events.json` and `audit.json` |
-| `audio/` | `lib.py` (DSP and instruments), `build.py` (stems and mixes from `events.json`) |
+| `audio/` | `lib.py` (DSP and instruments), `build.py` (stems and mixes from `events.json`), `master.py` (two-pass loudness) |
 | `vfx.py` | Finishing pass and encode |
 | `tiktok-rebrand/` | Profile kit for the account |
